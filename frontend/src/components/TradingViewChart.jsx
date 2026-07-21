@@ -5,7 +5,7 @@ import { Eye, EyeOff, BarChart2 } from 'lucide-react';
 import TimeframeSelector from './TimeframeSelector';
 
 export const TradingViewChart = ({ symbol, socket }) => {
-  const [chartInterval, setChartInterval] = useState('1yr'); // default to 1yr for consistency
+  const [chartInterval, setChartInterval] = useState('1y'); // default to 1y
   const [candles, setCandles] = useState([]);
   const [earliestDate, setEarliestDate] = useState(null);
   const [chartType, setChartType] = useState('candle'); // 'candle' | 'area'

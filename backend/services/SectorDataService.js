@@ -208,6 +208,95 @@ const INDIAN_SECTORS = [
       { symbol: 'CROMPTON.NS', name: 'Crompton Greaves' },
       { symbol: 'BATAINDIA.NS', name: 'Bata India' }
     ]
+  },
+  {
+    id: 'nifty-50',
+    name: 'Nifty 50 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: '^NSEI',
+    stocks: [
+      { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
+      { symbol: 'TCS.NS', name: 'TCS' },
+      { symbol: 'INFY.NS', name: 'Infosys' },
+      { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
+      { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
+      { symbol: 'SBIN.NS', name: 'State Bank of India' },
+      { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+      { symbol: 'ITC.NS', name: 'ITC' },
+      { symbol: 'SUNPHARMA.NS', name: 'Sun Pharma' },
+      { symbol: 'TATASTEEL.NS', name: 'Tata Steel' }
+    ]
+  },
+  {
+    id: 'nifty-100',
+    name: 'Nifty 100 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: '^CNX100',
+    stocks: [
+      { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
+      { symbol: 'TCS.NS', name: 'TCS' },
+      { symbol: 'INFY.NS', name: 'Infosys' },
+      { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
+      { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
+      { symbol: 'SBIN.NS', name: 'State Bank of India' },
+      { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+      { symbol: 'ITC.NS', name: 'ITC' },
+      { symbol: 'SUNPHARMA.NS', name: 'Sun Pharma' },
+      { symbol: 'TATASTEEL.NS', name: 'Tata Steel' },
+      { symbol: 'DLF.NS', name: 'DLF' }
+    ]
+  },
+  {
+    id: 'nifty-next-50',
+    name: 'Nifty Next 50 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: 'JUNIORBEES.NS',
+    stocks: [
+      { symbol: 'DLF.NS', name: 'DLF' }
+    ]
+  },
+  {
+    id: 'nifty-midcap-50',
+    name: 'Nifty Midcap 50 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: '^NSEMDCP50',
+    stocks: [
+      { symbol: 'DLF.NS', name: 'DLF' }
+    ]
+  },
+  {
+    id: 'nifty-smallcap-100',
+    name: 'Nifty Smallcap 100 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: '^CNXSC',
+    stocks: [
+      { symbol: 'DLF.NS', name: 'DLF' }
+    ]
+  },
+  {
+    id: 'nifty-500',
+    name: 'Nifty 500 Index',
+    region: 'india',
+    assetClass: 'stocks',
+    indexTicker: '^CRSLDX',
+    stocks: [
+      { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
+      { symbol: 'TCS.NS', name: 'TCS' },
+      { symbol: 'INFY.NS', name: 'Infosys' },
+      { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
+      { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
+      { symbol: 'SBIN.NS', name: 'State Bank of India' },
+      { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+      { symbol: 'ITC.NS', name: 'ITC' },
+      { symbol: 'SUNPHARMA.NS', name: 'Sun Pharma' },
+      { symbol: 'TATASTEEL.NS', name: 'Tata Steel' },
+      { symbol: 'DLF.NS', name: 'DLF' }
+    ]
   }
 ];
 
@@ -583,6 +672,34 @@ class SectorDataService {
     });
   }
 
+  async _getHistoricalIndexData(ticker, timeframe) {
+    try {
+      let range = '1y';
+      if (timeframe === '1W') range = '1w';
+      else if (timeframe === '1M') range = '1mo';
+      else if (timeframe === '1Y') range = '1y';
+      else if (timeframe === '5Y') range = '5y';
+      else if (timeframe === 'ALL') range = 'max';
+
+      const chartRes = await yahooFinanceService.getChartData(ticker, range);
+      const chart = chartRes.available ? chartRes.data : [];
+      if (chart.length < 2) return null;
+
+      const firstPrice = chart[0].close || chart[0].value || chart[0].price;
+      const lastPrice = chart[chart.length - 1].close || chart[chart.length - 1].value || chart[chart.length - 1].price;
+      if (!firstPrice || !lastPrice) return null;
+
+      const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
+      return {
+        changePercent: parseFloat(changePercent.toFixed(2)),
+        price: lastPrice
+      };
+    } catch (e) {
+      console.error(`Failed to fetch historical index data for ${ticker}:`, e.message);
+      return null;
+    }
+  }
+
   /**
    * Get all sectors with aggregated metrics.
    * @param {string} region - 'india', 'global', or 'all'
@@ -606,6 +723,19 @@ class SectorDataService {
       const indexEtfQuoteMap = new Map();
       indexEtfQuotes.forEach(q => indexEtfQuoteMap.set(q.symbol, q));
 
+      // Fetch historical index data if timeframe is not 1D
+      const isHistorical = timeframe !== '1D';
+      const historicalReturnsMap = new Map();
+      
+      if (isHistorical && indexEtfTickers.length > 0) {
+        await Promise.all(indexEtfTickers.map(async (ticker) => {
+          const hist = await this._getHistoricalIndexData(ticker, timeframe);
+          if (hist) {
+            historicalReturnsMap.set(ticker, hist);
+          }
+        }));
+      }
+
       const results = [];
 
       for (const sector of sectors) {
@@ -627,17 +757,34 @@ class SectorDataService {
 
           const indexTicker = sector.etfTicker || sector.indexTicker;
           const indexQuote = indexTicker ? indexEtfQuoteMap.get(indexTicker) : null;
-          const fiftyTwoWeekHigh = indexQuote && indexQuote.high52 ? indexQuote.high52 : 0;
-          const fiftyTwoWeekLow = indexQuote && indexQuote.low52 ? indexQuote.low52 : 0;
-          const open = indexQuote ? indexQuote.open : 0;
-          const previousClose = indexQuote ? indexQuote.previousClose : 0;
-          const dayHigh = indexQuote ? indexQuote.dayHigh : 0;
-          const dayLow = indexQuote ? indexQuote.dayLow : 0;
+          let fiftyTwoWeekHigh = indexQuote && indexQuote.high52 ? indexQuote.high52 : 0;
+          let fiftyTwoWeekLow = indexQuote && indexQuote.low52 ? indexQuote.low52 : 0;
+          let open = indexQuote ? indexQuote.open : 0;
+          let previousClose = indexQuote ? indexQuote.previousClose : 0;
+          let dayHigh = indexQuote ? indexQuote.dayHigh : 0;
+          let dayLow = indexQuote ? indexQuote.dayLow : 0;
           
           // Use the true Index/ETF change percent if available, otherwise fallback to unweighted average
-          const sectorChangePercent = indexQuote && indexQuote.changePercent !== undefined 
+          let sectorChangePercent = indexQuote && indexQuote.changePercent !== undefined 
             ? indexQuote.changePercent 
             : avgChangePercent;
+          let indexPrice = indexQuote ? indexQuote.ltp : 0;
+
+          if (isHistorical && indexTicker && historicalReturnsMap.has(indexTicker)) {
+            const hist = historicalReturnsMap.get(indexTicker);
+            sectorChangePercent = hist.changePercent;
+            indexPrice = hist.price;
+          }
+
+          if (indexTicker === 'JUNIORBEES.NS') {
+            indexPrice = indexPrice * 100;
+            fiftyTwoWeekHigh = fiftyTwoWeekHigh * 100;
+            fiftyTwoWeekLow = fiftyTwoWeekLow * 100;
+            open = open * 100;
+            previousClose = previousClose * 100;
+            dayHigh = dayHigh * 100;
+            dayLow = dayLow * 100;
+          }
             
           let trend = 'Neutral';
           if (sectorChangePercent > 0.5) trend = 'Bullish';
@@ -663,7 +810,7 @@ class SectorDataService {
             previousClose,
             dayHigh,
             dayLow,
-            indexPrice: indexQuote ? indexQuote.ltp : 0
+            indexPrice
           });
         } catch (err) {
           console.error(`Error fetching sector ${sector.id}:`, err.message);

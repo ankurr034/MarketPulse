@@ -4,7 +4,8 @@ import yahooFinanceService from './YahooFinanceService.js';
 const CORE_SYMBOLS = [
   'RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 
   'SBIN.NS', 'TATAMOTORS.NS', 'ITC.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 
-  'DLF.NS', 'AAPL', 'MSFT', 'TSLA', 'NVDA'
+  'DLF.NS', 'AAPL', 'MSFT', 'TSLA', 'NVDA',
+  '^NSEI', '^CNX100', 'JUNIORBEES.NS', '^NSEMDCP50', '^CNXSC', '^CRSLDX'
 ];
 
 const STOCKS_METADATA = [
@@ -22,11 +23,17 @@ const STOCKS_METADATA = [
   { symbol: 'AAPL', name: 'Apple Inc.', sector: 'IT', basePrice: 220 },
   { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'IT', basePrice: 450 },
   { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Auto', basePrice: 250 },
-  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 125 }
+  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 125 },
+  { symbol: '^NSEI', name: 'NIFTY 50', sector: 'Index', basePrice: 24250 },
+  { symbol: '^CNX100', name: 'NIFTY 100', sector: 'Index', basePrice: 25300 },
+  { symbol: 'JUNIORBEES.NS', name: 'NIFTY NEXT 50', sector: 'Index', basePrice: 720 },
+  { symbol: '^NSEMDCP50', name: 'NIFTY MIDCAP 50', sector: 'Index', basePrice: 14200 },
+  { symbol: '^CNXSC', name: 'NIFTY SMALLCAP 100', sector: 'Index', basePrice: 18500 },
+  { symbol: '^CRSLDX', name: 'NIFTY 500', sector: 'Index', basePrice: 22600 }
 ];
 
 const SECTORS_LIST = [
-  'Banking', 'IT', 'Pharma', 'FMCG', 'Auto', 'Realty', 'Energy', 'Metals'
+  'Banking', 'IT', 'Pharma', 'FMCG', 'Auto', 'Realty', 'Energy', 'Metals', 'Index'
 ];
 
 class SimulatorService {
@@ -86,7 +93,10 @@ class SimulatorService {
       'S&P 500': { price: 5560, change: 25, changePercent: 0.45, high: 5575, low: 5530 },
       'NASDAQ': { price: 18450, change: 110, changePercent: 0.60, high: 18500, low: 18320 },
       'FTSE 100': { price: 8250, change: 15, changePercent: 0.18, high: 8280, low: 8220 },
-      'NIKKEI 225': { price: 41200, change: 350, changePercent: 0.86, high: 41350, low: 40950 }
+      'NIKKEI 225': { price: 41200, change: 350, changePercent: 0.86, high: 41350, low: 40950 },
+      'NIFTY 100': { price: 25300, change: 140, changePercent: 0.55, high: 25400, low: 25150 },
+      'NIFTY NEXT 50': { price: 72000, change: 800, changePercent: 1.12, high: 72200, low: 71000 },
+      'NIFTY 500': { price: 22600, change: 160, changePercent: 0.71, high: 22700, low: 22400 }
     };
   }
 
@@ -107,11 +117,16 @@ class SimulatorService {
       const divYield = parseFloat((Math.random() * 3).toFixed(2));
       const volume = Math.floor(500000 + Math.random() * 1500000);
 
+      const openPrice = parseFloat((price * (1 - (Math.random() - 0.5) * 0.01)).toFixed(2));
+      const previousClose = parseFloat((price * (1 - (Math.random() - 0.5) * 0.015)).toFixed(2));
+
       this.stocks[meta.symbol] = {
         symbol: meta.symbol,
         name: meta.name,
         sector: meta.sector,
         ltp: ltp,
+        open: openPrice,
+        previousClose: previousClose,
         change: change,
         changePercent: parseFloat(pctChange.toFixed(2)),
         dayHigh: dayHigh,
@@ -312,58 +327,78 @@ class SimulatorService {
     this.yahooInterval = setInterval(pollQuotes, 30000);
   }
 
+  // Check if Indian market is currently open
+  isMarketOpen() {
+    const now = new Date();
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const ist = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + istOffset);
+    const day = ist.getDay();
+    const hours = ist.getHours();
+    const minutes = ist.getMinutes();
+    const currentTime = hours + minutes / 60;
+    // Mon-Fri 9:15 AM to 3:30 PM
+    return day >= 1 && day <= 5 && currentTime >= 9.25 && currentTime <= 15.5;
+  }
+
   // Micro fluctuations every 1.5s around the Yahoo anchor
   startSimulationLoops() {
     this.initTimer = setInterval(() => {
-      // 1. Update Global Indices (slight drift)
-      Object.keys(this.indices).forEach(name => {
-        const idx = this.indices[name];
-        const drift = (Math.random() - 0.48) * 0.0008;
-        const change = idx.price * drift;
-        idx.price = parseFloat((idx.price + change).toFixed(2));
-        idx.change = parseFloat((idx.change + change).toFixed(2));
-        idx.changePercent = parseFloat(((idx.change / (idx.price - idx.change)) * 100).toFixed(2));
-      });
+      const marketOpen = this.isMarketOpen();
 
-      // 2. Micro fluctuation for stocks
-      const ticks = [];
-      Object.values(this.stocks).forEach(stock => {
-        // Apply micro movement (+/- 0.02%)
-        const spread = (Math.random() - 0.5) * 0.0004 * stock.ltp;
-        const oldLtp = stock.ltp;
-        stock.ltp = parseFloat((stock.ltp + spread).toFixed(2));
-        stock.change = parseFloat((stock.change + spread).toFixed(2));
-        const openPrice = stock.ltp - stock.change;
-        stock.changePercent = parseFloat(((stock.change / openPrice) * 100).toFixed(2));
-
-        if (stock.ltp > stock.dayHigh) stock.dayHigh = stock.ltp;
-        if (stock.ltp < stock.dayLow) stock.dayLow = stock.ltp;
-
-        const tradeVol = Math.floor(Math.random() * 80);
-        stock.volume += tradeVol;
-
-        ticks.push({
-          symbol: stock.symbol,
-          ltp: stock.ltp,
-          change: stock.change,
-          changePercent: stock.changePercent,
-          volume: stock.volume,
-          dayHigh: stock.dayHigh,
-          dayLow: stock.dayLow,
-          vwap: stock.vwap
+      // Only drift prices when market is open
+      if (marketOpen) {
+        // 1. Update Global Indices (slight drift)
+        Object.keys(this.indices).forEach(name => {
+          const idx = this.indices[name];
+          const drift = (Math.random() - 0.48) * 0.0008;
+          const change = idx.price * drift;
+          idx.price = parseFloat((idx.price + change).toFixed(2));
+          idx.change = parseFloat((idx.change + change).toFixed(2));
+          idx.changePercent = parseFloat(((idx.change / (idx.price - idx.change)) * 100).toFixed(2));
         });
 
-        // 3. Update candles
-        this.updateCandleTimeframes(stock.symbol, oldLtp, stock.ltp, tradeVol);
-        
-        // 4. Alert check
-        this.evaluateAlerts(stock.symbol, stock.ltp);
-      });
+        // 2. Micro fluctuation for stocks
+        const ticks = [];
+        Object.values(this.stocks).forEach(stock => {
+          // Apply micro movement (+/- 0.02%)
+          const spread = (Math.random() - 0.5) * 0.0004 * stock.ltp;
+          const oldLtp = stock.ltp;
+          stock.ltp = parseFloat((stock.ltp + spread).toFixed(2));
+          stock.change = parseFloat((stock.change + spread).toFixed(2));
+          const openPrice = stock.ltp - stock.change;
+          stock.changePercent = parseFloat(((stock.change / openPrice) * 100).toFixed(2));
 
-      if (this.io) {
-        this.io.to('ticks').emit('tick_update', ticks);
-        this.io.to('indices').emit('indices_update', this.indices);
+          if (stock.ltp > stock.dayHigh) stock.dayHigh = stock.ltp;
+          if (stock.ltp < stock.dayLow) stock.dayLow = stock.ltp;
+
+          const tradeVol = Math.floor(Math.random() * 80);
+          stock.volume += tradeVol;
+
+          ticks.push({
+            symbol: stock.symbol,
+            ltp: stock.ltp,
+            change: stock.change,
+            changePercent: stock.changePercent,
+            volume: stock.volume,
+            dayHigh: stock.dayHigh,
+            dayLow: stock.dayLow,
+            vwap: stock.vwap
+          });
+
+          // 3. Update candles
+          this.updateCandleTimeframes(stock.symbol, oldLtp, stock.ltp, tradeVol);
+          
+          // 4. Alert check
+          this.evaluateAlerts(stock.symbol, stock.ltp);
+        });
+
+        if (this.io) {
+          this.io.to('ticks').emit('tick_update', ticks);
+          this.io.to('indices').emit('indices_update', this.indices);
+        }
       }
+      // When market is closed, no price updates are emitted
     }, 1500);
 
     // Random News generator (Bullish/Bearish shifts)

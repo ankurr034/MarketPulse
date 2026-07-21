@@ -21,7 +21,15 @@ router.get('/', async (req, res) => {
       name: s.name,
       sector: s.sector,
       ltp: s.ltp,
-      changePercent: s.changePercent
+      open: s.open,
+      previousClose: s.previousClose,
+      change: s.change,
+      changePercent: s.changePercent,
+      dayHigh: s.dayHigh,
+      dayLow: s.dayLow,
+      high52: s.high52,
+      low52: s.low52,
+      volume: s.volume
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });

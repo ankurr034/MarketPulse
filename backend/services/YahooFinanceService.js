@@ -16,7 +16,8 @@ class YahooFinanceService {
     this.coreSymbols = [
       'RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 
       'SBIN.NS', 'TATAMOTORS.NS', 'ITC.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 
-      'DLF.NS', 'AAPL', 'MSFT', 'TSLA', 'NVDA'
+      'DLF.NS', 'AAPL', 'MSFT', 'TSLA', 'NVDA',
+      '^NSEI', '^CNX100', 'JUNIORBEES.NS', '^NSEMDCP50', '^CNXSC', '^CRSLDX'
     ];
   }
 
@@ -100,10 +101,12 @@ class YahooFinanceService {
       const support = parseFloat((ltp * 0.965).toFixed(2));
       const resistance = parseFloat((ltp * 1.035).toFixed(2));
 
-      return {
+      const result = {
         symbol,
         name: q.shortName || q.longName || symbol,
         ltp,
+        open: q.regularMarketOpen || q.regularMarketPreviousClose || 0,
+        previousClose: q.regularMarketPreviousClose || 0,
         change: parseFloat((q.regularMarketChange || 0).toFixed(2)),
         changePercent: parseFloat((q.regularMarketChangePercent || 0).toFixed(2)),
         dayHigh: q.regularMarketDayHigh || 0,
@@ -150,6 +153,7 @@ class YahooFinanceService {
         yfInterval = '1d';
       } else if (typeof interval === 'string') {
         if (interval === '1d') yfInterval = '5m';
+        else if (interval === '1w') yfInterval = '15m';
         else if (interval === '1mo') yfInterval = '1h';
         else if (interval === '1yr' || interval === '1y') yfInterval = '1d';
         else if (interval === '3y' || interval === '3yr') yfInterval = '1wk';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveSector, setSectors, setLoading } from '../store/slices/marketSlice';
+import { setActiveSector, setSectors, setLoading, setActiveSymbol, setTimeframe } from '../store/slices/marketSlice';
 import { ArrowUpRight, ArrowDownRight, Minus, LayoutGrid, Grid3X3, List, TrendingUp, TrendingDown, BarChart2, Activity } from 'lucide-react';
 import { Treemap, ResponsiveContainer } from 'recharts';
 import SparklineChart from '../components/SparklineChart';
@@ -167,9 +167,11 @@ const InlineSectorDetail = ({ sectorId, timeframe }) => {
 
 export default function SectorHeatmap() {
   const dispatch = useDispatch();
-  const { sectors, region, timeframe, assetClass, loading } = useSelector(state => state.market);
+  const { sectors, region, timeframe, assetClass, loading, stocks: allStocks, indices: allIndices } = useSelector(state => state.market);
   const [viewMode, setViewMode] = useState('table'); // 'grid' | 'treemap' | 'table'
   const [expandedSectorId, setExpandedSectorId] = useState(null);
+  const [stockTimeframe, setStockTimeframe] = useState('1D');
+  const [expandedIndex, setExpandedIndex] = useState(null);
 
   // Fetch sectors data
   useEffect(() => {
@@ -242,26 +244,45 @@ export default function SectorHeatmap() {
           </p>
         </div>
 
-        {/* View mode toggle */}
-        <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'grid' ? 'active' : ''}`}
-          >
-            <LayoutGrid size={13} /> Grid
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'table' ? 'active' : ''}`}
-          >
-            <List size={13} /> Table
-          </button>
-          <button
-            onClick={() => setViewMode('treemap')}
-            className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'treemap' ? 'active' : ''}`}
-          >
-            <Grid3X3 size={13} /> Treemap
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Timeframe Selector */}
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-900/60 border border-slate-800">
+            {['1D', '1W', '1M', '1Y', '5Y', 'ALL'].map(tf => (
+              <button
+                key={tf}
+                onClick={() => dispatch(setTimeframe(tf))}
+                className={`px-3 py-1.5 rounded-md text-[10px] font-mono font-bold transition-all ${
+                  timeframe === tf 
+                    ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/10' 
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'grid' ? 'active' : ''}`}
+            >
+              <LayoutGrid size={13} /> Grid
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'table' ? 'active' : ''}`}
+            >
+              <List size={13} /> Table
+            </button>
+            <button
+              onClick={() => setViewMode('treemap')}
+              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'treemap' ? 'active' : ''}`}
+            >
+              <Grid3X3 size={13} /> Treemap
+            </button>
+          </div>
         </div>
       </div>
 
@@ -282,8 +303,7 @@ export default function SectorHeatmap() {
                   <th className="text-left">Sector</th>
                   <th className="text-center">Advance/Decline</th>
                   <th className="text-right">Index Price</th>
-                  <th className="text-right">OHLC (Day)</th>
-                  <th className="text-right">52W H/L</th>
+                  <th className="text-right">52W H/L (% Change)</th>
                   <th className="text-right">Change</th>
                 </tr>
               </thead>
@@ -323,18 +343,20 @@ export default function SectorHeatmap() {
                           {sector.indexPrice ? sector.indexPrice.toFixed(2) : '—'}
                         </td>
                         <td className="text-right font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          {sector.indexPrice ? (
+                          {sector.fiftyTwoWeekHigh && sector.fiftyTwoWeekLow && sector.indexPrice ? (
                             <div className="flex flex-col">
-                              <span>O: {sector.open?.toFixed(2)} | H: {sector.dayHigh?.toFixed(2)}</span>
-                              <span>L: {sector.dayLow?.toFixed(2)} | C: {sector.previousClose?.toFixed(2)}</span>
-                            </div>
-                          ) : '—'}
-                        </td>
-                        <td className="text-right font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          {sector.fiftyTwoWeekHigh && sector.fiftyTwoWeekLow ? (
-                            <div className="flex flex-col">
-                              <span className="text-gain">H: {sector.fiftyTwoWeekHigh?.toFixed(2)}</span>
-                              <span className="text-loss">L: {sector.fiftyTwoWeekLow?.toFixed(2)}</span>
+                              <span className="text-gain">
+                                H: {sector.fiftyTwoWeekHigh?.toFixed(2)}
+                                <span className="text-loss ml-1 font-semibold">
+                                  ({(((sector.indexPrice - sector.fiftyTwoWeekHigh) / sector.fiftyTwoWeekHigh) * 100).toFixed(1)}%)
+                                </span>
+                              </span>
+                              <span className="text-loss">
+                                L: {sector.fiftyTwoWeekLow?.toFixed(2)}
+                                <span className="text-gain ml-1 font-semibold">
+                                  (+{(((sector.indexPrice - sector.fiftyTwoWeekLow) / sector.fiftyTwoWeekLow) * 100).toFixed(1)}%)
+                                </span>
+                              </span>
                             </div>
                           ) : '—'}
                         </td>
@@ -346,7 +368,7 @@ export default function SectorHeatmap() {
                       </tr>
                       {expandedSectorId === sector.id && (
                         <tr>
-                          <td colSpan="6" className="p-0 border-0">
+                          <td colSpan="5" className="p-0 border-0">
                             <InlineSectorDetail sectorId={sector.id} timeframe={timeframe} />
                           </td>
                         </tr>
@@ -486,6 +508,8 @@ export default function SectorHeatmap() {
           </div>
         </div>
       )}
+
+
 
       {/* Empty state */}
       {!loading && sectors.length === 0 && (

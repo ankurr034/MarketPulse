@@ -3,6 +3,9 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const INDEX_KEYS = [
   { key: 'NIFTY 50', label: 'NIFTY 50' },
+  { key: 'NIFTY 100', label: 'NIFTY 100' },
+  { key: 'NIFTY NEXT 50', label: 'NIFTY NEXT 50' },
+  { key: 'NIFTY 500', label: 'NIFTY 500' },
   { key: 'SENSEX', label: 'SENSEX' },
   { key: 'BANK NIFTY', label: 'BANK NIFTY' },
   { key: 'S&P 500', label: 'S&P 500' },

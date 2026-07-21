@@ -28,8 +28,10 @@ export default function TimeframeSelector({
   const cyRanges = listAvailableCalendarYears(earliestDate).map(label => ({ type: 'cy', label }));
 
   const rollingOptions = [
+    { label: '1D', val: '1d' },
+    { label: '1W', val: '1w' },
+    { label: '1M', val: '1mo' },
     { label: '1Y', val: '1y' },
-    { label: '3Y', val: '3y' },
     { label: '5Y', val: '5y' },
     { label: 'ALL', val: 'max' }
   ];

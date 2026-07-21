@@ -216,10 +216,10 @@ class MfDataAggregatorService {
       throw new Error('Data unavailable from mfdata.in');
     } catch (err) {
       console.warn(`mfdata.in Holdings fetch failed for ${schemeCode}. Trying FinAPI fallback...`);
+      let schemeName = null;
+      let category = null;
       try {
         // 1. Resolve scheme name (try curated basket first, then mfapi.in)
-        let schemeName = null;
-        let category = null;
         for (const sectorName in sectorBasket) {
           const fund = sectorBasket[sectorName].funds.find(f => String(f.id) === String(schemeCode));
           if (fund) {

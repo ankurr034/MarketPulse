@@ -107,7 +107,9 @@ function resolveRangeToDates(range) {
   let start = new Date();
 
   if (typeof range === 'string') {
-    if (range === '1m') start.setMonth(start.getMonth() - 1);
+    if (range === '1d') start.setDate(start.getDate() - 1);
+    else if (range === '1w') start.setDate(start.getDate() - 7);
+    else if (range === '1mo' || range === '1m') start.setMonth(start.getMonth() - 1);
     else if (range === '3m') start.setMonth(start.getMonth() - 3);
     else if (range === '6m') start.setMonth(start.getMonth() - 6);
     else if (range === '1y' || range === '1yr') start.setFullYear(start.getFullYear() - 1);

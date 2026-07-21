@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import useWebSocket from './hooks/useWebSocket';
 import axios from 'axios';
-import { setSectors } from './store/slices/marketSlice';
+import { setSectors, setStocks, setIndices } from './store/slices/marketSlice';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -68,6 +68,25 @@ function App() {
     const interval = setInterval(fetchSectors, 60000); // refresh every min
     return () => clearInterval(interval);
   }, [region, timeframe, assetClass, dispatch]);
+
+  // Fetch Stocks & Indices on mount
+  useEffect(() => {
+    const fetchStocksAndIndices = async () => {
+      try {
+        const [stocksRes, indicesRes] = await Promise.all([
+          axios.get(`${API_BASE}/stocks`),
+          axios.get(`${API_BASE}/market/indices`)
+        ]);
+        dispatch(setStocks(stocksRes.data));
+        dispatch(setIndices(indicesRes.data));
+      } catch (err) {
+        console.error('Failed to fetch stocks/indices:', err);
+      }
+    };
+    fetchStocksAndIndices();
+    const interval = setInterval(fetchStocksAndIndices, 10000);
+    return () => clearInterval(interval);
+  }, [dispatch]);
 
   // Apply theme class on mount
   useEffect(() => {
