@@ -1,0 +1,35 @@
+[
+  {
+    "description": "Rolling 1y string",
+    "input": "1y",
+    "expectedType": "rolling"
+  },
+  {
+    "description": "FY object FY2023-24",
+    "input": { "type": "fy", "label": "FY2023-24" },
+    "expected": { "start": "2023-04-01T00:00:00.000Z", "end": "2024-03-31T23:59:59.999Z" }
+  },
+  {
+    "description": "CY object 2024",
+    "input": { "type": "cy", "label": "2024" },
+    "expected": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z" }
+  },
+  {
+    "description": "Stringify rolling",
+    "method": "stringifyRange",
+    "input": "1y",
+    "expected": "rolling:1y"
+  },
+  {
+    "description": "Stringify FY",
+    "method": "stringifyRange",
+    "input": { "type": "fy", "label": "FY2024-25" },
+    "expected": "fy:FY2024-25"
+  },
+  {
+    "description": "Stringify CY",
+    "method": "stringifyRange",
+    "input": { "type": "cy", "label": "2024" },
+    "expected": "cy:2024"
+  }
+]

@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: delta_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - deltatrade-network
+
+  backend:
+    build: ./backend
+    container_name: delta_backend
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb://mongodb:27017/trading_dashboard
+      - JWT_SECRET=super_secret_trading_dashboard_jwt_key_2026
+    depends_on:
+      - mongodb
+    networks:
+      - deltatrade-network
+
+  frontend:
+    build: ./frontend
+    container_name: delta_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - deltatrade-network
+
+volumes:
+  mongo_data:
+
+networks:
+  deltatrade-network:
+    driver: bridge
