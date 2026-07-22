@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveSymbol, navigateBack } from '../store/slices/marketSlice';
+import { setActiveSymbol, navigateBack, setTimeframe } from '../store/slices/marketSlice';
 import { ArrowLeft, ArrowUpRight, ArrowDownRight, Minus, ChevronUp, ChevronDown, BarChart2, TrendingUp, TrendingDown, Activity, Sparkles } from 'lucide-react';
 import { TradingViewChart } from '../components/TradingViewChart';
 import SparklineChart from '../components/SparklineChart';
@@ -33,7 +33,7 @@ export default function SectorDetail() {
     const fetchDetail = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/sectors/${activeSector}`);
+        const res = await axios.get(`${API_BASE}/sectors/${activeSector}?timeframe=${timeframe}`);
         setSectorData(res.data);
       } catch (err) {
         console.error('Failed to fetch sector detail:', err.message);
@@ -103,9 +103,9 @@ export default function SectorDetail() {
     );
   }
 
-  if (!sectorData) {
+  if (!sectorData && !loading) {
     return (
-      <div className="glass-card p-12 text-center view-transition">
+      <div className="glass-card p-12 text-center">
         <Activity size={40} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
         <h3 className="font-display font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>Sector not found</h3>
         <button onClick={() => dispatch(navigateBack())} className="mt-3 text-sm font-medium" style={{ color: 'var(--accent)' }}>
@@ -145,6 +145,24 @@ export default function SectorDetail() {
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
             <span className="text-gain">{sector.advanceCount || 0} advancing</span> · <span className="text-loss">{sector.declineCount || 0} declining</span> · {displayStocks.length} stocks
           </p>
+        </div>
+
+        {/* Timeframe Selector Pills */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+          <span className="text-[10px] text-slate-500 font-bold uppercase px-2 font-mono">Timeframe:</span>
+          {['1D', '1W', '1M', '1Y', '5Y', 'ALL'].map(tf => (
+            <button
+              key={tf}
+              onClick={() => dispatch(setTimeframe(tf))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
+                timeframe === tf
+                  ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -225,7 +243,7 @@ export default function SectorDetail() {
                   <span className="flex items-center justify-end gap-1">Price <SortIcon columnKey="ltp" /></span>
                 </th>
                 <th onClick={() => handleSort('changePercent')} className="text-right">
-                  <span className="flex items-center justify-end gap-1">Change <SortIcon columnKey="changePercent" /></span>
+                  <span className="flex items-center justify-end gap-1">Change ({timeframe}) <SortIcon columnKey="changePercent" /></span>
                 </th>
                 <th onClick={() => handleSort('volume')} className="text-right hidden sm:table-cell">
                   <span className="flex items-center justify-end gap-1">Volume <SortIcon columnKey="volume" /></span>

@@ -39,10 +39,11 @@ router.get('/search', (req, res) => {
   res.json(results);
 });
 
-// GET /api/sectors/:sectorId
+// GET /api/sectors/:sectorId?timeframe=1D|1W|1M|1Y|5Y|ALL
 router.get('/:sectorId', async (req, res) => {
   try {
-    const detail = await sectorDataService.getSectorDetail(req.params.sectorId);
+    const { timeframe = '1D' } = req.query;
+    const detail = await sectorDataService.getSectorDetail(req.params.sectorId, timeframe);
     if (!detail) {
       return res.status(404).json({ error: 'Sector not found' });
     }

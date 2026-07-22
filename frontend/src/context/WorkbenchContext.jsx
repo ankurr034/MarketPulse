@@ -13,19 +13,25 @@ export function WorkbenchProvider({ children }) {
   };
 
   const pin = (item) => {
+    let allowed = true;
     setItems((prev) => {
       // Check if already pinned
       if (prev.some(i => i.type === item.type && i.id === item.id)) {
+        allowed = false;
         return prev;
       }
       
       if (prev.length >= 6) {
         showToast('Maximum 6 items allowed in Comparison Workbench');
+        allowed = false;
         return prev;
       }
       
       return [...prev, item];
     });
+    if (allowed) {
+      setIsOpen(true);
+    }
   };
 
   const unpin = (type, id) => {

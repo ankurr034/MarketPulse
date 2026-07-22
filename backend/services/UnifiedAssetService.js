@@ -80,8 +80,19 @@ class UnifiedAssetService {
       const detail = detailRes.available ? detailRes.data : null;
       const chartRes = await yahooFinanceService.getChartData(id, range);
       const chart = chartRes.available ? chartRes.data : [];
+
+      let rangeChangePct = detail?.changePercent || detail?.oneYearChangePct;
+      if (chart && chart.length >= 2) {
+        const firstVal = chart[0].close || chart[0].value || chart[0].price;
+        const lastVal = chart[chart.length - 1].close || chart[chart.length - 1].value || chart[chart.length - 1].price;
+        if (firstVal && lastVal && firstVal > 0) {
+          rangeChangePct = parseFloat((((lastVal - firstVal) / firstVal) * 100).toFixed(2));
+        }
+      }
+
       return {
         ...detail,
+        oneYearChangePct: rangeChangePct,
         type: 'stock',
         history: chart
       };

@@ -71,7 +71,7 @@ export default function AllMutualFundsDirectory() {
     
     setLoading(true);
     try {
-      let url = `${API_BASE}/indian-mf/all-schemes?page=${page}&pageSize=20&search=${encodeURIComponent(query)}`;
+      let url = `${API_BASE}/indian-mf/all-schemes?page=${page}&pageSize=100&search=${encodeURIComponent(query)}`;
       if (category) {
         url += `&category=${encodeURIComponent(category)}`;
       }
@@ -85,7 +85,7 @@ export default function AllMutualFundsDirectory() {
       
       setSchemes(prev => {
         const newSchemes = [...prev];
-        const startIndex = (page - 1) * 20;
+        const startIndex = (page - 1) * 100;
         for (let i = 0; i < data.schemes.length; i++) {
           newSchemes[startIndex + i] = data.schemes[i];
         }

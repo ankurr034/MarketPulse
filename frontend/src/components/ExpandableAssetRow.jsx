@@ -205,13 +205,13 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                 {asset.type === 'mf' && (
                   <>
                     <div className="text-right">
-                      <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sharpe</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sharpe (1Y)</div>
                       <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
                         {asset.sharpeRatio !== 0 ? asset.sharpeRatio?.toFixed(2) : '—'}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sortino</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sortino (1Y)</div>
                       <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
                         {asset.sortinoRatio !== 0 ? asset.sortinoRatio?.toFixed(2) : '—'}
                       </div>
@@ -308,7 +308,7 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                     </div>
                   </div>
                   <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 flex flex-col justify-center items-center text-center shadow-sm hover:border-indigo-500/30 transition-colors">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold tracking-wider mb-1">Sharpe / Sortino</div>
+                    <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold tracking-wider mb-1">Sharpe (1Y) / Sortino (1Y)</div>
                     <div className="text-lg font-bold text-[var(--text-primary)]">
                       {asset.type === 'mf' ? (
                         <>
@@ -390,6 +390,51 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                         </div>
                       )}
                     </div>
+
+                    {/* Sector-wise Allocation */}
+                    {(() => {
+                      const sectorData = detail.sectorBreakdown || detail.profile?.sectorBreakdown || {};
+                      const sectorEntries = Object.entries(sectorData).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+                      if (sectorEntries.length === 0) return null;
+                      
+                      const SECTOR_COLORS = [
+                        '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                        '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
+                        '#a855f7', '#64748b'
+                      ];
+                      
+                      return (
+                        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 mt-4">
+                          <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <Percent size={14} /> Sector Allocation
+                          </div>
+                          {/* Stacked bar */}
+                          <div className="w-full h-4 rounded-full overflow-hidden flex mb-3">
+                            {sectorEntries.map(([sector, pct], idx) => (
+                              <div
+                                key={sector}
+                                style={{ width: `${pct}%`, backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }}
+                                title={`${sector}: ${pct}%`}
+                                className="h-full transition-all"
+                              />
+                            ))}
+                          </div>
+                          {/* Legend */}
+                          <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                            {sectorEntries.map(([sector, pct], idx) => (
+                              <div key={sector} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }} />
+                                  <span className="text-[var(--text-primary)] truncate max-w-[150px]">{sector}</span>
+                                </div>
+                                <span className="text-[var(--text-muted)] font-mono">{pct.toFixed(1)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
                     {detail.peers && detail.peers.length > 0 && (
                       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 mt-4">
                         <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">

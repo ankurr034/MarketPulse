@@ -3,8 +3,20 @@ import macroDataService from '../services/MacroDataService.js';
 import indianMfSectorService from '../services/IndianMfSectorService.js';
 import macroCorrelationService from '../services/MacroCorrelationService.js';
 import allFundsDirectoryService from '../services/AllFundsDirectoryService.js';
+import liveMfAnalyticsService from '../services/LiveMfAnalyticsService.js';
 
 const router = express.Router();
+
+router.get('/dashboard-summary', async (req, res) => {
+  try {
+    const { category = 'all' } = req.query;
+    const summary = await liveMfAnalyticsService.getLiveDashboardSummary(category);
+    res.json(summary);
+  } catch (err) {
+    console.error('Error fetching live dashboard summary:', err);
+    res.status(500).json({ error: 'Failed to fetch live dashboard summary', details: err.message });
+  }
+});
 
 let sectorsOverviewCache = null;
 let sectorsOverviewCacheTime = null;

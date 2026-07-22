@@ -78,7 +78,7 @@ const InlineSectorDetail = ({ sectorId, timeframe }) => {
     const fetchDetail = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/sectors/${sectorId}`);
+        const res = await axios.get(`${API_BASE}/sectors/${sectorId}?timeframe=${timeframe}`);
         setData(res.data);
       } catch (err) {
         console.error(err);
@@ -116,7 +116,7 @@ const InlineSectorDetail = ({ sectorId, timeframe }) => {
             <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
               <th className="pb-2 font-medium uppercase tracking-wider">Company</th>
               <th className="pb-2 text-right font-medium uppercase tracking-wider">Price</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider">Change</th>
+              <th className="pb-2 text-right font-medium uppercase tracking-wider">Change ({timeframe})</th>
               <th className="pb-2 text-right font-medium uppercase tracking-wider hidden sm:table-cell">PE</th>
               <th className="pb-2 text-right font-medium uppercase tracking-wider hidden sm:table-cell">PB</th>
               <th className="pb-2 text-right font-medium uppercase tracking-wider hidden md:table-cell">52W Range</th>
@@ -304,7 +304,7 @@ export default function SectorHeatmap() {
                   <th className="text-center">Advance/Decline</th>
                   <th className="text-right">Index Price</th>
                   <th className="text-right">52W H/L (% Change)</th>
-                  <th className="text-right">Change</th>
+                  <th className="text-right">Change ({timeframe})</th>
                 </tr>
               </thead>
               <tbody>
