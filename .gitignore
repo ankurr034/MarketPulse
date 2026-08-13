@@ -19,4 +19,7 @@ yarn-error.log*
 *.sw?
 data/
 backend/data/
+.vite/
+*.vite
+
 
