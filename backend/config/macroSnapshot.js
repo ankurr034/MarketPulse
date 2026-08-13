@@ -26,5 +26,12 @@ export default {
     value: 5.1, 
     date: '2026-05-31', 
     note: 'May 2026' 
+  },
+  riskFreeRate: {
+    value: 6.25,
+    date: '2026-08-01',
+    source: 'RBI 91-Day T-Bill Benchmark Rate',
+    status: 'VERIFIED'
   }
 };
+

@@ -1,229 +1,81 @@
-import axios from 'axios';
-import RiskAnalyticsService from './RiskAnalyticsService.js';
+import amfiImportService from './AmfiImportService.js';
+import mfDataAggregatorService from './MfDataAggregatorService.js';
+import aiRankingEngineService from './AiRankingEngineService.js';
+import { isStrictDirectGrowth } from '../utils/schemeFilterUtil.js';
 
 class AllFundsDirectoryService {
   constructor() {
-    this.cache = null;
-    this.cacheTimestamp = 0;
-    this.CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-    this.schemeNavCache = new Map();
+    this.CACHE_TTL = 30 * 60 * 1000; // 30 mins
   }
 
-  async _getFullSchemeList() {
-    if (this.cache && Date.now() - this.cacheTimestamp < this.CACHE_TTL) {
-      return this.cache;
+  async _loadActiveSchemes() {
+    let activeList = amfiImportService.getActiveSchemes();
+    if (!activeList || activeList.length === 0) {
+      const result = await amfiImportService.runAtomicImport();
+      activeList = amfiImportService.getActiveSchemes();
     }
+    return activeList;
+  }
 
+  async _getNavAndChange(schemeCode, timeframe = '1y') {
     try {
-      // 1. Fetch AMFI active funds list to filter out dead/closed funds and extract category
-      let activeSchemeCodes = new Set();
-      let schemeCategoryMap = new Map();
-
-      const normalizeCategory = (amfiCat) => {
-        const lower = amfiCat.toLowerCase();
-        
-        // Commodities & ETFs (Check FIRST)
-        if (lower.includes('gold etf')) return 'Gold ETF';
-        if (lower.includes('silver etf')) return 'Silver ETF';
-        if (lower.includes('gold') || lower.includes('silver') || lower.includes('commodity') || lower.includes('commodities') || lower.includes('precious metal')) return 'Commodities & Gold';
-        if (lower.includes('exchange traded') || lower.includes('etf')) return 'ETFs & Index Funds';
-        if (lower.includes('index')) return 'Index Funds';
-
-        if (lower.includes('arbitrage')) return 'Arbitrage Fund';
-        if (lower.includes('elss')) return 'ELSS (Tax Savings)';
-        if (lower.includes('flexi cap')) return 'Flexi Cap';
-        if (lower.includes('focused')) return 'Focused Fund';
-        if (lower.includes('large & mid')) return 'Large & Mid-Cap';
-        if (lower.includes('large cap')) return 'Large-Cap';
-        if (lower.includes('mid cap')) return 'Mid-Cap';
-        if (lower.includes('small cap')) return 'Small-Cap';
-        if (lower.includes('multi cap')) return 'Multi-Cap';
-        if (lower.includes('value')) return 'Value';
-        if (lower.includes('contra')) return 'Contra';
-        if (lower.includes('dividend yield')) return 'Dividend Yield';
-        if (lower.includes('sectoral') || lower.includes('thematic')) return 'Sector / Thematic';
-        
-        // Debt
-        if (lower.includes('banking and psu') || lower.includes('banking & psu')) return 'Banking & PSU';
-        if (lower.includes('corporate bond')) return 'Corporate Bond';
-        if (lower.includes('credit risk')) return 'Credit Risk';
-        if (lower.includes('dynamic bond')) return 'Dynamic Bond';
-        if (lower.includes('floater') || lower.includes('floating')) return 'Floating Rate';
-        if (lower.includes('gilt') || lower.includes('government bond')) return 'Government Bond';
-        if (lower.includes('liquid')) return 'Liquid';
-        if (lower.includes('long duration')) return 'Long Duration';
-        if (lower.includes('low duration')) return 'Low Duration';
-        if (lower.includes('medium to long')) return 'Medium to Long Duration';
-        if (lower.includes('medium duration')) return 'Medium Duration';
-        if (lower.includes('money market')) return 'Money Market';
-        if (lower.includes('overnight')) return 'Overnight';
-        if (lower.includes('short duration') || lower.includes('short term')) return 'Short Duration';
-        if (lower.includes('ultra short')) return 'Ultra Short Duration';
-        
-        // Hybrid & Others
-        if (lower.includes('aggressive hybrid')) return 'Aggressive Allocation';
-        if (lower.includes('conservative hybrid')) return 'Conservative Allocation';
-        if (lower.includes('dynamic asset') || lower.includes('balanced advantage')) return 'Dynamic Asset Allocation';
-        if (lower.includes('equity savings')) return 'Equity Savings';
-        if (lower.includes('multi asset')) return 'Multi Asset Allocation';
-        if (lower.includes('children')) return 'Children';
-        if (lower.includes('retirement')) return 'Retirement';
-        if (lower.includes('fof') || lower.includes('fund of funds')) return 'Fund of Funds';
-        
-        return 'Other';
-      };
-
-      try {
-        const amfiRes = await axios.get('https://portal.amfiindia.com/spages/NAVAll.txt', { timeout: 10000 });
-        const lines = amfiRes.data.split('\n');
-        let currentCategory = 'Other';
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          
-          if (trimmed.includes('Open Ended Schemes') || trimmed.includes('Close Ended Schemes')) {
-            const match = trimmed.match(/\((.*?)\)/);
-            if (match && match[1]) {
-              currentCategory = normalizeCategory(match[1].trim());
-            } else {
-              currentCategory = normalizeCategory(trimmed);
-            }
-            continue;
-          }
-
-          if (trimmed.includes(';')) {
-            const parts = trimmed.split(';');
-            if (parts.length >= 6 && !isNaN(parseInt(parts[0], 10))) {
-              const code = String(parts[0]).trim();
-              activeSchemeCodes.add(code);
-              schemeCategoryMap.set(code, currentCategory);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch AMFI active list, defaulting to allowing all:', err.message);
-      }
-
-      // 2. Fetch full list from mfapi.in
-      const res = await axios.get('https://api.mfapi.in/mf');
-      let rawList = res.data || [];
-      
-      // 3. Filter out non-direct, non-growth, forbidden plan types, and closed funds
-      rawList = rawList.filter(s => {
-        if (!s.schemeName || !s.schemeCode) return false;
-        
-        // Strict Active Check
-        if (activeSchemeCodes.size > 0 && !activeSchemeCodes.has(String(s.schemeCode))) {
-          return false; // Fund is not in the active AMFI list
-        }
-
-        const lower = s.schemeName.toLowerCase();
-        const isEtfOrCommodity = lower.includes('etf') || lower.includes('bees') || lower.includes('gold') || lower.includes('silver') || lower.includes('commodity');
-
-        if (!isEtfOrCommodity) {
-          // Keep ONLY Growth and Direct options for regular mutual funds
-          const isDirect = lower.includes('direct') || lower.includes('-dir') || lower.includes('(dir)') || lower.includes(' dir ');
-          const isGrowth = lower.includes('growth') || lower.includes('-gr') || lower.includes('(gr)') || lower.includes(' gr ');
-          if (!isDirect || !isGrowth) return false;
-
-          // Avoid IDCW, Dividend, Payout, Reinvestment, Bonus, Regular (as substrings)
-          const broadForbidden = /(idcw|dividend|payout|reinvest|bonus|regular)/i;
-          if (broadForbidden.test(lower)) return false;
-
-          // Avoid reg, div (as word boundaries to not filter out segregated or diversified)
-          const boundaryForbidden = /\b(reg|div)\b/i;
-          if (boundaryForbidden.test(lower)) return false;
-        }
-
-        return true;
-      });
-
-      this.cache = rawList.map(s => {
+      const holdingsRes = await mfDataAggregatorService.getSchemeHoldings(schemeCode, 'max');
+      if (holdingsRes && holdingsRes.available) {
         return {
-          ...s,
-          category: schemeCategoryMap.get(String(s.schemeCode)) || 'Other'
+          currentPrice_or_nav: holdingsRes.nav,
+          nav: holdingsRes.nav,
+          oneWeekChangePct: holdingsRes.oneWeekChangePct ?? null,
+          oneMonthChangePct: holdingsRes.oneMonthChangePct ?? null,
+          threeMonthChangePct: holdingsRes.threeMonthChangePct ?? null,
+          sixMonthChangePct: holdingsRes.sixMonthChangePct ?? null,
+          oneYearChangePct: holdingsRes.oneYearChangePct ?? holdingsRes.cagr,
+          threeYearCagr: holdingsRes.threeYearCagr ?? null,
+          fiveYearCagr: holdingsRes.fiveYearCagr ?? null,
+          inceptionCagr: holdingsRes.inceptionCagr ?? null,
+          returns: holdingsRes.returns ?? null,
+          cumulativeReturn: holdingsRes.cumulativeReturn ?? null,
+          sharpeRatio: holdingsRes.sharpeRatio ?? null,
+          sortinoRatio: holdingsRes.sortinoRatio ?? null,
+          aum: holdingsRes.aum ?? null,
+          expenseRatio: holdingsRes.expenseRatio ?? null,
+          high52: holdingsRes.high52 ?? null,
+          low52: holdingsRes.low52 ?? null,
+          navAvailable: holdingsRes.nav !== null
         };
-      });
-
-      this.cacheTimestamp = Date.now();
-      return this.cache;
-    } catch (err) {
-      console.error('Failed to fetch full scheme directory from mfapi.in:', err.message);
-      return this.cache || [];
-    }
-  }
-
-  async _getNavAndChange(schemeCode) {
-    const cacheKey = `nav_summary_${schemeCode}`;
-    if (this.schemeNavCache.has(cacheKey)) {
-      const cached = this.schemeNavCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < 15 * 60 * 1000) {
-        return cached.data;
-      }
-    }
-
-    try {
-      const res = await axios.get(`https://api.mfapi.in/mf/${schemeCode}`, { timeout: 10000 });
-      if (res.data && res.data.data && res.data.data.length > 0) {
-        const navArray = res.data.data;
-        const latestNav = parseFloat(navArray[0].nav);
-        const firstNav = parseFloat(navArray[Math.min(navArray.length - 1, 250)].nav);
-        
-        let changePct = 0;
-        if (firstNav > 0) {
-          changePct = parseFloat((((latestNav - firstNav) / firstNav) * 100).toFixed(2));
-        }
-
-        const latestDateStr = navArray[0].date;
-        const dp = latestDateStr.split('-');
-        const latestDate = new Date(`${dp[2]}-${dp[1]}-${dp[0]}T00:00:00Z`);
-        const isClosed = (Date.now() - latestDate.getTime()) > (90 * 24 * 60 * 60 * 1000);
-
-        // Calculate Risk Metrics for 1 year
-        let sharpeRatio = 0;
-        let sortinoRatio = 0;
-        try {
-          const recentNavs = navArray.slice(0, 252).reverse().map(item => ({
-            value: parseFloat(item.nav)
-          }));
-          if (recentNavs.length > 10) {
-            const riskMetrics = RiskAnalyticsService.getRiskMetrics(recentNavs);
-            sharpeRatio = riskMetrics.sharpeRatio || 0;
-            sortinoRatio = riskMetrics.sortinoRatio || 0;
-          }
-        } catch (e) {
-          console.warn(`Failed to calc risk metrics for ${schemeCode}:`, e.message);
-        }
-
-        const data = {
-          currentPrice_or_nav: latestNav,
-          oneYearChangePct: changePct,
-          navAvailable: true,
-          isClosed: isClosed,
-          sharpeRatio,
-          sortinoRatio
-        };
-        this.schemeNavCache.set(cacheKey, { timestamp: Date.now(), data });
-        return data;
       }
     } catch (e) {
-      console.warn(`Failed quick NAV fetch for scheme ${schemeCode}: ${e.message}`);
+      console.warn(`Failed to fetch NAV history for ${schemeCode}: ${e.message}`);
     }
 
     return {
       currentPrice_or_nav: null,
+      nav: null,
+      oneWeekChangePct: null,
+      oneMonthChangePct: null,
+      threeMonthChangePct: null,
+      sixMonthChangePct: null,
       oneYearChangePct: null,
-      navAvailable: false,
-      sharpeRatio: 0,
-      sortinoRatio: 0
+      threeYearCagr: null,
+      fiveYearCagr: null,
+      inceptionCagr: null,
+      returns: null,
+      cumulativeReturn: null,
+      sharpeRatio: null,
+      sortinoRatio: null,
+      aum: null,
+      expenseRatio: null,
+      high52: null,
+      low52: null,
+      navAvailable: false
     };
   }
 
   async getAllSchemes(page = 1, pageSize = 20, filters = {}) {
-    const allSchemes = await this._getFullSchemeList();
+    const allSchemes = await this._loadActiveSchemes();
     
-    let filtered = allSchemes;
-
+    // Strict direct-growth verification
+    let filtered = allSchemes.filter(s => isStrictDirectGrowth(s.schemeName));
+    
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(s => 
@@ -234,12 +86,15 @@ class AllFundsDirectoryService {
     
     if (filters.amc) {
       const amc = filters.amc.toLowerCase();
-      filtered = filtered.filter(s => s.schemeName && s.schemeName.toLowerCase().includes(amc));
+      filtered = filtered.filter(s => 
+        (s.schemeName && s.schemeName.toLowerCase().includes(amc)) ||
+        (s.amc && s.amc.toLowerCase().includes(amc))
+      );
     }
     
     if (filters.category) {
       const cat = filters.category.toLowerCase();
-      filtered = filtered.filter(s => s.category && s.category.toLowerCase() === cat);
+      filtered = filtered.filter(s => s.category && s.category.toLowerCase().includes(cat));
     }
 
     const totalCount = filtered.length;
@@ -249,28 +104,47 @@ class AllFundsDirectoryService {
     
     const slice = filtered.slice(startIndex, endIndex);
 
-    // Fetch NAV and returns in small parallel batches with slight delay to prevent rate limits
     const chunkSize = 4;
-    const schemes = [];
+    const rawSchemes = [];
     for (let i = 0; i < slice.length; i += chunkSize) {
       const chunk = slice.slice(i, i + chunkSize);
       const results = await Promise.all(chunk.map(async s => {
-        const navData = await this._getNavAndChange(s.schemeCode);
+        const navData = await this._getNavAndChange(s.schemeCode, filters.timeframe || '1y');
         return {
           id: String(s.schemeCode),
+          schemeCode: String(s.schemeCode),
           name: s.schemeName,
+          schemeName: s.schemeName,
+          category: s.category || 'Other',
           type: 'mf',
           currency: 'INR',
           region: 'india',
-          family: s.schemeName.split(' ')[0], 
+          family: s.amc || s.schemeName.split(' ')[0], 
           ...navData
         };
       }));
-      schemes.push(...results);
+      rawSchemes.push(...results);
       if (i + chunkSize < slice.length) {
         await new Promise(r => setTimeout(r, 50));
       }
     }
+
+    // Sort schemes if requested by user (1Y Return, AUM, Sharpe, Sortino, NAV)
+    const sortBy = filters.sortBy || '1Y';
+    if (sortBy === '1Y') {
+      rawSchemes.sort((a, b) => (b.oneYearChangePct || b.cumulativeReturn || -999) - (a.oneYearChangePct || a.cumulativeReturn || -999));
+    } else if (sortBy === 'AUM') {
+      rawSchemes.sort((a, b) => (b.aum || -999) - (a.aum || -999));
+    } else if (sortBy === 'Sharpe') {
+      rawSchemes.sort((a, b) => (b.sharpeRatio || -999) - (a.sharpeRatio || -999));
+    } else if (sortBy === 'Sortino') {
+      rawSchemes.sort((a, b) => (b.sortinoRatio || -999) - (a.sortinoRatio || -999));
+    } else if (sortBy === 'NAV') {
+      rawSchemes.sort((a, b) => (b.currentPrice_or_nav || -999) - (a.currentPrice_or_nav || -999));
+    }
+
+    // Compute Category Percentiles and Category Averages
+    const schemes = aiRankingEngineService.computeCategoryMetrics(rawSchemes);
 
     return {
       schemes,

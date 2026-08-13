@@ -21,9 +21,17 @@ class FundAnalysisEngine {
     const benchmarkSymbol = region === 'india' ? '^NSEI' : '^GSPC';
     const benchmarkData = await benchmarkService.getBenchmarkReturns(benchmarkSymbol, 'max');
     const beta = financialMath.calculateBeta(returnsArray, benchmarkData.returns || []);
-    const alpha = financialMath.calculateAlpha(cagrStats.threeYearCagr, benchmarkData.cagr || 12, 7.0, beta);
-    const sharpe = financialMath.calculateSharpeRatio(cagrStats.threeYearCagr, 7.0, stdDev);
-    const sortino = financialMath.calculateSortinoRatio(cagrStats.threeYearCagr, 7.0, returnsArray);
+    // Import canonical risk analytics service and macro data service
+    const { default: riskAnalyticsService } = await import('./RiskAnalyticsService.js');
+    const { default: macroDataService } = await import('./MacroDataService.js');
+    const rfObj = await macroDataService.getRiskFreeRate();
+    const rfVal = (rfObj && typeof rfObj.value === 'number') ? rfObj.value : 0.0625;
+
+    const canonicalRisk = riskAnalyticsService.getRiskMetricsSinceInception(navHistoryArray, benchmarkData.returns || [], rfVal, fundProfile || {});
+
+    const alpha = financialMath.calculateAlpha(cagrStats.threeYearCagr, benchmarkData.cagr || 12, rfVal * 100, beta);
+    const sharpe = canonicalRisk.sharpeRatio;
+    const sortino = canonicalRisk.sortinoRatio;
     
     // 3. SIP Analysis (1Y, 3Y, 5Y)
     const sipAnalysis = {
@@ -64,11 +72,12 @@ class FundAnalysisEngine {
         returnsArray: returnsArray.slice(-12) // Last 12 months
       },
       performance: {
-        alpha: alpha.toFixed(2),
-        beta: beta.toFixed(2),
-        sharpeRatio: sharpe.toFixed(2),
-        standardDeviation: stdDev.toFixed(2),
-        maxDrawdown: maxDrawdown.toFixed(2)
+        alpha: typeof alpha === 'number' ? alpha.toFixed(2) : null,
+        beta: typeof beta === 'number' ? beta.toFixed(2) : null,
+        sharpeRatio: typeof sharpe === 'number' ? sharpe.toFixed(2) : null,
+        sortinoRatio: typeof sortino === 'number' ? sortino.toFixed(2) : null,
+        standardDeviation: typeof stdDev === 'number' ? stdDev.toFixed(2) : null,
+        maxDrawdown: typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(2) : null
       },
       sipAnalysis,
       aiAnalysis,

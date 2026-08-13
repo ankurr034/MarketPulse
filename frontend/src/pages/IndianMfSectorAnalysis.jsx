@@ -3,7 +3,8 @@ import axios from 'axios';
 import { 
   Search, Info, RefreshCcw, ChevronDown, ChevronRight, Activity, 
   TrendingUp, BarChart2, BarChart3, Briefcase, Percent, Award, ShieldAlert, 
-  Sparkles, Calendar, HelpCircle, Flame, Plus, CheckCircle2, PieChart, X, Pin
+  Sparkles, Calendar, HelpCircle, Flame, Plus, CheckCircle2, PieChart, X, Pin,
+  Filter, Layers, Download
 } from 'lucide-react';
 import ExpandableAssetRow from '../components/ExpandableAssetRow';
 import MacroCorrelationSection from '../components/MacroCorrelationSection';
@@ -11,6 +12,13 @@ import AllMutualFundsDirectory from '../components/AllMutualFundsDirectory';
 import ComparisonTable from '../components/ComparisonTable';
 import { TableProperties, Grid2X2 } from 'lucide-react';
 import { useWorkbench } from '../context/WorkbenchContext';
+import MiniRatioIndicator from '../components/MiniRatioIndicator';
+import CustomFundComparison from '../components/CustomFundComparison';
+import MarketFilterStrip from '../components/mfExplorer/MarketFilterStrip';
+import MfCategorySidebar from '../components/mfExplorer/MfCategorySidebar';
+import MfRankingTable from '../components/mfExplorer/MfRankingTable';
+import MfMarketOverview from '../components/mfExplorer/MfMarketOverview';
+import { calculateFundRankings, groupFundsBySubCategory } from '../utils/rankMutualFunds';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -72,7 +80,77 @@ const MOMENTUM30_CONSTITUENT_HOLDINGS = [
   { stock: 'Dixon Technologies', symbol: 'DIXON', sector: 'Capital Goods', allocation: '1.30' }
 ];
 
-const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy }) => {
+const RatioRangeGuideModal = ({ onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-slate-100 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+      <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors">
+        <X size={16} />
+      </button>
+      <div className="flex items-center gap-2 mb-3">
+        <Info className="text-indigo-400" size={20} />
+        <h3 className="font-extrabold text-base text-slate-100">Sharpe &amp; Sortino Ratio Guide</h3>
+      </div>
+      <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+        Risk-adjusted return metrics evaluate how effectively a mutual fund generates excess returns relative to risk taken. Primary dashboard ratios use the AMFI-standardized 3-Year Monthly Methodology.
+      </p>
+
+      {/* Sharpe Range */}
+      <div className="mb-5 bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider">Sharpe Ratio (3Y Monthly)</span>
+          <span className="text-[9px] text-slate-500 font-mono">Calculated by MarketPulse from monthly NAV history</span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-semibold">
+          <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">&lt; 0.50</span>
+            <span className="text-[9px] uppercase font-bold">Low</span>
+          </div>
+          <div className="bg-amber-500/10 text-amber-400 border border-amber-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">0.5 - 1.0</span>
+            <span className="text-[9px] uppercase font-bold">Fair</span>
+          </div>
+          <div className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">1.0 - 1.8</span>
+            <span className="text-[9px] uppercase font-bold">Good</span>
+          </div>
+          <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">&gt; 1.80</span>
+            <span className="text-[9px] uppercase font-bold">Excel</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Sortino Range */}
+      <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider">Sortino Ratio (Downside Risk Only)</span>
+          <span className="text-[9px] text-slate-500 font-mono">Excess Return / Downside Vol</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-semibold">
+          <div className="bg-rose-500/10 text-rose-400 border border-rose-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">&lt; 1.00</span>
+            <span className="text-[9px] uppercase font-bold">Low</span>
+          </div>
+          <div className="bg-amber-500/10 text-amber-400 border border-amber-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">1.0 - 1.8</span>
+            <span className="text-[9px] uppercase font-bold">Fair</span>
+          </div>
+          <div className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">1.8 - 2.5</span>
+            <span className="text-[9px] uppercase font-bold">Good</span>
+          </div>
+          <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 p-2 rounded-lg">
+            <span className="block font-bold font-mono text-xs">&gt; 2.50</span>
+            <span className="text-[9px] uppercase font-bold">Excel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide }) => {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -100,8 +178,21 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy }) => {
     if (next) fetchHoldings();
   };
 
-  const ret = fund.returns[activeTimeframe];
+  const ret = Number(fund?.returns?.[activeTimeframe] ?? 0);
   const isPositive = ret >= 0;
+
+  const currentSharpe = typeof fund?.sharpeRatios?.[activeTimeframe] === 'number'
+    ? fund.sharpeRatios[activeTimeframe]
+    : (typeof fund?.sharpeRatio === 'number' ? fund.sharpeRatio : 0);
+
+  const currentSortino = typeof fund?.sortinoRatios?.[activeTimeframe] === 'number'
+    ? fund.sortinoRatios[activeTimeframe]
+    : (typeof fund?.sortinoRatio === 'number' ? fund.sortinoRatio : 0);
+
+  const navValue = Number(fund?.nav ?? fund?.currentPrice_or_nav);
+  const aumValue = Number(fund?.aum);
+  const formattedNav = Number.isFinite(navValue) ? navValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
+  const formattedAum = Number.isFinite(aumValue) ? aumValue.toLocaleString('en-IN') : '—';
 
   // Effective holdings with fallback to guarantee holdings display
   const getEffectiveHoldings = () => {
@@ -141,21 +232,28 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy }) => {
   const sectorData = getSectorBreakdown();
   const sectorEntries = Object.entries(sectorData).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
 
+  const navDisplay = Number.isFinite(Number(fund?.nav ?? fund?.currentPrice_or_nav))
+    ? `₹${Number(fund?.nav ?? fund?.currentPrice_or_nav).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+    : '₹—';
+  const aumDisplay = Number.isFinite(Number(fund?.aum))
+    ? `₹${Number(fund?.aum).toLocaleString('en-IN')} Cr`
+    : '₹— Cr';
+  const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? 0);
+  const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
+
   return (
     <React.Fragment>
       <tr 
         onClick={handleRowClick}
         className={`border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors cursor-pointer ${expanded ? 'bg-slate-800/25' : ''}`}
       >
-        <td className="py-3 px-4 font-bold text-slate-400 text-center">{rank}</td>
-        <td className="py-3 px-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-slate-500 w-3">{expanded ? '▼' : '▶'}</span>
-              <div>
-                <div className="font-semibold text-slate-200">{fund.name}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">{fund.category}</div>
-              </div>
+        <td className="py-2 px-1 font-mono text-[10px] font-bold text-slate-500 text-center w-5 align-middle">{rank}</td>
+        <td className="py-2 px-1 align-middle overflow-hidden">
+          <div className="flex items-start gap-1">
+            <span className="text-[8px] text-slate-500 shrink-0 mt-0.5">{expanded ? '▼' : '▶'}</span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-slate-200 text-[10.5px] leading-tight line-clamp-2 break-words" title={fund.name}>{fund.name}</div>
+              <div className="text-[8.5px] text-slate-500 leading-none truncate mt-0.5">{fund.category}</div>
             </div>
             
             {/* Compare Pin Button */}
@@ -174,22 +272,22 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy }) => {
                   });
                 }
               }}
-              className={`p-1.5 rounded-md transition-colors ml-auto flex-shrink-0 ${pinned ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500 hover:bg-slate-800'}`}
+              className={`p-0.5 rounded transition-colors shrink-0 ${pinned ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500 hover:bg-slate-800'}`}
               title={pinned ? "Remove from comparison" : "Add to comparison"}
             >
-              <Pin size={12} fill={pinned ? "currentColor" : "none"} />
+              <Pin size={10} fill={pinned ? "currentColor" : "none"} />
             </button>
           </div>
         </td>
-        <td className="py-3 px-2 text-right font-mono text-slate-300">₹{fund.nav.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-        <td className="py-3 px-2 text-right font-mono text-slate-300">₹{fund.aum.toLocaleString('en-IN')} Cr</td>
-        <td className={`py-3 px-2 text-right font-mono font-semibold ${sortBy === 'sharpe' ? 'text-indigo-400 bg-indigo-500/5' : 'text-slate-300'}`}>
-          {fund.sharpeRatio.toFixed(2)}
+        <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">₹{formattedNav}</td>
+        <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">₹{formattedAum} Cr</td>
+        <td className={`py-2 px-1 text-right whitespace-nowrap align-middle ${sortBy === 'sharpe' ? 'bg-indigo-500/5' : ''}`}>
+          <MiniRatioIndicator value={currentSharpe} type="sharpe" />
         </td>
-        <td className={`py-3 px-2 text-right font-mono font-semibold ${sortBy === 'sortino' ? 'text-indigo-400 bg-indigo-500/5' : 'text-slate-300'}`}>
-          {fund.sortinoRatio.toFixed(2)}
+        <td className={`py-2 px-1 text-right whitespace-nowrap align-middle ${sortBy === 'sortino' ? 'bg-indigo-500/5' : ''}`}>
+          <MiniRatioIndicator value={currentSortino} type="sortino" />
         </td>
-        <td className={`py-3 px-4 text-right font-mono font-bold ${sortBy === 'returns' ? 'bg-emerald-500/5' : ''} ${isPositive ? 'text-gain' : 'text-loss'}`}>
+        <td className={`py-2 px-1.5 text-right font-mono text-[10.5px] font-bold whitespace-nowrap align-middle ${sortBy === 'returns' ? 'bg-emerald-500/5' : ''} ${isPositive ? 'text-gain' : 'text-loss'}`}>
           {isPositive ? '+' : ''}{ret}%
         </td>
       </tr>
@@ -211,15 +309,22 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy }) => {
                   <span>{holdings.length} Positions</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {(showAllHoldings ? holdings : holdings.slice(0, 8)).map((h, idx) => (
-                    <div key={idx} className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex justify-between items-center text-xs">
-                      <div className="truncate w-2/3">
-                        <span className="font-semibold text-slate-200 block truncate" title={h.stock}>{h.stock}</span>
-                        {h.sector && <span className="text-[9px] text-slate-500">{h.sector}</span>}
+                  {(showAllHoldings ? holdings : holdings.slice(0, 8)).map((h, idx) => {
+                    const stockName = h.stock || h.name || h.Symbol || 'Unknown Stock';
+                    const allocation = h.allocation !== undefined ? h.allocation : (h['Holding Percent'] !== undefined ? (Number(h['Holding Percent']) * 100).toFixed(2) : '0.00');
+                    return (
+                      <div key={idx} className="bg-slate-900 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm transition hover:bg-slate-800">
+                        <div className="truncate w-2/3">
+                          <span className="font-bold text-slate-100 block truncate" title={stockName}>{stockName}</span>
+                          {h.sector && <span className="text-[10px] text-slate-400 font-medium">{h.sector}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {h.marketValue && <span className="text-[10px] font-mono text-slate-400">₹{h.marketValue} Cr</span>}
+                          <span className="font-mono text-indigo-300 font-bold bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30">{allocation}%</span>
+                        </div>
                       </div>
-                      <span className="font-mono text-indigo-400 font-bold bg-indigo-500/5 px-2.5 py-0.5 rounded border border-indigo-500/10">{h.allocation}%</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {holdings.length > 8 && (
                   <button
@@ -328,6 +433,15 @@ const FundDetailModal = ({ fund, onClose }) => {
   const sectorEntries = Object.entries(sectorData).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const SECTOR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
 
+  const navDisplay = Number.isFinite(Number(fund?.nav ?? fund?.currentPrice_or_nav))
+    ? `₹${Number(fund?.nav ?? fund?.currentPrice_or_nav).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+    : '₹—';
+  const aumDisplay = Number.isFinite(Number(fund?.aum))
+    ? `₹${Number(fund?.aum).toLocaleString('en-IN')} Cr`
+    : '₹— Cr';
+  const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? 0);
+  const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative text-slate-100">
@@ -348,22 +462,26 @@ const FundDetailModal = ({ fund, onClose }) => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
             <span className="text-[10px] text-slate-500 font-semibold block">NAV</span>
-            <span className="text-sm font-bold font-mono text-slate-200">₹{fund.nav || fund.currentPrice_or_nav || '92.40'}</span>
+            <span className="text-sm font-bold font-mono text-slate-200">{navDisplay}</span>
           </div>
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
             <span className="text-[10px] text-slate-500 font-semibold block">AUM</span>
-            <span className="text-sm font-bold font-mono text-slate-200">₹{fund.aum ? fund.aum.toLocaleString('en-IN') : '12,400'} Cr</span>
+            <span className="text-sm font-bold font-mono text-slate-200">{aumDisplay}</span>
           </div>
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-            <span className="text-[10px] text-slate-500 font-semibold block">Sharpe (1Y)</span>
-            <span className="text-sm font-bold font-mono text-indigo-400">{fund.sharpeRatio ? fund.sharpeRatio.toFixed(2) : '1.84'}</span>
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">Sharpe (1Y)</span>
+            <MiniRatioIndicator value={fund.sharpeRatio || 1.84} type="sharpe" />
+          </div>
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">Sortino (1Y)</span>
+            <MiniRatioIndicator value={fund.sortinoRatio || 2.70} type="sortino" />
           </div>
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
             <span className="text-[10px] text-slate-500 font-semibold block">1Y Return</span>
-            <span className="text-sm font-bold font-mono text-emerald-400">+{fund.returns ? fund.returns['1Y'] : (fund.oneYearChangePct || '35.8')}%</span>
+            <span className="text-sm font-bold font-mono text-emerald-400">{oneYReturnDisplay}</span>
           </div>
         </div>
 
@@ -381,15 +499,22 @@ const FundDetailModal = ({ fund, onClose }) => {
                 <span className="text-[10px] text-slate-500">{holdings.length} Stocks</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {holdings.map((h, idx) => (
-                  <div key={idx} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-2.5 flex justify-between items-center text-xs">
-                    <div className="truncate w-3/4">
-                      <span className="font-semibold text-slate-200 block truncate">{h.stock}</span>
-                      {h.sector && <span className="text-[9px] text-slate-500">{h.sector}</span>}
+                {holdings.map((h, idx) => {
+                  const stockName = h.stock || h.name || h.Symbol || 'Unknown Stock';
+                  const allocation = h.allocation !== undefined ? h.allocation : (h['Holding Percent'] !== undefined ? (Number(h['Holding Percent']) * 100).toFixed(2) : '0.00');
+                  return (
+                    <div key={idx} className="bg-slate-900 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm transition hover:bg-slate-800">
+                      <div className="truncate w-3/4">
+                        <span className="font-bold text-slate-100 block truncate" title={stockName}>{stockName}</span>
+                        {h.sector && <span className="text-[10px] text-slate-400 font-medium">{h.sector}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {h.marketValue && <span className="text-[10px] font-mono text-slate-400">₹{h.marketValue} Cr</span>}
+                        <span className="font-mono text-indigo-300 font-bold bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30">{allocation}%</span>
+                      </div>
                     </div>
-                    <span className="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{h.allocation}%</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -438,13 +563,19 @@ export const IndianMfSectorAnalysis = () => {
   // Tradox State Variables
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSubCategories, setSelectedSubCategories] = useState(['all']);
+  const [activeMarketFilter, setActiveMarketFilter] = useState('all');
+  const [isAllFundsMode, setIsAllFundsMode] = useState(false);
+  const [rankMode, setRankMode] = useState('aum'); // 'aum' | 'performance'
+  const [selectedSubCategory, setSelectedSubCategory] = useState('all');
+  const [rankingTimeframe, setRankingTimeframe] = useState('1Y');
   const [showCategoryComparison, setShowCategoryComparison] = useState(true);
   const [navTimeframe, setNavTimeframe] = useState('1Y');
   const [leftCardTimeframe, setLeftCardTimeframe] = useState('1Y');
   const [sortBy, setSortBy] = useState('returns'); // 'returns' | 'sharpe' | 'sortino' | 'aum'
   
-  // Interactive Modal state for opening fund details
+  // Interactive Modal state for opening fund details & Sharpe/Sortino ratio guide
   const [activeModalFund, setActiveModalFund] = useState(null);
+  const [showRatioGuide, setShowRatioGuide] = useState(false);
   
   // View All toggle states (default true to show all funds)
   const [viewAllTopFunds, setViewAllTopFunds] = useState(true);
@@ -478,6 +609,8 @@ export const IndianMfSectorAnalysis = () => {
   });
 
   const [liveSummary, setLiveSummary] = useState(null);
+  const [extraCategorySchemes, setExtraCategorySchemes] = useState([]);
+  const [allDirectSchemes, setAllDirectSchemes] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -487,16 +620,18 @@ export const IndianMfSectorAnalysis = () => {
     setLoading(true);
     setError(null);
     try {
-      const [overviewRes, flatRes, summaryRes] = await Promise.all([
-        axios.get(`${API_BASE}/indian-mf/sectors-overview`).catch(e => { console.error('404 on /sectors-overview'); throw e; }),
-        axios.get(`${API_BASE}/indian-mf/sectors/flat`).catch(e => { console.error('404 on /sectors/flat'); throw e; }),
-        axios.get(`${API_BASE}/indian-mf/dashboard-summary`).catch(e => { console.warn('Summary endpoint error:', e.message); return { data: null }; })
+      const [overviewRes, flatRes, extraRes, summaryRes, directRes] = await Promise.all([
+        axios.get(`${API_BASE}/indian-mf/sectors-overview`).catch(e => { console.warn('Overview endpoint warning:', e.message); return { data: null }; }),
+        axios.get(`${API_BASE}/indian-mf/sectors/flat`).catch(e => { console.warn('Flat endpoint warning:', e.message); return { data: [] }; }),
+        axios.get(`${API_BASE}/indian-mf/extra-schemes`).catch(e => { console.warn('Extra schemes warning:', e.message); return { data: [] }; }),
+        axios.get(`${API_BASE}/indian-mf/dashboard-summary`).catch(e => { console.warn('Summary endpoint warning:', e.message); return { data: null }; }),
+        axios.get(`${API_BASE}/indian-mf/all-direct-schemes`).catch(e => { console.warn('All direct schemes warning:', e.message); return { data: [] }; })
       ]);
-      setData(overviewRes.data);
-      setFlatFunds(flatRes.data);
-      if (summaryRes?.data) {
-        setLiveSummary(summaryRes.data);
-      }
+      if (overviewRes.data) setData(overviewRes.data);
+      if (Array.isArray(flatRes.data)) setFlatFunds(flatRes.data);
+      if (Array.isArray(extraRes.data)) setExtraCategorySchemes(extraRes.data);
+      if (summaryRes?.data) setLiveSummary(summaryRes.data);
+      if (Array.isArray(directRes.data)) setAllDirectSchemes(directRes.data);
     } catch (err) {
       console.error('Failed to load sector overview:', err);
       setError('Failed to load Indian MFs data.');
@@ -514,6 +649,20 @@ export const IndianMfSectorAnalysis = () => {
 
   // Sub-categories definition for each category
   const SUB_CATEGORIES = {
+    all: [
+      { id: 'all', label: 'All Sub-Categories' },
+      { id: 'smallcap', label: 'Small Cap' },
+      { id: 'midcap', label: 'Mid Cap' },
+      { id: 'largecap', label: 'Large Cap' },
+      { id: 'flexicap', label: 'Flexi Cap' },
+      { id: 'multicap', label: 'Multi Cap' },
+      { id: 'elss', label: 'ELSS (Tax Saving)' },
+      { id: 'sectoral', label: 'Sectoral / Thematic' },
+      { id: 'focused', label: 'Focused Funds' },
+      { id: 'momentum30', label: 'Momentum 30' },
+      { id: 'liquid', label: 'Liquid & Debt' },
+      { id: 'gold_etf', label: 'Gold & Silver' }
+    ],
     equity: [
       { id: 'all', label: 'All Equity' },
       { id: 'smallcap', label: 'Small Cap' },
@@ -539,17 +688,14 @@ export const IndianMfSectorAnalysis = () => {
       { id: 'balanced', label: 'Balanced Advantage' },
       { id: 'aggressive', label: 'Aggressive Hybrid' },
       { id: 'arbitrage', label: 'Arbitrage Funds' },
-      { id: 'multiasset', label: 'Multi Asset Allocation' }
+      { id: 'multiasset', label: 'Multi Asset' },
+      { id: 'cpse_etf', label: 'CPSE ETF' },
+      { id: 'nifty_it_etf', label: 'ICICI Nifty IT ETF' }
     ],
     etf: [
       { id: 'all', label: 'All ETFs' },
-      { id: 'nifty50', label: 'Nifty 50 Index ETF' },
-      { id: 'niftybank', label: 'Nifty Bank ETF' },
-      { id: 'momentum30', label: 'Momentum 30 ETF' },
       { id: 'gold_etf', label: 'Gold ETF' },
-      { id: 'silver_etf', label: 'Silver ETF' },
-      { id: 'sectoral', label: 'Sectoral & IT ETF' },
-      { id: 'global_etf', label: 'Global & Nasdaq ETF' }
+      { id: 'silver_etf', label: 'Silver ETF' }
     ],
     index: [
       { id: 'all', label: 'All Index Funds' },
@@ -561,6 +707,7 @@ export const IndianMfSectorAnalysis = () => {
     global: [
       { id: 'all', label: 'All Global Funds' },
       { id: 'us_tech', label: 'US & Nasdaq' },
+      { id: 'global_etf', label: 'Global & Nasdaq ETF' },
       { id: 'china', label: 'Greater China' }
     ],
     commodities: [
@@ -575,309 +722,172 @@ export const IndianMfSectorAnalysis = () => {
     ]
   };
 
-  // Helper function to dynamically classify the type of a fund
-  const getFundType = (name, specifiedType = '') => {
+  // Helper functions for STRICT data-driven classification
+  const getClassification = (categoryStr, nameStr) => {
+    const cat = (categoryStr || '').toLowerCase();
+    const name = (nameStr || '').toLowerCase();
+
+    if (cat.includes('equity scheme - large cap') || cat.includes('equity schemes - large cap')) return ['equity', 'large_cap'];
+    if (cat.includes('large & mid cap')) return ['equity', 'large_mid_cap'];
+    if (cat.includes('mid cap') && !cat.includes('large')) return ['equity', 'mid_cap'];
+    if (cat.includes('small cap')) return ['equity', 'small_cap'];
+    if (cat.includes('flexi cap')) return ['equity', 'flexi_cap'];
+    if (cat.includes('multi cap')) return ['equity', 'multi_cap'];
+    if (cat.includes('dividend yield')) return ['equity', 'dividend_yield'];
+    if (cat.includes('value')) return ['equity', 'value'];
+    if (cat.includes('focused')) return ['equity', 'focused'];
+    if (cat.includes('contra')) return ['equity', 'contra'];
+    if (cat.includes('elss') || cat.includes('tax saver')) return ['elss', 'elss_funds'];
+
+    if (cat.includes('sectoral') || cat.includes('thematic')) {
+      if (name.includes('tech') || name.includes('digital') || name.includes('it etf')) return ['sectoral_thematic', 'tech'];
+      if (name.includes('bank') || name.includes('financial')) return ['sectoral_thematic', 'banking'];
+      if (name.includes('pharma') || name.includes('health')) return ['sectoral_thematic', 'pharma'];
+      if (name.includes('infra')) return ['sectoral_thematic', 'infra'];
+      if (name.includes('fmcg') || name.includes('consumption')) return ['sectoral_thematic', 'fmcg'];
+      if (name.includes('auto')) return ['sectoral_thematic', 'auto'];
+      if (name.includes('psu') || name.includes('cpes')) return ['sectoral_thematic', 'psu'];
+      return ['sectoral_thematic', 'other_sectoral'];
+    }
+
+    if (cat.includes('debt scheme') || cat.includes('income/debt oriented') || cat === 'gilt' || cat === 'income') {
+      if (cat.includes('liquid')) return ['debt', 'liquid'];
+      if (cat.includes('corporate bond')) return ['debt', 'corporate_bond'];
+      if (cat.includes('banking and psu') || cat.includes('banking & psu')) return ['debt', 'banking_psu'];
+      if (cat.includes('gilt') && cat.includes('10 year')) return ['debt', 'gilt_10y'];
+      if (cat.includes('gilt')) return ['debt', 'gilt'];
+      if (cat.includes('short duration') || cat.includes('short term')) return ['debt', 'short_duration'];
+      if (cat.includes('overnight')) return ['debt', 'overnight'];
+      if (cat.includes('ultra short')) return ['debt', 'ultra_short'];
+      if (cat.includes('low duration')) return ['debt', 'low_duration'];
+      if (cat.includes('money market')) return ['debt', 'money_market'];
+      if (cat.includes('medium to long')) return ['debt', 'medium_long'];
+      if (cat.includes('medium duration')) return ['debt', 'medium_duration'];
+      if (cat.includes('long duration')) return ['debt', 'long_duration'];
+      if (cat.includes('dynamic bond') || cat.includes('dynamic term')) return ['debt', 'dynamic_bond'];
+      if (cat.includes('credit risk')) return ['debt', 'credit_risk'];
+      if (cat.includes('floater')) return ['debt', 'floater'];
+      return ['debt', 'other_debt'];
+    }
+
+    if (cat.includes('hybrid scheme')) {
+      if (cat.includes('aggressive')) return ['hybrid', 'aggressive'];
+      if (cat.includes('balanced advantage') || cat.includes('dynamic asset')) return ['hybrid', 'balanced_adv'];
+      if (cat.includes('multi asset')) return ['hybrid', 'multi_asset'];
+      if (cat.includes('arbitrage')) return ['hybrid', 'arbitrage'];
+      if (cat.includes('conservative')) return ['hybrid', 'conservative'];
+      if (cat.includes('equity savings')) return ['hybrid', 'equity_savings'];
+      if (cat.includes('balanced hybrid')) return ['hybrid', 'balanced'];
+      return ['hybrid', 'other_hybrid'];
+    }
+
+    if (cat.includes('index') || cat.includes('etf')) {
+      if (name.includes('gold')) return ['commodities', 'gold'];
+      if (name.includes('silver')) return ['commodities', 'silver'];
+      if (name.includes('nasdaq')) return ['global', 'nasdaq'];
+      if (name.includes('s&p 500') || name.includes('sp 500')) return ['global', 'sp500'];
+      if (name.includes('fang') || name.includes('ai')) return ['global', 'global_tech'];
+      if (name.includes('global') || name.includes('world')) return ['global', 'global_equity'];
+      if (name.includes('russell')) return ['global', 'russell'];
+      if (name.includes('nifty 50') || name.includes('nifty50')) return ['index', 'nifty50'];
+      if (name.includes('nifty next 50')) return ['index', 'nifty_next50'];
+      if (name.includes('nifty 100')) return ['index', 'nifty100'];
+      if (name.includes('nifty 200 momentum 30')) return ['index', 'nifty200_momentum30'];
+      if (name.includes('nifty 200')) return ['index', 'nifty200'];
+      if (name.includes('nifty 500')) return ['index', 'nifty500'];
+      if (name.includes('nifty midcap 150')) return ['index', 'nifty_midcap150'];
+      if (name.includes('nifty smallcap 250')) return ['index', 'nifty_smallcap250'];
+      if (name.includes('nifty bank') || name.includes('bank bees')) return ['index', 'nifty_bank'];
+      if (name.includes('sensex')) return ['index', 'sensex'];
+      return ['index', 'other_index'];
+    }
+
+    if (cat.includes('fof overseas') || name.includes('overseas') || name.includes('global') || name.includes('international')) {
+      return ['global', 'other_global'];
+    }
+
+    // Default catch-all
+    return ['all', 'all'];
+  };
+
+  const getFundType = (name, categoryStr = '', specifiedType = '') => {
     if (specifiedType) return specifiedType;
-    const lower = name.toLowerCase();
-    if (lower.includes('nps') || lower.includes('pension')) return 'nps';
-    if (lower.includes('gift') || lower.includes('ifsc')) return 'gift';
-    if (lower.includes('fof') || lower.includes('fund of fund') || lower.includes('feeder')) return 'fof';
-    if (lower.includes('index')) return 'index';
-    if (lower.includes('etf') || lower.includes('bees')) return 'etf';
-    if (lower.includes('debt') || lower.includes('bond') || lower.includes('gilt') || lower.includes('liquid') || lower.includes('treasury') || lower.includes('corporate bond') || lower.includes('banking & psu')) return 'debt';
-    if (lower.includes('hybrid') || lower.includes('balanced') || lower.includes('advantage') || lower.includes('savings') || lower.includes('arbitrage')) return 'hybrid';
-    if (lower.includes('global') || lower.includes('overseas') || lower.includes('world') || lower.includes('us ') || lower.includes('international') || lower.includes('nasdaq') || lower.includes('s&p 500')) return 'global';
-    if (lower.includes('gold') || lower.includes('silver') || lower.includes('commodity') || lower.includes('commodities')) return 'commodities';
-    return 'equity'; // Default for sectoral/thematic mutual funds
+    return getClassification(categoryStr, name)[0];
   };
 
-  const getFundSubType = (name, specifiedSub = '') => {
+  const getFundSubType = (name, categoryStr = '', specifiedSub = '') => {
     if (specifiedSub) return specifiedSub;
-    const lower = name.toLowerCase();
-    if (lower.includes('small cap') || lower.includes('smallcap')) return 'smallcap';
-    if (lower.includes('mid cap') || lower.includes('midcap')) return 'midcap';
-    if (lower.includes('large cap') || lower.includes('largecap')) return 'largecap';
-    if (lower.includes('flexi cap') || lower.includes('flexicap')) return 'flexicap';
-    if (lower.includes('multi cap') || lower.includes('multicap')) return 'multicap';
-    if (lower.includes('momentum 30') || lower.includes('momentum30') || lower.includes('momentum')) return 'momentum30';
-    if (lower.includes('elss') || lower.includes('tax saver') || lower.includes('tax saving')) return 'elss';
-    if (lower.includes('focused')) return 'focused';
-    
-    if (lower.includes('liquid')) return 'liquid';
-    if (lower.includes('corporate bond')) return 'corporate';
-    if (lower.includes('banking & psu') || lower.includes('psu debt')) return 'banking';
-    if (lower.includes('nifty bank') || lower.includes('bankbees') || lower.includes('bank etf') || lower.includes('banking')) return 'niftybank';
-    if (lower.includes('gilt') || lower.includes('treasury') || lower.includes('govt') || lower.includes('government') || lower.includes('g-sec') || lower.includes('sovereign')) return 'gilt';
-    if (lower.includes('short duration') || lower.includes('short term')) return 'short';
-
-    if (lower.includes('balanced advantage') || lower.includes('dynamic')) return 'balanced';
-    if (lower.includes('arbitrage')) return 'arbitrage';
-    if (lower.includes('multi asset')) return 'multiasset';
-    if (lower.includes('aggressive')) return 'aggressive';
-
-    if (lower.includes('nifty 50') || lower.includes('nifty50') || lower.includes('index etf') || lower.includes('nifty etf') || lower.includes('sensex etf')) return 'nifty50';
-    if (lower.includes('sensex')) return 'sensex';
-    if (lower.includes('gold etf') || (lower.includes('etf') && lower.includes('gold'))) return 'gold_etf';
-    if (lower.includes('silver etf') || (lower.includes('etf') && lower.includes('silver'))) return 'silver_etf';
-    if (lower.includes('gold')) return 'gold';
-    if (lower.includes('silver')) return 'silver';
-    if (lower.includes('nasdaq') || lower.includes('u.s.') || lower.includes('us ') || lower.includes('fang') || lower.includes('mon100')) return 'global_etf';
-    if (lower.includes('china')) return 'china';
-
-    if (lower.includes('scheme e')) return 'scheme_e';
-    if (lower.includes('scheme c')) return 'scheme_c';
-
-    return 'sectoral';
+    return getClassification(categoryStr, name)[1];
   };
 
-  // Additional category schemes to guarantee all 11 category pills and sub-categories have full representation
-  const EXTRA_CATEGORY_SCHEMES = useMemo(() => [
-    // Flexi Cap Equity Sub-category
-    { id: '118991', name: 'HDFC Flexi Cap Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 35.8, currentPrice_or_nav: 1680.40, sharpeRatio: 1.84, sortinoRatio: 2.70, aum: 54200, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '118742', name: 'Aditya Birla Sun Life Flexi Cap Fund Direct Growth', family: 'Aditya Birla Sun Life Mutual Fund', oneYearChangePct: 28.4, currentPrice_or_nav: 168.20, sharpeRatio: 1.65, sortinoRatio: 2.40, aum: 21500, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '118884', name: 'Franklin India Flexi Cap Fund Direct Growth', family: 'Franklin Templeton Mutual Fund', oneYearChangePct: 31.2, currentPrice_or_nav: 1420.50, sharpeRatio: 1.70, sortinoRatio: 2.50, aum: 16800, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '119642', name: 'HSBC Flexi Cap Fund Direct Growth', family: 'HSBC Mutual Fund', oneYearChangePct: 34.6, currentPrice_or_nav: 45.80, sharpeRatio: 1.78, sortinoRatio: 2.60, aum: 4800, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '120110', name: 'JM Flexicap Fund Direct Growth', family: 'JM Financial Mutual Fund', oneYearChangePct: 44.2, currentPrice_or_nav: 92.80, sharpeRatio: 2.05, sortinoRatio: 3.05, aum: 12400, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '141250', name: 'Edelweiss Flexi Cap Fund Direct Growth', family: 'Edelweiss Mutual Fund', oneYearChangePct: 30.5, currentPrice_or_nav: 38.40, sharpeRatio: 1.68, sortinoRatio: 2.45, aum: 2150, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '143890', name: 'Bank of India Flexi Cap Fund Direct Growth', family: 'Bank of India Mutual Fund', oneYearChangePct: 29.8, currentPrice_or_nav: 28.60, sharpeRatio: 1.62, sortinoRatio: 2.38, aum: 1420, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '122639', name: 'Parag Parikh Flexi Cap Fund Direct Growth', family: 'PPFAS Mutual Fund', oneYearChangePct: 32.4, currentPrice_or_nav: 82.50, sharpeRatio: 1.90, sortinoRatio: 2.80, aum: 68000, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '145601', name: 'PGIM India Flexi Cap Fund Direct Growth', family: 'PGIM India Mutual Fund', oneYearChangePct: 26.8, currentPrice_or_nav: 35.20, sharpeRatio: 1.55, sortinoRatio: 2.25, aum: 5600, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-    { id: '120896', name: 'Quant Flexi Cap Fund Direct Growth', family: 'Quant Mutual Fund', oneYearChangePct: 39.5, currentPrice_or_nav: 112.40, sharpeRatio: 1.92, sortinoRatio: 2.82, aum: 6800, sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
-
-    // Small Cap Equity Sub-category
-    { id: '120893', name: 'Quant Small Cap Fund Direct Growth', family: 'Quant Mutual Fund', oneYearChangePct: 42.5, currentPrice_or_nav: 245.60, sharpeRatio: 1.95, sortinoRatio: 2.85, aum: 21200, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '118778', name: 'Nippon India Small Cap Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 38.2, currentPrice_or_nav: 168.40, sharpeRatio: 1.88, sortinoRatio: 2.75, aum: 48500, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '119598', name: 'SBI Small Cap Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 32.8, currentPrice_or_nav: 152.10, sharpeRatio: 1.72, sortinoRatio: 2.50, aum: 28400, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '125498', name: 'Axis Small Cap Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 31.4, currentPrice_or_nav: 98.60, sharpeRatio: 1.68, sortinoRatio: 2.45, aum: 19800, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '148721', name: 'Bandhan Small Cap Fund Direct Growth', family: 'Bandhan Mutual Fund', oneYearChangePct: 36.5, currentPrice_or_nav: 42.10, sharpeRatio: 1.80, sortinoRatio: 2.65, aum: 5400, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '145892', name: 'Invesco India Smallcap Fund Direct Growth', family: 'Invesco Mutual Fund', oneYearChangePct: 35.2, currentPrice_or_nav: 38.40, sharpeRatio: 1.75, sortinoRatio: 2.58, aum: 4200, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '146210', name: 'Edelweiss Small Cap Fund Direct Growth', family: 'Edelweiss Mutual Fund', oneYearChangePct: 33.8, currentPrice_or_nav: 45.20, sharpeRatio: 1.71, sortinoRatio: 2.50, aum: 3800, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '145120', name: 'Tata Small Cap Fund Direct Growth', family: 'Tata Mutual Fund', oneYearChangePct: 34.5, currentPrice_or_nav: 36.80, sharpeRatio: 1.74, sortinoRatio: 2.52, aum: 7200, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '120592', name: 'ICICI Prudential Smallcap Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 32.1, currentPrice_or_nav: 84.50, sharpeRatio: 1.69, sortinoRatio: 2.44, aum: 8900, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-    { id: '118820', name: 'DSP Small Cap Fund Direct Growth', family: 'DSP Mutual Fund', oneYearChangePct: 30.6, currentPrice_or_nav: 165.40, sharpeRatio: 1.63, sortinoRatio: 2.38, aum: 14200, sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-
-    // Mid Cap Equity Sub-category
-    { id: '118989', name: 'HDFC Mid-Cap Opportunities Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 36.4, currentPrice_or_nav: 172.50, sharpeRatio: 1.82, sortinoRatio: 2.65, aum: 62400, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '119780', name: 'Kotak Emerging Equity Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 34.2, currentPrice_or_nav: 115.80, sharpeRatio: 1.76, sortinoRatio: 2.55, aum: 42100, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '128911', name: 'Motilal Oswal Midcap Fund Direct Growth', family: 'Motilal Oswal Mutual Fund', oneYearChangePct: 48.5, currentPrice_or_nav: 98.20, sharpeRatio: 2.10, sortinoRatio: 3.15, aum: 14500, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '118785', name: 'Nippon India Growth Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 39.2, currentPrice_or_nav: 340.50, sharpeRatio: 1.88, sortinoRatio: 2.76, aum: 28400, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '118800', name: 'Axis Midcap Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 31.8, currentPrice_or_nav: 112.40, sharpeRatio: 1.68, sortinoRatio: 2.45, aum: 25600, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '119600', name: 'SBI Magnum Midcap Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 33.5, currentPrice_or_nav: 215.80, sharpeRatio: 1.72, sortinoRatio: 2.50, aum: 19400, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '125600', name: 'PGIM India Midcap Opportunities Fund Direct Growth', family: 'PGIM India Mutual Fund', oneYearChangePct: 29.4, currentPrice_or_nav: 68.50, sharpeRatio: 1.60, sortinoRatio: 2.32, aum: 9800, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-    { id: '147200', name: 'Mirae Asset Midcap Fund Direct Growth', family: 'Mirae Asset Mutual Fund', oneYearChangePct: 32.6, currentPrice_or_nav: 42.80, sharpeRatio: 1.70, sortinoRatio: 2.48, aum: 15200, sectorName: 'Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'midcap' },
-
-    // Large Cap Equity Sub-category
-    { id: '120586', name: 'ICICI Prudential Bluechip Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 28.5, currentPrice_or_nav: 108.40, sharpeRatio: 1.68, sortinoRatio: 2.45, aum: 52400, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '118834', name: 'Mirae Asset Large Cap Fund Direct Growth', family: 'Mirae Asset Mutual Fund', oneYearChangePct: 26.2, currentPrice_or_nav: 112.60, sharpeRatio: 1.62, sortinoRatio: 2.35, aum: 38200, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '118995', name: 'HDFC Top 100 Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 27.8, currentPrice_or_nav: 1045.20, sharpeRatio: 1.65, sortinoRatio: 2.40, aum: 32400, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '118782', name: 'Nippon India Large Cap Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 29.4, currentPrice_or_nav: 88.60, sharpeRatio: 1.70, sortinoRatio: 2.48, aum: 28900, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '119602', name: 'SBI Bluechip Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 25.4, currentPrice_or_nav: 92.40, sharpeRatio: 1.58, sortinoRatio: 2.30, aum: 45200, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '118802', name: 'Axis Bluechip Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 24.2, currentPrice_or_nav: 68.20, sharpeRatio: 1.52, sortinoRatio: 2.22, aum: 31800, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-    { id: '119782', name: 'Kotak Bluechip Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 26.8, currentPrice_or_nav: 54.80, sharpeRatio: 1.61, sortinoRatio: 2.34, aum: 12400, sectorName: 'Large Cap Equity', specifiedType: 'equity', specifiedSub: 'largecap' },
-
-    // Multi Cap Equity Sub-category
-    { id: '118780', name: 'Nippon India Multi Cap Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 38.6, currentPrice_or_nav: 245.20, sharpeRatio: 1.86, sortinoRatio: 2.72, aum: 31200, sectorName: 'Multi Cap Equity', specifiedType: 'equity', specifiedSub: 'multicap' },
-    { id: '120898', name: 'Quant Multi Cap Fund Direct Growth', family: 'Quant Mutual Fund', oneYearChangePct: 41.2, currentPrice_or_nav: 310.50, sharpeRatio: 1.94, sortinoRatio: 2.85, aum: 9800, sectorName: 'Multi Cap Equity', specifiedType: 'equity', specifiedSub: 'multicap' },
-    { id: '120588', name: 'ICICI Prudential Multicap Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 34.5, currentPrice_or_nav: 724.80, sharpeRatio: 1.78, sortinoRatio: 2.60, aum: 12400, sectorName: 'Multi Cap Equity', specifiedType: 'equity', specifiedSub: 'multicap' },
-    { id: '149500', name: 'HDFC Multi-Cap Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 35.8, currentPrice_or_nav: 24.80, sharpeRatio: 1.80, sortinoRatio: 2.64, aum: 14800, sectorName: 'Multi Cap Equity', specifiedType: 'equity', specifiedSub: 'multicap' },
-
-    // ELSS Tax Saver Sub-category
-    { id: '135782', name: 'Mirae Asset ELSS Tax Saver Fund Direct Growth', family: 'Mirae Asset Mutual Fund', oneYearChangePct: 28.4, currentPrice_or_nav: 46.80, sharpeRatio: 1.66, sortinoRatio: 2.40, aum: 22800, sectorName: 'ELSS Tax Saver', specifiedType: 'equity', specifiedSub: 'elss' },
-    { id: '120894', name: 'Quant ELSS Tax Saver Fund Direct Growth', family: 'Quant Mutual Fund', oneYearChangePct: 36.8, currentPrice_or_nav: 385.20, sharpeRatio: 1.88, sortinoRatio: 2.78, aum: 9800, sectorName: 'ELSS Tax Saver', specifiedType: 'equity', specifiedSub: 'elss' },
-    { id: '148990', name: 'Parag Parikh ELSS Tax Saver Fund Direct Growth', family: 'PPFAS Mutual Fund', oneYearChangePct: 30.2, currentPrice_or_nav: 31.40, sharpeRatio: 1.72, sortinoRatio: 2.50, aum: 3400, sectorName: 'ELSS Tax Saver', specifiedType: 'equity', specifiedSub: 'elss' },
-    { id: '118805', name: 'Axis Long Term Equity Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 25.6, currentPrice_or_nav: 98.40, sharpeRatio: 1.55, sortinoRatio: 2.25, aum: 31200, sectorName: 'ELSS Tax Saver', specifiedType: 'equity', specifiedSub: 'elss' },
-    { id: '118822', name: 'DSP ELSS Tax Saver Fund Direct Growth', family: 'DSP Mutual Fund', oneYearChangePct: 29.1, currentPrice_or_nav: 112.50, sharpeRatio: 1.68, sortinoRatio: 2.44, aum: 14500, sectorName: 'ELSS Tax Saver', specifiedType: 'equity', specifiedSub: 'elss' },
-
-    // Sectoral / Thematic Sub-category
-    { id: '120595', name: 'ICICI Prudential Technology Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 32.4, currentPrice_or_nav: 215.40, sharpeRatio: 1.75, sortinoRatio: 2.58, aum: 12800, sectorName: 'Sectoral Technology', specifiedType: 'equity', specifiedSub: 'sectoral' },
-    { id: '135800', name: 'Tata Digital India Fund Direct Growth', family: 'Tata Mutual Fund', oneYearChangePct: 31.2, currentPrice_or_nav: 54.80, sharpeRatio: 1.70, sortinoRatio: 2.50, aum: 9400, sectorName: 'Sectoral Technology', specifiedType: 'equity', specifiedSub: 'sectoral' },
-    { id: '118788', name: 'Nippon India Pharma Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 35.8, currentPrice_or_nav: 480.20, sharpeRatio: 1.82, sortinoRatio: 2.68, aum: 7200, sectorName: 'Sectoral Healthcare', specifiedType: 'equity', specifiedSub: 'sectoral' },
-    { id: '125900', name: 'SBI Banking & Financial Services Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 24.6, currentPrice_or_nav: 38.40, sharpeRatio: 1.54, sortinoRatio: 2.22, aum: 5800, sectorName: 'Sectoral Banking', specifiedType: 'equity', specifiedSub: 'sectoral' },
-
-    // Focused Equity Sub-category
-    { id: '120895', name: 'Quant Focused Fund Direct Growth', family: 'Quant Mutual Fund', oneYearChangePct: 34.6, currentPrice_or_nav: 88.40, sharpeRatio: 1.78, sortinoRatio: 2.60, aum: 4800, sectorName: 'Focused Equity', specifiedType: 'equity', specifiedSub: 'focused' },
-    { id: '119608', name: 'SBI Focused Equity Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 27.5, currentPrice_or_nav: 312.40, sharpeRatio: 1.62, sortinoRatio: 2.36, aum: 31500, sectorName: 'Focused Equity', specifiedType: 'equity', specifiedSub: 'focused' },
-    { id: '118808', name: 'Axis Focused 25 Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 24.8, currentPrice_or_nav: 52.60, sharpeRatio: 1.50, sortinoRatio: 2.20, aum: 14200, sectorName: 'Focused Equity', specifiedType: 'equity', specifiedSub: 'focused' },
-    { id: '118998', name: 'HDFC Focused 30 Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 31.4, currentPrice_or_nav: 184.20, sharpeRatio: 1.71, sortinoRatio: 2.48, aum: 11800, sectorName: 'Focused Equity', specifiedType: 'equity', specifiedSub: 'focused' },
-
-    // Momentum 30 Index & ETF Sub-category
-    { id: '149880', name: 'Motilal Oswal Nifty 200 Momentum 30 Index Fund Direct Growth', family: 'Motilal Oswal Mutual Fund', oneYearChangePct: 46.5, currentPrice_or_nav: 34.80, sharpeRatio: 2.05, sortinoRatio: 3.10, aum: 6400, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '148770', name: 'UTI Nifty200 Momentum 30 Index Fund Direct Growth', family: 'UTI Mutual Fund', oneYearChangePct: 45.8, currentPrice_or_nav: 42.50, sharpeRatio: 2.02, sortinoRatio: 3.05, aum: 5800, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '149550', name: 'ICICI Prudential Nifty200 Momentum 30 Index Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 45.2, currentPrice_or_nav: 28.60, sharpeRatio: 1.98, sortinoRatio: 2.98, aum: 4100, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '149910', name: 'HDFC Nifty200 Momentum 30 Index Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 44.8, currentPrice_or_nav: 19.40, sharpeRatio: 1.95, sortinoRatio: 2.92, aum: 3200, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '149720', name: 'Nippon India Nifty 200 Momentum 30 ETF', family: 'Nippon India Mutual Fund', oneYearChangePct: 45.5, currentPrice_or_nav: 31.20, sharpeRatio: 1.99, sortinoRatio: 2.99, aum: 2900, sectorName: 'Nifty 200 Momentum 30 ETF', specifiedType: 'etf', specifiedSub: 'momentum30' },
-    { id: '149630', name: 'Kotak Nifty 200 Momentum 30 Index Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 44.2, currentPrice_or_nav: 18.50, sharpeRatio: 1.92, sortinoRatio: 2.88, aum: 1850, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '149810', name: 'Tata Nifty200 Momentum 30 Index Fund Direct Growth', family: 'Tata Mutual Fund', oneYearChangePct: 43.8, currentPrice_or_nav: 16.80, sharpeRatio: 1.90, sortinoRatio: 2.84, aum: 1400, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-    { id: '149950', name: 'Axis Nifty 200 Momentum 30 Index Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 43.1, currentPrice_or_nav: 15.20, sharpeRatio: 1.86, sortinoRatio: 2.78, aum: 980, sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-
-    // NPS Schemes
-    { id: '148901', name: 'SBI Pension Fund Scheme E (Tier I) Direct', family: 'SBI Pension Funds', oneYearChangePct: 18.5, currentPrice_or_nav: 48.20, sharpeRatio: 1.45, sortinoRatio: 2.10, aum: 38400, sectorName: 'NPS Pension', specifiedType: 'nps', specifiedSub: 'scheme_e' },
-    { id: '148902', name: 'HDFC Pension Fund Scheme E (Tier I) Direct', family: 'HDFC Pension Management', oneYearChangePct: 19.2, currentPrice_or_nav: 52.10, sharpeRatio: 1.52, sortinoRatio: 2.18, aum: 29500, sectorName: 'NPS Pension', specifiedType: 'nps', specifiedSub: 'scheme_e' },
-    { id: '148903', name: 'ICICI Prudential Pension Fund Scheme C', family: 'ICICI Prudential Pension', oneYearChangePct: 12.4, currentPrice_or_nav: 38.60, sharpeRatio: 1.28, sortinoRatio: 1.85, aum: 18200, sectorName: 'NPS Pension', specifiedType: 'nps', specifiedSub: 'scheme_c' },
-    { id: '120601', name: 'UTI Retirement Benefit Pension Fund Direct', family: 'UTI Mutual Fund', oneYearChangePct: 16.8, currentPrice_or_nav: 42.80, sharpeRatio: 1.35, sortinoRatio: 1.92, aum: 12400, sectorName: 'NPS Pension', specifiedType: 'nps', specifiedSub: 'scheme_e' },
-
-    // GIFT City Schemes
-    { id: '149101', name: 'Nippon India GIFT City IFSC India Growth Fund', family: 'Nippon India Mutual Fund', oneYearChangePct: 24.5, currentPrice_or_nav: 18.50, sharpeRatio: 1.65, sortinoRatio: 2.40, aum: 4800, sectorName: 'GIFT City IFSC', specifiedType: 'gift' },
-    { id: '149102', name: 'Axis GIFT City Global Technology IFSC Fund', family: 'Axis Mutual Fund', oneYearChangePct: 28.2, currentPrice_or_nav: 22.10, sharpeRatio: 1.72, sortinoRatio: 2.55, aum: 3200, sectorName: 'GIFT City IFSC', specifiedType: 'gift' },
-    { id: '149103', name: 'Kotak GIFT City IFSC Opportunities Fund', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 21.4, currentPrice_or_nav: 15.80, sharpeRatio: 1.48, sortinoRatio: 2.15, aum: 2100, sectorName: 'GIFT City IFSC', specifiedType: 'gift' },
-
-    // FOF Schemes
-    { id: '101235', name: 'ICICI Prudential Asset Allocator Fund of Funds Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 22.8, currentPrice_or_nav: 95.40, sharpeRatio: 1.58, sortinoRatio: 2.25, aum: 18400, sectorName: 'Fund of Funds', specifiedType: 'fof' },
-    { id: '145621', name: 'Motilal Oswal Nasdaq 100 FoF Direct Growth', family: 'Motilal Oswal Mutual Fund', oneYearChangePct: 31.4, currentPrice_or_nav: 32.60, sharpeRatio: 1.85, sortinoRatio: 2.70, aum: 5400, sectorName: 'Fund of Funds', specifiedType: 'fof' },
-    { id: '112450', name: 'Quantum Equity FoF Direct Plan Growth', family: 'Quantum Mutual Fund', oneYearChangePct: 24.1, currentPrice_or_nav: 68.20, sharpeRatio: 1.62, sortinoRatio: 2.30, aum: 1200, sectorName: 'Fund of Funds', specifiedType: 'fof' },
-
-    // Commodities
-    { id: '113400', name: 'Nippon India Gold Savings Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 19.8, currentPrice_or_nav: 28.40, sharpeRatio: 1.42, sortinoRatio: 2.05, aum: 8900, sectorName: 'Commodity Gold', specifiedType: 'commodities', specifiedSub: 'gold' },
-    { id: '149800', name: 'ICICI Prudential Silver ETF FoF Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 27.6, currentPrice_or_nav: 14.20, sharpeRatio: 1.55, sortinoRatio: 2.35, aum: 4100, sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
-    { id: '149801', name: 'HDFC Multi Asset Commodity Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 21.2, currentPrice_or_nav: 19.50, sharpeRatio: 1.48, sortinoRatio: 2.15, aum: 3200, sectorName: 'Commodities', specifiedType: 'commodities', specifiedSub: 'gold' },
-
-    // Global Funds
-    { id: '119800', name: 'Edelweiss Greater China Equity Off-Shore Fund Direct Growth', family: 'Edelweiss Mutual Fund', oneYearChangePct: 26.4, currentPrice_or_nav: 54.20, sharpeRatio: 1.60, sortinoRatio: 2.30, aum: 2400, sectorName: 'Global Overseas', specifiedType: 'global', specifiedSub: 'china' },
-    { id: '113900', name: 'PGIM India Global Equity Opportunities Fund Direct Growth', family: 'PGIM India Mutual Fund', oneYearChangePct: 29.8, currentPrice_or_nav: 42.10, sharpeRatio: 1.75, sortinoRatio: 2.60, aum: 1800, sectorName: 'Global US/World', specifiedType: 'global', specifiedSub: 'us_tech' },
-    { id: '118900', name: 'Franklin India Feeder - Franklin U.S. Opportunities Fund Direct Growth', family: 'Franklin Templeton Mutual Fund', oneYearChangePct: 33.2, currentPrice_or_nav: 65.80, sharpeRatio: 1.88, sortinoRatio: 2.80, aum: 4200, sectorName: 'Global US/World', specifiedType: 'global', specifiedSub: 'us_tech' },
-
-    // Debt Funds
-    { id: '119604', name: 'SBI Magnum Gilt Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 8.5, currentPrice_or_nav: 62.40, sharpeRatio: 1.92, sortinoRatio: 2.95, aum: 9800, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '120598', name: 'ICICI Prudential Gilt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 8.8, currentPrice_or_nav: 94.80, sharpeRatio: 1.98, sortinoRatio: 3.05, aum: 6400, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '119005', name: 'HDFC Gilt Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 8.2, currentPrice_or_nav: 54.20, sharpeRatio: 1.86, sortinoRatio: 2.85, aum: 4200, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '118790', name: 'Nippon India Gilt Securities Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 8.4, currentPrice_or_nav: 38.60, sharpeRatio: 1.88, sortinoRatio: 2.88, aum: 2900, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '119788', name: 'Kotak Gilt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 8.6, currentPrice_or_nav: 88.50, sharpeRatio: 1.90, sortinoRatio: 2.92, aum: 3100, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '148730', name: 'Bandhan Government Securities Fund Direct Growth', family: 'Bandhan Mutual Fund', oneYearChangePct: 8.7, currentPrice_or_nav: 32.10, sharpeRatio: 1.94, sortinoRatio: 2.98, aum: 2400, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    { id: '118810', name: 'Axis Gilt Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 8.1, currentPrice_or_nav: 24.80, sharpeRatio: 1.84, sortinoRatio: 2.80, aum: 1850, sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
-    // Banking & PSU Debt Sub-category
-    { id: '119002', name: 'ICICI Prudential Banking & PSU Debt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 7.8, currentPrice_or_nav: 31.40, sharpeRatio: 1.78, sortinoRatio: 2.75, aum: 19800, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '119606', name: 'SBI Banking and PSU Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 7.7, currentPrice_or_nav: 32.80, sharpeRatio: 1.76, sortinoRatio: 2.70, aum: 9800, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '119006', name: 'HDFC Banking and PSU Debt Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 7.9, currentPrice_or_nav: 21.40, sharpeRatio: 1.80, sortinoRatio: 2.80, aum: 11200, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '118792', name: 'Nippon India Banking & PSU Debt Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 7.6, currentPrice_or_nav: 18.60, sharpeRatio: 1.74, sortinoRatio: 2.68, aum: 6400, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '119790', name: 'Kotak Banking and PSU Debt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 7.8, currentPrice_or_nav: 58.20, sharpeRatio: 1.78, sortinoRatio: 2.74, aum: 8100, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '118812', name: 'Axis Banking & PSU Debt Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 7.5, currentPrice_or_nav: 24.10, sharpeRatio: 1.72, sortinoRatio: 2.64, aum: 14200, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '148732', name: 'Bandhan Banking & PSU Debt Fund Direct Growth', family: 'Bandhan Mutual Fund', oneYearChangePct: 7.6, currentPrice_or_nav: 22.60, sharpeRatio: 1.75, sortinoRatio: 2.68, aum: 4800, sectorName: 'Debt Banking & PSU', specifiedType: 'debt', specifiedSub: 'banking' },
-
-    // Corporate Bond Sub-category
-    { id: '119001', name: 'HDFC Corporate Bond Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 8.2, currentPrice_or_nav: 28.90, sharpeRatio: 1.85, sortinoRatio: 2.90, aum: 28400, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-    { id: '120599', name: 'ICICI Prudential Corporate Bond Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 8.4, currentPrice_or_nav: 26.40, sharpeRatio: 1.88, sortinoRatio: 2.95, aum: 24800, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-    { id: '118745', name: 'Aditya Birla Sun Life Corporate Bond Fund Direct Growth', family: 'Aditya Birla Sun Life Mutual Fund', oneYearChangePct: 8.3, currentPrice_or_nav: 92.10, sharpeRatio: 1.86, sortinoRatio: 2.92, aum: 21400, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-    { id: '119607', name: 'SBI Corporate Bond Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 8.1, currentPrice_or_nav: 16.80, sharpeRatio: 1.82, sortinoRatio: 2.85, aum: 19200, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-    { id: '118794', name: 'Nippon India Corporate Bond Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 8.2, currentPrice_or_nav: 48.50, sharpeRatio: 1.84, sortinoRatio: 2.88, aum: 4600, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-    { id: '119792', name: 'Kotak Corporate Bond Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 8.0, currentPrice_or_nav: 34.20, sharpeRatio: 1.80, sortinoRatio: 2.80, aum: 12800, sectorName: 'Debt Corporate Bond', specifiedType: 'debt', specifiedSub: 'corporate' },
-
-    // Liquid Funds Sub-category
-    { id: '119003', name: 'SBI Liquid Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 7.2, currentPrice_or_nav: 3480.20, sharpeRatio: 2.10, sortinoRatio: 3.40, aum: 62400, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-    { id: '119007', name: 'HDFC Liquid Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 7.3, currentPrice_or_nav: 4620.50, sharpeRatio: 2.15, sortinoRatio: 3.45, aum: 68900, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-    { id: '120600', name: 'ICICI Prudential Liquid Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 7.4, currentPrice_or_nav: 342.80, sharpeRatio: 2.18, sortinoRatio: 3.50, aum: 48200, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-    { id: '118796', name: 'Nippon India Liquid Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 7.25, currentPrice_or_nav: 5840.10, sharpeRatio: 2.12, sortinoRatio: 3.42, aum: 31400, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-    { id: '119794', name: 'Kotak Liquid Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 7.35, currentPrice_or_nav: 4890.60, sharpeRatio: 2.16, sortinoRatio: 3.46, aum: 34200, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-    { id: '118814', name: 'Axis Liquid Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 7.20, currentPrice_or_nav: 2680.40, sharpeRatio: 2.10, sortinoRatio: 3.38, aum: 28900, sectorName: 'Debt Liquid', specifiedType: 'debt', specifiedSub: 'liquid' },
-
-    // Short Duration Sub-category
-    { id: '119004', name: 'HDFC Short Term Debt Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 7.9, currentPrice_or_nav: 29.40, sharpeRatio: 1.82, sortinoRatio: 2.80, aum: 14200, sectorName: 'Debt Short Duration', specifiedType: 'debt', specifiedSub: 'short' },
-    { id: '120602', name: 'ICICI Prudential Short Term Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 8.1, currentPrice_or_nav: 52.80, sharpeRatio: 1.85, sortinoRatio: 2.86, aum: 18900, sectorName: 'Debt Short Duration', specifiedType: 'debt', specifiedSub: 'short' },
-    { id: '119610', name: 'SBI Short Term Debt Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 7.6, currentPrice_or_nav: 31.20, sharpeRatio: 1.78, sortinoRatio: 2.74, aum: 12800, sectorName: 'Debt Short Duration', specifiedType: 'debt', specifiedSub: 'short' },
-    { id: '118798', name: 'Nippon India Short Term Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 7.8, currentPrice_or_nav: 48.20, sharpeRatio: 1.80, sortinoRatio: 2.78, aum: 8400, sectorName: 'Debt Short Duration', specifiedType: 'debt', specifiedSub: 'short' },
-    { id: '118816', name: 'Axis Short Term Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 7.7, currentPrice_or_nav: 28.60, sharpeRatio: 1.79, sortinoRatio: 2.75, aum: 9600, sectorName: 'Debt Short Duration', specifiedType: 'debt', specifiedSub: 'short' },
-
-    // Hybrid Funds Sub-category
-    { id: '119101', name: 'SBI Equity Hybrid Fund Direct Growth', family: 'SBI Mutual Fund', oneYearChangePct: 21.5, currentPrice_or_nav: 245.80, sharpeRatio: 1.62, sortinoRatio: 2.35, aum: 68500, sectorName: 'Hybrid Aggressive', specifiedType: 'hybrid', specifiedSub: 'aggressive' },
-    { id: '119102', name: 'ICICI Prudential Equity & Debt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 25.8, currentPrice_or_nav: 312.40, sharpeRatio: 1.75, sortinoRatio: 2.55, aum: 34800, sectorName: 'Hybrid Balanced', specifiedType: 'hybrid', specifiedSub: 'balanced' },
-    { id: '119103', name: 'HDFC Balanced Advantage Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 24.2, currentPrice_or_nav: 458.20, sharpeRatio: 1.68, sortinoRatio: 2.45, aum: 86400, sectorName: 'Hybrid Dynamic', specifiedType: 'hybrid', specifiedSub: 'balanced' },
-    { id: '119104', name: 'Kotak Equity Arbitrage Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 7.8, currentPrice_or_nav: 34.80, sharpeRatio: 1.95, sortinoRatio: 3.10, aum: 42800, sectorName: 'Hybrid Arbitrage', specifiedType: 'hybrid', specifiedSub: 'arbitrage' },
-    { id: '119105', name: 'ICICI Prudential Multi-Asset Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 28.6, currentPrice_or_nav: 680.40, sharpeRatio: 1.82, sortinoRatio: 2.68, aum: 41200, sectorName: 'Hybrid Multi Asset', specifiedType: 'hybrid', specifiedSub: 'multiasset' },
-    { id: '119106', name: 'Nippon India Multi Asset Allocation Fund Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 26.4, currentPrice_or_nav: 18.50, sharpeRatio: 1.74, sortinoRatio: 2.52, aum: 8400, sectorName: 'Hybrid Multi Asset', specifiedType: 'hybrid', specifiedSub: 'multiasset' },
-
-    // ETF Schemes - Index ETFs
-    { id: '100033', name: 'Nippon India ETF Nifty 50 BeES', family: 'Nippon India Mutual Fund', oneYearChangePct: 24.8, currentPrice_or_nav: 264.50, sharpeRatio: 1.65, sortinoRatio: 2.40, aum: 24500, sectorName: 'ETF Index', specifiedType: 'etf', specifiedSub: 'nifty50' },
-    { id: '100044', name: 'SBI Nifty 50 ETF', family: 'SBI Mutual Fund', oneYearChangePct: 24.9, currentPrice_or_nav: 265.20, sharpeRatio: 1.66, sortinoRatio: 2.42, aum: 185000, sectorName: 'ETF Index', specifiedType: 'etf', specifiedSub: 'nifty50' },
-    { id: '100045', name: 'ICICI Prudential Nifty 50 ETF', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 24.8, currentPrice_or_nav: 264.80, sharpeRatio: 1.65, sortinoRatio: 2.40, aum: 62400, sectorName: 'ETF Index', specifiedType: 'etf', specifiedSub: 'nifty50' },
-    { id: '100046', name: 'HDFC Nifty 50 ETF', family: 'HDFC Mutual Fund', oneYearChangePct: 24.85, currentPrice_or_nav: 264.90, sharpeRatio: 1.66, sortinoRatio: 2.41, aum: 28900, sectorName: 'ETF Index', specifiedType: 'etf', specifiedSub: 'nifty50' },
-
-    // ETF Schemes - Sectoral & Banking ETFs
-    { id: '100034', name: 'SBI Nifty Bank ETF', family: 'SBI Mutual Fund', oneYearChangePct: 18.4, currentPrice_or_nav: 512.10, sharpeRatio: 1.42, sortinoRatio: 2.05, aum: 14200, sectorName: 'ETF Sectoral', specifiedType: 'etf', specifiedSub: 'sectoral' },
-    { id: '128900', name: 'CPSE ETF Direct Growth', family: 'Nippon India Mutual Fund', oneYearChangePct: 48.6, currentPrice_or_nav: 92.40, sharpeRatio: 2.15, sortinoRatio: 3.20, aum: 38400, sectorName: 'ETF Sectoral', specifiedType: 'etf', specifiedSub: 'sectoral' },
-    { id: '100047', name: 'Nippon India ETF Bank BeES', family: 'Nippon India Mutual Fund', oneYearChangePct: 18.6, currentPrice_or_nav: 512.80, sharpeRatio: 1.44, sortinoRatio: 2.08, aum: 12800, sectorName: 'ETF Sectoral', specifiedType: 'etf', specifiedSub: 'sectoral' },
-    { id: '100048', name: 'ICICI Prudential Nifty IT ETF', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 32.4, currentPrice_or_nav: 38.40, sharpeRatio: 1.75, sortinoRatio: 2.58, aum: 4200, sectorName: 'ETF Sectoral', specifiedType: 'etf', specifiedSub: 'sectoral' },
-
-    // ETF Schemes - Gold ETFs
-    { id: '100035', name: 'Nippon India ETF Gold BeES', family: 'Nippon India Mutual Fund', oneYearChangePct: 20.4, currentPrice_or_nav: 68.50, sharpeRatio: 1.48, sortinoRatio: 2.15, aum: 11400, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-    { id: '100036', name: 'HDFC Gold ETF Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 20.2, currentPrice_or_nav: 66.80, sharpeRatio: 1.45, sortinoRatio: 2.10, aum: 5800, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-    { id: '100037', name: 'ICICI Prudential Gold ETF', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 20.5, currentPrice_or_nav: 67.20, sharpeRatio: 1.46, sortinoRatio: 2.12, aum: 6200, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-    { id: '100038', name: 'SBI Gold ETF', family: 'SBI Mutual Fund', oneYearChangePct: 19.8, currentPrice_or_nav: 65.40, sharpeRatio: 1.42, sortinoRatio: 2.05, aum: 4900, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-    { id: '100042', name: 'Kotak Gold ETF', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 20.1, currentPrice_or_nav: 66.10, sharpeRatio: 1.44, sortinoRatio: 2.08, aum: 3400, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-    { id: '100043', name: 'Axis Gold ETF', family: 'Axis Mutual Fund', oneYearChangePct: 19.9, currentPrice_or_nav: 65.80, sharpeRatio: 1.43, sortinoRatio: 2.06, aum: 1850, sectorName: 'ETF Gold', specifiedType: 'etf', specifiedSub: 'gold_etf' },
-
-    // ETF Schemes - Silver ETFs
-    { id: '100039', name: 'Nippon India Silver ETF', family: 'Nippon India Mutual Fund', oneYearChangePct: 28.5, currentPrice_or_nav: 92.40, sharpeRatio: 1.62, sortinoRatio: 2.38, aum: 3800, sectorName: 'ETF Silver', specifiedType: 'etf', specifiedSub: 'silver_etf' },
-    { id: '100040', name: 'ICICI Prudential Silver ETF', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 28.8, currentPrice_or_nav: 93.10, sharpeRatio: 1.65, sortinoRatio: 2.42, aum: 2900, sectorName: 'ETF Silver', specifiedType: 'etf', specifiedSub: 'silver_etf' },
-    { id: '100041', name: 'HDFC Silver ETF', family: 'HDFC Mutual Fund', oneYearChangePct: 28.2, currentPrice_or_nav: 91.80, sharpeRatio: 1.60, sortinoRatio: 2.35, aum: 2400, sectorName: 'ETF Silver', specifiedType: 'etf', specifiedSub: 'silver_etf' },
-    { id: '100049', name: 'Kotak Silver ETF', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 28.6, currentPrice_or_nav: 92.80, sharpeRatio: 1.64, sortinoRatio: 2.40, aum: 1980, sectorName: 'ETF Silver', specifiedType: 'etf', specifiedSub: 'silver_etf' },
-
-    // ETF Schemes - Global & Nasdaq ETFs
-    { id: '100050', name: 'Motilal Oswal Nasdaq 100 ETF (MON100)', family: 'Motilal Oswal Mutual Fund', oneYearChangePct: 32.8, currentPrice_or_nav: 142.50, sharpeRatio: 1.88, sortinoRatio: 2.75, aum: 7800, sectorName: 'ETF Global', specifiedType: 'etf', specifiedSub: 'global_etf' },
-    { id: '100051', name: 'Mirae Asset NYSE FANG+ ETF', family: 'Mirae Asset Mutual Fund', oneYearChangePct: 38.5, currentPrice_or_nav: 98.40, sharpeRatio: 1.95, sortinoRatio: 2.85, aum: 2400, sectorName: 'ETF Global', specifiedType: 'etf', specifiedSub: 'global_etf' },
-
-    // Index Funds
-    { id: '120716', name: 'UTI Nifty 50 Index Fund Direct Growth', family: 'UTI Mutual Fund', oneYearChangePct: 24.6, currentPrice_or_nav: 154.20, sharpeRatio: 1.64, sortinoRatio: 2.38, aum: 18900, sectorName: 'Index Nifty 50', specifiedType: 'index', specifiedSub: 'nifty50' },
-    { id: '101850', name: 'HDFC Index Fund Sensex Plan Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 23.2, currentPrice_or_nav: 620.40, sharpeRatio: 1.58, sortinoRatio: 2.30, aum: 6500, sectorName: 'Index Sensex', specifiedType: 'index', specifiedSub: 'sensex' },
-    { id: '149200', name: 'Navi Nifty 50 Index Fund Direct Growth', family: 'Navi Mutual Fund', oneYearChangePct: 24.7, currentPrice_or_nav: 16.80, sharpeRatio: 1.66, sortinoRatio: 2.40, aum: 2100, sectorName: 'Index Nifty 50', specifiedType: 'index', specifiedSub: 'nifty50' },
-
-    // Nifty Bank & Banking Schemes
-    { id: '119609', name: 'Nippon India ETF Nifty Bank BeES', family: 'Nippon India Mutual Fund', oneYearChangePct: 18.6, currentPrice_or_nav: 598.81, sharpeRatio: 1.62, sortinoRatio: 2.35, aum: 11400, sectorName: 'Nifty Bank ETF', specifiedType: 'etf', specifiedSub: 'niftybank' },
-    { id: '119615', name: 'SBI Nifty Bank ETF', family: 'SBI Mutual Fund', oneYearChangePct: 18.4, currentPrice_or_nav: 512.10, sharpeRatio: 1.60, sortinoRatio: 2.32, aum: 5200, sectorName: 'Nifty Bank ETF', specifiedType: 'etf', specifiedSub: 'niftybank' },
-    { id: '119611', name: 'ICICI Prudential Nifty Bank Index Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', oneYearChangePct: 18.3, currentPrice_or_nav: 32.40, sharpeRatio: 1.58, sortinoRatio: 2.30, aum: 4100, sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
-    { id: '119612', name: 'HDFC Nifty Bank Index Fund Direct Growth', family: 'HDFC Mutual Fund', oneYearChangePct: 18.4, currentPrice_or_nav: 18.60, sharpeRatio: 1.60, sortinoRatio: 2.31, aum: 3800, sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
-    { id: '119613', name: 'Kotak Banking & PSU Debt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', oneYearChangePct: 7.45, currentPrice_or_nav: 62.80, sharpeRatio: 1.45, sortinoRatio: 2.10, aum: 9800, sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' },
-    { id: '119614', name: 'Axis Banking & PSU Debt Fund Direct Growth', family: 'Axis Mutual Fund', oneYearChangePct: 7.38, currentPrice_or_nav: 24.15, sharpeRatio: 1.42, sortinoRatio: 2.08, aum: 8600, sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' }
-  ], []);
+  const EXTRA_CATEGORY_SCHEMES = [];
 
   // Process and enrich real funds with consistent dynamic stats
   const enrichedFunds = useMemo(() => {
-    // Deduplicate flatFunds with EXTRA_CATEGORY_SCHEMES strictly by unique scheme ID
+    // Deduplicate flatFunds, extraCategorySchemes, and allDirectSchemes strictly by unique scheme ID
     const combined = [];
     const seenIds = new Set();
 
-    [...flatFunds, ...EXTRA_CATEGORY_SCHEMES].forEach(fund => {
-      const fundId = String(fund.id || fund.schemeCode || fund.name);
-      if (!seenIds.has(fundId)) {
+    [...flatFunds, ...EXTRA_CATEGORY_SCHEMES, ...extraCategorySchemes, ...allDirectSchemes].forEach(fund => {
+      const fundId = String(fund.schemeCode || fund.id || '').trim();
+      if (fundId && !seenIds.has(fundId)) {
         seenIds.add(fundId);
         combined.push(fund);
-      } else {
-        console.warn(`[IndianMfSectorAnalysis] Duplicate scheme ID detected and deduplicated: ${fundId} (${fund.name})`);
       }
     });
 
-    return combined.map(fund => {
-      const name = fund.name || 'Mutual Fund';
-      const type = getFundType(name, fund.specifiedType || '');
-      const subType = getFundSubType(name, fund.specifiedSub || '');
-      
-      // Dynamic NAV
-      const nav = fund.currentPrice_or_nav || ((name.length * 7) % 250 + 15);
-      
-      // Dynamic AUM
-      const aum = fund.aum || ((name.length * 317) % 45000 + 850);
-      
-      // Real 1Y Return
-      const oneYrReturn = fund.oneYearChangePct !== null && fund.oneYearChangePct !== undefined ? fund.oneYearChangePct : ((name.length * 3) % 40 + 12);
-      
-      // Sharpe & Sortino
-      const sharpeRatio = fund.sharpeRatio !== undefined && fund.sharpeRatio !== 0 
-        ? fund.sharpeRatio 
-        : parseFloat(((name.length * 7) % 3 + 0.82).toFixed(2));
-      const sortinoRatio = fund.sortinoRatio !== undefined && fund.sortinoRatio !== 0 
-        ? fund.sortinoRatio 
-        : parseFloat(((name.length * 11) % 4 + 1.15).toFixed(2));
 
-      // Mathematically generated historical timeframes based on 1Y Return
+    return combined.map(fund => {
+      const name = fund.name || fund.schemeName || 'Mutual Fund';
+      const fundType = getFundType(name, fund.category, fund.specifiedType || '');
+      const type = fundType;
+      const subType = getFundSubType(name, fund.category, fund.specifiedSub || '');
+      
+      // Real NAV (strictly null if unavailable)
+      const nav = fund.currentPrice_or_nav !== null && fund.currentPrice_or_nav !== undefined && fund.currentPrice_or_nav > 0 
+        ? fund.currentPrice_or_nav 
+        : (fund.nav > 0 ? fund.nav : null);
+      
+      // Real AUM in ₹ Crores (strictly using verified per-fund provider)
+      const rawAum = fund.aum ?? fund.aumInCr ?? fund.totalAum;
+      const aum = rawAum !== null && rawAum !== undefined && rawAum > 0 
+        ? (typeof rawAum === 'string' ? parseFloat(rawAum.replace(/[^0-9.]/g, '')) : Number(rawAum))
+        : null; // STRICTLY NULL if missing from live dataset - ZERO hardcoded overrides or synthetic fallbacks!
+
+      // Real Per-Scheme NAV Returns dynamically fetched from live mfapi.in NAV time series
+      const r1D = fund.oneDayChangePct ?? fund.returns1d ?? fund.returns?.['1D'] ?? null;
+      const r1W = fund.oneWeekChangePct ?? fund.returns1w ?? fund.returns?.['1W'] ?? null;
+      const r1M = fund.oneMonthChangePct ?? fund.returns1m ?? fund.returns?.['1M'] ?? null;
+      const r3M = fund.threeMonthChangePct ?? fund.returns3m ?? fund.returns?.['3M'] ?? null;
+      const r6M = fund.sixMonthChangePct ?? fund.returns6m ?? fund.returns?.['6M'] ?? null;
+      const base1Y = fund.oneYearChangePct ?? fund.returns1y ?? fund.returns?.['1Y'] ?? null;
+      const r3Y = fund.threeYearCagr ?? fund.returns3y ?? fund.returns?.['3Y'] ?? null;
+      const r5Y = fund.fiveYearCagr ?? fund.returns5y ?? fund.returns?.['5Y'] ?? null;
+      const rAll = fund.inceptionCagr ?? fund.returnsAll ?? fund.returns?.['All'] ?? null;
+
+      const finalSharpe = (fund.sharpeRatio !== undefined && fund.sharpeRatio !== 0 && fund.sharpeRatio !== null) ? Number(fund.sharpeRatio) : null;
+      const finalSortino = (fund.sortinoRatio !== undefined && fund.sortinoRatio !== 0 && fund.sortinoRatio !== null) ? Number(fund.sortinoRatio) : null;
+
       const returns = {
-        '1D': parseFloat((oneYrReturn * 0.012).toFixed(2)),
-        '1W': parseFloat((oneYrReturn * 0.07).toFixed(2)),
-        '1M': parseFloat((oneYrReturn * 0.20).toFixed(2)),
-        '3M': parseFloat((oneYrReturn * 0.42).toFixed(2)),
-        '6M': parseFloat((oneYrReturn * 0.68).toFixed(2)),
-        '1Y': parseFloat(oneYrReturn.toFixed(2)),
-        '3Y': parseFloat((oneYrReturn * 2.2).toFixed(2)),
-        '5Y': parseFloat((oneYrReturn * 3.9).toFixed(2)),
-        'All': parseFloat((oneYrReturn * 12.4).toFixed(2))
+        '1D': r1D != null ? parseFloat(Number(r1D).toFixed(2)) : null,
+        '1W': r1W != null ? parseFloat(Number(r1W).toFixed(2)) : null,
+        '1M': r1M != null ? parseFloat(Number(r1M).toFixed(2)) : null,
+        '3M': r3M != null ? parseFloat(Number(r3M).toFixed(2)) : null,
+        '6M': r6M != null ? parseFloat(Number(r6M).toFixed(2)) : null,
+        '1Y': base1Y != null ? parseFloat(Number(base1Y).toFixed(2)) : null,
+        '3Y': r3Y != null ? parseFloat(Number(r3Y).toFixed(2)) : null,
+        '5Y': r5Y != null ? parseFloat(Number(r5Y).toFixed(2)) : null,
+        'All': rAll != null ? parseFloat(Number(rAll).toFixed(2)) : null
       };
+
+
+      const sharpeRatios = {};
+      const sortinoRatios = {};
+
+      TIMEFRAMES_NAV.forEach(tf => {
+        sharpeRatios[tf] = finalSharpe != null ? parseFloat(finalSharpe.toFixed(2)) : null;
+        sortinoRatios[tf] = finalSortino != null ? parseFloat(finalSortino.toFixed(2)) : null;
+      });
 
       // Classify category label for display
       let category = fund.sectorName || 'Equity';
@@ -896,51 +906,333 @@ export const IndianMfSectorAnalysis = () => {
         name,
         type,
         subType,
-        nav: parseFloat(nav.toFixed(2)),
+        nav: (nav !== null && nav !== undefined) ? parseFloat(nav.toFixed(2)) : null,
         aum,
         returns,
-        sharpeRatio,
-        sortinoRatio,
+        sharpeRatio: finalSharpe,
+        sortinoRatio: finalSortino,
+        sharpeRatios,
+        sortinoRatios,
         category,
-        isSIP: (name.length % 2 === 0)
+        isSIP: !name.toLowerCase().includes('etf')
       };
     });
-  }, [flatFunds, EXTRA_CATEGORY_SCHEMES]);
+  }, [flatFunds, EXTRA_CATEGORY_SCHEMES, extraCategorySchemes]);
 
-  // Filter enriched funds based on the category pills, sub-category pills, and search query
+  // Calculate deterministic rankings for enriched funds
+  const rankedFunds = useMemo(() => {
+    return calculateFundRankings(enrichedFunds);
+  }, [enrichedFunds]);
+
+  // Filter ranked funds based on search query, top pills, market filter, and sidebar subcategory
   const filteredDashboardFunds = useMemo(() => {
-    let funds = enrichedFunds;
-    if (selectedCategory !== 'all') {
-      funds = funds.filter(f => f.type === selectedCategory);
-    }
-    if (!selectedSubCategories.includes('all') && selectedSubCategories.length > 0) {
+    let funds = rankedFunds;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const qClean = q.replace(/[\s\-_]/g, '');
+
       funds = funds.filter(f => {
-        return selectedSubCategories.some(sub => {
-          if (f.subType === sub) return true;
-          const nameLower = (f.name || '').toLowerCase();
-          if (sub === 'smallcap') return nameLower.includes('small cap') || nameLower.includes('smallcap');
-          if (sub === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
-          if (sub === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
-          if (sub === 'flexicap') return nameLower.includes('flexi cap') || nameLower.includes('flexicap');
-          if (sub === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
-          if (sub === 'gold_etf') return nameLower.includes('gold etf') || (nameLower.includes('etf') && nameLower.includes('gold')) || (nameLower.includes('bees') && nameLower.includes('gold'));
-          if (sub === 'silver_etf') return nameLower.includes('silver etf') || (nameLower.includes('etf') && nameLower.includes('silver'));
-          if (sub === 'niftybank' || sub === 'banking') return nameLower.includes('bank') || nameLower.includes('banking') || nameLower.includes('financial') || nameLower.includes('psu');
-          if (sub === 'global_etf') return nameLower.includes('nasdaq') || nameLower.includes('fang') || nameLower.includes('mon100') || nameLower.includes('s&p');
-          return false;
-        });
+        const name = (f.name || '').toLowerCase();
+        const family = (f.family || f.amc || '').toLowerCase();
+        const category = (f.category || '').toLowerCase();
+        const type = (f.type || '').toLowerCase();
+        const subType = (f.subType || '').toLowerCase();
+        const text = `${name} ${family} ${category} ${type} ${subType}`;
+        return text.includes(q) || text.replace(/[\s\-_]/g, '').includes(qClean);
       });
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      funds = funds.filter(f => 
-        (f.name || '').toLowerCase().includes(q) || 
-        (f.family || '').toLowerCase().includes(q) ||
-        (f.category || '').toLowerCase().includes(q)
-      );
+
+    if (selectedCategory !== 'all') {
+      funds = funds.filter(f => {
+        if (selectedCategory === 'etf') return f.type === 'etf' || f.type === 'index';
+        if (selectedCategory === 'index') return f.type === 'index' || f.type === 'etf';
+        if (selectedCategory === 'gift') return f.type === 'gift' || f.type === 'global';
+        if (selectedCategory === 'fof') return f.type === 'fof' || f.type === 'equity';
+        return f.type === selectedCategory;
+      });
     }
+
+    if (activeMarketFilter !== 'all') {
+      funds = funds.filter(f => {
+        if (activeMarketFilter === 'elss') return f.subType === 'elss' || (f.name || '').toLowerCase().includes('elss') || (f.name || '').toLowerCase().includes('tax saver');
+        if (activeMarketFilter === 'sectors') return f.type === 'sectoral' || f.subType === 'sectoral' || (f.category || '').toLowerCase().includes('sector');
+        return f.type === activeMarketFilter;
+      });
+    }
+
+    if (selectedSubCategory && selectedSubCategory !== 'all') {
+      funds = funds.filter(f => {
+        const nameLower = (f.name || '').toLowerCase();
+        const sub = selectedSubCategory;
+        if (f.subType === sub) return true;
+        if (sub === 'small_cap' || sub === 'smallcap') return nameLower.includes('small cap') || nameLower.includes('smallcap');
+        if (sub === 'mid_cap' || sub === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
+        if (sub === 'large_cap' || sub === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
+        if (sub === 'flexi_cap' || sub === 'flexicap') return nameLower.includes('flexi cap') || nameLower.includes('flexicap');
+        if (sub === 'multi_cap' || sub === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
+        if (sub === 'elss' || sub === 'large_elss' || sub === 'flexi_elss') return nameLower.includes('elss') || nameLower.includes('tax saver');
+        if (sub === 'sp500') return nameLower.includes('s&p 500') || nameLower.includes('sp 500');
+        if (sub === 'nasdaq') return nameLower.includes('nasdaq');
+        if (sub === 'russell') return nameLower.includes('russell');
+        if (sub === 'ai_tech') return nameLower.includes('tech') || nameLower.includes('ai') || nameLower.includes('semiconductor') || nameLower.includes('innovation');
+        if (sub === 'liquid') return nameLower.includes('liquid');
+        if (sub === 'gold') return nameLower.includes('gold');
+        if (sub === 'silver') return nameLower.includes('silver');
+        return false;
+      });
+    }
+
     return funds;
-  }, [enrichedFunds, selectedCategory, selectedSubCategories, searchQuery]);
+  }, [rankedFunds, searchQuery, selectedCategory, activeMarketFilter, selectedSubCategory]);
+
+  const isGroupedView = selectedSubCategory === 'all';
+  const groupedCategories = useMemo(() => {
+    const getSubcategoryKey = (fund, marketFilter) => {
+      const name = String(fund.name || fund.schemeName || '').toLowerCase();
+      const cat = String(fund.category || '').toLowerCase();
+
+      if (marketFilter === 'equity') {
+        if (name.includes('large & mid') || name.includes('large and mid') || cat.includes('large & mid') || cat.includes('large and mid')) return 'Large & Mid Cap';
+        if (name.includes('flexi cap') || cat.includes('flexi cap')) return 'Flexi Cap';
+        if (name.includes('small cap') || cat.includes('small cap')) return 'Small Cap';
+        if (name.includes('mid cap') || cat.includes('mid cap')) return 'Mid Cap';
+        if (name.includes('large cap') || name.includes('bluechip') || cat.includes('large cap')) return 'Large Cap';
+        if (name.includes('multi cap') || cat.includes('multi cap')) return 'Multi Cap';
+        if (name.includes('value') || cat.includes('value')) return 'Value';
+        if (name.includes('focused') || cat.includes('focused')) return 'Focused';
+        if (name.includes('contra') || cat.includes('contra')) return 'Contra';
+        return 'Other Equity';
+      }
+
+      if (marketFilter === 'elss' || marketFilter === 'tax saver') {
+        const code = String(fund.schemeCode || fund.id || '');
+        if (name.includes('large') || name.includes('bluechip') || code === '151165') return 'Large Cap ELSS';
+        if (name.includes('multi') || code === '153201') return 'Multi Cap ELSS';
+        if (name.includes('value') || name.includes('value saver')) return 'Value ELSS';
+        if (name.includes('focused') || name.includes('focus')) return 'Focused ELSS';
+        if (name.includes('contra')) return 'Contra ELSS';
+        if (name.includes('flexi') || name.includes('dynamic') || name.includes('tax saver') || name.includes('elss')) return 'Flexi Cap ELSS';
+        return 'Other Tax Saver';
+      }
+
+      if (marketFilter === 'debt') {
+        if (name.includes('liquid') || cat.includes('liquid')) return 'Liquid Fund';
+        if (name.includes('corporate bond') || cat.includes('corporate bond')) return 'Corporate Bond Fund';
+        if (name.includes('banking & psu') || name.includes('psu') || cat.includes('banking and psu')) return 'Banking & PSU Fund';
+        if (name.includes('gilt') || cat.includes('gilt')) return 'Gilt Fund';
+        if (name.includes('short duration') || cat.includes('short duration') || name.includes('short term')) return 'Short Duration Fund';
+        return 'Other Debt';
+      }
+
+      if (marketFilter === 'hybrid') {
+        if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage')) return 'Balanced Advantage Fund';
+        if (name.includes('multi asset') || cat.includes('multi asset')) return 'Multi Asset Allocation Fund';
+        if (name.includes('aggressive') || cat.includes('aggressive hybrid')) return 'Aggressive Hybrid Fund';
+        if (name.includes('arbitrage') || cat.includes('arbitrage')) return 'Arbitrage Fund';
+        return 'Other Hybrid';
+      }
+
+      if (marketFilter === 'index') {
+        if ((name.includes('s&p 500') || name.includes('sp 500')) && !name.includes('sensex')) return 'S&P 500';
+        if (name.includes('nifty 200 momentum 30') || name.includes('200 momentum 30')) return 'Nifty 200 Momentum 30';
+        if (name.includes('nifty 50') || name.includes('nifty50')) return 'Nifty 50';
+        if (name.includes('bank') || name.includes('nifty bank')) return 'Nifty Bank';
+        if (name.includes('sensex')) return 'Sensex';
+        return 'Other Index';
+      }
+
+      if (marketFilter === 'commodities') {
+        if (name.includes('goldmine') || name.includes('mining') || name.includes('mine')) return 'Gold Mining';
+        if (name.includes('copper') || name.includes('metal')) return 'Copper / Metals';
+        if (name.includes('silver')) return 'Silver';
+        if (name.includes('gold')) return 'Gold';
+        return 'Other Commodities';
+      }
+
+      if (marketFilter === 'global') {
+        if ((name.includes('s&p 500') || name.includes('sp 500')) && !name.includes('sensex')) return 'S&P 500';
+        if (name.includes('nasdaq')) return 'Nasdaq';
+        if (name.includes('russell')) return 'Russell';
+        if (name.includes('gift') || name.includes('ifsc')) return 'GIFT City';
+        if (name.includes('tech') || name.includes('ai') || name.includes('artificial intelligence')) return 'Global Tech / AI & Tech';
+        if (name.includes('global') || name.includes('world') || name.includes('us ') || name.includes('overseas') || name.includes('international')) return 'Global Equity';
+        return 'Other Global';
+      }
+
+      if (marketFilter === 'sectoral_thematic' || marketFilter === 'sectors') {
+        if (name.includes('bank') || name.includes('finan')) return 'Banking & Financials';
+        if (name.includes('pharma') || name.includes('health')) return 'Healthcare & Pharma';
+        if (name.includes('tech') || name.includes('it ')) return 'Technology';
+        if (name.includes('infra')) return 'Infrastructure';
+        if (name.includes('consum')) return 'Consumption';
+        if (name.includes('psu')) return 'PSU';
+        if (name.includes('esg')) return 'ESG';
+        return 'Other Sectors';
+      }
+
+      return fund.subType ? (fund.subType.charAt(0).toUpperCase() + fund.subType.slice(1)) : 'General';
+    };
+
+    const tree = {};
+
+    filteredDashboardFunds.forEach(fund => {
+      let parentKey = 'EQUITY';
+
+      const catStr = (fund.category || '').toLowerCase();
+      const nameStr = (fund.name || '').toLowerCase();
+      const tStr = (fund.type || '').toLowerCase();
+
+      // STRICT EXCLUSIVITY IF/ELSE IF CHAIN - Every scheme belongs to EXACTLY ONE parent category
+      if (tStr === 'elss' || catStr.includes('elss') || nameStr.includes('elss') || nameStr.includes('tax saver')) {
+        parentKey = 'TAX SAVER';
+      } else if (tStr === 'debt' || catStr.includes('debt') || catStr.includes('income') || catStr.includes('gilt') || catStr.includes('liquid') || catStr.includes('bond') || catStr.includes('money market') || catStr.includes('overnight') || catStr.includes('fmp') || catStr.includes('floater') || catStr.includes('treasury') || nameStr.includes('debt') || nameStr.includes('bond') || nameStr.includes('gilt') || nameStr.includes('liquid') || nameStr.includes('treasury')) {
+        parentKey = 'DEBT';
+      } else if (tStr === 'index' || catStr.includes('index') || nameStr.includes('index') || nameStr.includes('etf') || nameStr.includes('nifty') || nameStr.includes('sensex') || nameStr.includes('bees')) {
+        parentKey = 'INDEX';
+      } else if (tStr === 'hybrid' || catStr.includes('hybrid') || catStr.includes('balanced') || catStr.includes('arbitrage') || nameStr.includes('hybrid') || nameStr.includes('arbitrage') || nameStr.includes('equity savings')) {
+        parentKey = 'HYBRID';
+      } else if (tStr === 'global' || catStr.includes('global') || catStr.includes('international') || catStr.includes('overseas') || nameStr.includes('international') || nameStr.includes('us equity') || nameStr.includes('nasdaq') || nameStr.includes('s&p') || nameStr.includes('gift')) {
+        parentKey = 'GLOBAL';
+      } else if (tStr === 'commodities' || catStr.includes('gold') || catStr.includes('silver') || catStr.includes('commodity') || nameStr.includes('gold') || nameStr.includes('silver')) {
+        parentKey = 'COMMODITIES';
+      } else if (tStr === 'sectoral_thematic' || catStr.includes('sector') || catStr.includes('thematic') || nameStr.includes('pharma') || nameStr.includes('infra') || nameStr.includes('tech') || nameStr.includes('banking')) {
+        parentKey = 'SECTORS';
+      } else {
+        parentKey = 'EQUITY';
+      }
+
+      const subKey = getSubcategoryKey(fund, activeMarketFilter === 'all' ? parentKey.toLowerCase() : activeMarketFilter);
+
+      if (!tree[parentKey]) {
+        tree[parentKey] = {
+          name: parentKey,
+          funds: [],
+          subcategories: {},
+          count: 0,
+          aum: 0,
+          returns: { '1W': 0, '1M': 0, '3M': 0, '6M': 0, '1Y': 0, '3Y': 0, '5Y': 0, 'All': 0 },
+          sharpeRatio: null,
+          sortinoRatio: null
+        };
+      }
+
+      const schemeAum = Number(fund.aum || 0);
+
+      tree[parentKey].funds.push(fund);
+      tree[parentKey].count += 1;
+      tree[parentKey].aum += schemeAum;
+
+      if (!tree[parentKey].subcategories[subKey]) {
+        tree[parentKey].subcategories[subKey] = {
+          name: subKey,
+          funds: [],
+          count: 0,
+          aum: 0,
+          returns: { '1W': 0, '1M': 0, '3M': 0, '6M': 0, '1Y': 0, '3Y': 0, '5Y': 0, 'All': 0 },
+          sharpeRatio: null,
+          sortinoRatio: null
+        };
+      }
+
+      tree[parentKey].subcategories[subKey].funds.push(fund);
+      tree[parentKey].subcategories[subKey].count += 1;
+      tree[parentKey].subcategories[subKey].aum += schemeAum;
+    });
+
+    // Compute weighted metrics for parent categories and subcategories using only member funds with valid real data
+    Object.keys(tree).forEach(parentKey => {
+      const parent = tree[parentKey];
+
+      ['1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', 'All'].forEach(tf => {
+        const validFunds = parent.funds.filter(f => f.returns?.[tf] != null && !isNaN(f.returns[tf]));
+        if (validFunds.length === 0) {
+          parent.returns[tf] = null;
+        } else {
+          const validAumSum = validFunds.reduce((sum, f) => sum + (Number(f.aum) || 0), 0);
+          if (validAumSum > 0) {
+            const wSum = validFunds.reduce((sum, f) => {
+              const aumVal = Number(f.aum) || 0;
+              return sum + f.returns[tf] * (aumVal / validAumSum);
+            }, 0);
+            parent.returns[tf] = parseFloat(wSum.toFixed(2));
+          } else {
+            const eqSum = validFunds.reduce((sum, f) => sum + f.returns[tf], 0);
+            parent.returns[tf] = parseFloat((eqSum / validFunds.length).toFixed(2));
+          }
+        }
+      });
+
+      const parentSharpes = parent.funds.map(f => f.sharpeRatio).filter(v => v != null && !isNaN(v));
+      if (parentSharpes.length > 0) parent.sharpeRatio = parseFloat((parentSharpes.reduce((a, b) => a + b, 0) / parentSharpes.length).toFixed(2));
+      else parent.sharpeRatio = null;
+
+      const parentSortinos = parent.funds.map(f => f.sortinoRatio).filter(v => v != null && !isNaN(v));
+      if (parentSortinos.length > 0) parent.sortinoRatio = parseFloat((parentSortinos.reduce((a, b) => a + b, 0) / parentSortinos.length).toFixed(2));
+      else parent.sortinoRatio = null;
+
+      // Compute Subcategory weighted metrics and sort subcategory funds by AUM DESC
+      const sortedSubKeys = Object.keys(parent.subcategories).sort((a, b) => (parent.subcategories[b].aum || 0) - (parent.subcategories[a].aum || 0));
+      const sortedSubcats = {};
+
+      sortedSubKeys.forEach(subKey => {
+        const sub = parent.subcategories[subKey];
+
+        // Sort funds inside subcategory by individual AUM DESC
+        sub.funds.sort((fa, fb) => (Number(fb.aum) || 0) - (Number(fa.aum) || 0));
+
+        ['1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', 'All'].forEach(tf => {
+          const validFunds = sub.funds.filter(f => f.returns?.[tf] != null && !isNaN(f.returns[tf]));
+          if (validFunds.length === 0) {
+            sub.returns[tf] = null;
+          } else {
+            const validAumSum = validFunds.reduce((sum, f) => sum + (Number(f.aum) || 0), 0);
+            if (validAumSum > 0) {
+              const wSum = validFunds.reduce((sum, f) => {
+                const aumVal = Number(f.aum) || 0;
+                return sum + f.returns[tf] * (aumVal / validAumSum);
+              }, 0);
+              sub.returns[tf] = parseFloat(wSum.toFixed(2));
+            } else {
+              const eqSum = validFunds.reduce((sum, f) => sum + f.returns[tf], 0);
+              sub.returns[tf] = parseFloat((eqSum / validFunds.length).toFixed(2));
+            }
+          }
+        });
+
+        const subSharpes = sub.funds.map(f => f.sharpeRatio).filter(v => v != null && !isNaN(v));
+        if (subSharpes.length > 0) sub.sharpeRatio = parseFloat((subSharpes.reduce((a, b) => a + b, 0) / subSharpes.length).toFixed(2));
+        else sub.sharpeRatio = null;
+
+        const subSortinos = sub.funds.map(f => f.sortinoRatio).filter(v => v != null && !isNaN(v));
+        if (subSortinos.length > 0) sub.sortinoRatio = parseFloat((subSortinos.reduce((a, b) => a + b, 0) / subSortinos.length).toFixed(2));
+        else sub.sortinoRatio = null;
+
+        sortedSubcats[subKey] = sub;
+      });
+
+      parent.subcategories = sortedSubcats;
+    });
+
+      // SORT PARENT CATEGORY KEYS STRICTLY BY AGGREGATE AUM DESCENDING
+      const sortedKeys = Object.keys(tree).sort((a, b) => (tree[b].aum || 0) - (tree[a].aum || 0));
+
+      const sortedTree = {};
+      sortedKeys.forEach(k => {
+        sortedTree[k] = tree[k];
+      });
+
+      return sortedTree;
+  }, [filteredDashboardFunds, activeMarketFilter, isAllFundsMode]);
+
+  const fundCountsBySub = useMemo(() => {
+    const counts = { all: filteredDashboardFunds.length };
+    filteredDashboardFunds.forEach(f => {
+      const sub = f.subType || f.type || 'other';
+      counts[sub] = (counts[sub] || 0) + 1;
+    });
+    return counts;
+  }, [filteredDashboardFunds]);
 
   // Sorting Top Funds for the Left Card based on active leftCardTimeframe
   const topFundsByReturn = useMemo(() => {
@@ -948,13 +1240,21 @@ export const IndianMfSectorAnalysis = () => {
       .sort((a, b) => (b.returns[leftCardTimeframe] || 0) - (a.returns[leftCardTimeframe] || 0));
   }, [filteredDashboardFunds, leftCardTimeframe]);
 
-  // Sorting Rankings for the Right Card (based on sortBy selector)
+  // Sorting Rankings for the Right Card (based on sortBy selector and active navTimeframe)
   const sortedRankingFunds = useMemo(() => {
     return [...filteredDashboardFunds].sort((a, b) => {
-      if (sortBy === 'sharpe') return b.sharpeRatio - a.sharpeRatio;
-      if (sortBy === 'sortino') return b.sortinoRatio - a.sortinoRatio;
-      if (sortBy === 'aum') return b.aum - a.aum;
-      return b.returns[navTimeframe] - a.returns[navTimeframe];
+      if (sortBy === 'sharpe') {
+        const aSharpe = a.sharpeRatios?.[navTimeframe] !== undefined ? a.sharpeRatios[navTimeframe] : (a.sharpeRatio || 0);
+        const bSharpe = b.sharpeRatios?.[navTimeframe] !== undefined ? b.sharpeRatios[navTimeframe] : (b.sharpeRatio || 0);
+        return bSharpe - aSharpe;
+      }
+      if (sortBy === 'sortino') {
+        const aSortino = a.sortinoRatios?.[navTimeframe] !== undefined ? a.sortinoRatios[navTimeframe] : (a.sortinoRatio || 0);
+        const bSortino = b.sortinoRatios?.[navTimeframe] !== undefined ? b.sortinoRatios[navTimeframe] : (b.sortinoRatio || 0);
+        return bSortino - aSortino;
+      }
+      if (sortBy === 'aum') return (b.aum || 0) - (a.aum || 0);
+      return (b.returns[navTimeframe] || 0) - (a.returns[navTimeframe] || 0);
     });
   }, [filteredDashboardFunds, sortBy, navTimeframe]);
 
@@ -975,7 +1275,7 @@ export const IndianMfSectorAnalysis = () => {
     return Object.values(amcMap)
       .map(item => ({
         name: item.name,
-        aumStr: (item.aum / 10).toFixed(1) + ' Cr',
+        aumStr: item.aum != null ? (item.aum / 10).toFixed(1) + ' Cr' : '0 Cr',
         share: totalAUM > 0 ? ((item.aum / totalAUM) * 100).toFixed(2) + '%' : '0.00%'
       }))
       .sort((a, b) => parseFloat(b.share) - parseFloat(a.share));
@@ -1026,9 +1326,9 @@ export const IndianMfSectorAnalysis = () => {
     return {
       totalCount: totalCount.toLocaleString('en-IN'),
       totalAUM: aumFormatted,
-      top1Y: (top1YVal >= 0 ? '+' : '') + top1YVal.toFixed(2) + '%',
-      top3Y: (top3YVal >= 0 ? '+' : '') + top3YVal.toFixed(2) + '%',
-      avg1Y: (avg1YVal >= 0 ? '+' : '') + avg1YVal.toFixed(2) + '%',
+      top1Y: (top1YVal >= 0 ? '+' : '') + (top1YVal != null && Number.isFinite(top1YVal) ? top1YVal.toFixed(2) : '0.00') + '%',
+      top3Y: (top3YVal >= 0 ? '+' : '') + (top3YVal != null && Number.isFinite(top3YVal) ? top3YVal.toFixed(2) : '0.00') + '%',
+      avg1Y: (avg1YVal >= 0 ? '+' : '') + (avg1YVal != null && Number.isFinite(avg1YVal) ? avg1YVal.toFixed(2) : '0.00') + '%',
       mostInvestedSIP: mostInvestedSIPFund.name,
       categoryLabel: selectedCategory === 'all' ? 'All Categories' : selectedCategory.toUpperCase()
     };
@@ -1082,555 +1382,131 @@ export const IndianMfSectorAnalysis = () => {
   }).filter(sector => sector.filteredFunds.length > 0 || (sector.sectorName || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[var(--bg-color)] text-[var(--text-primary)] font-sans">
-      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+      <div className="w-full max-w-full p-4 md:p-8 space-y-6">
         
         {/* Title Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800/80 pb-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
-              Indian Mutual Funds
-            </h1>
-            <p className="text-[var(--text-muted)] text-sm mt-1">
-              Real-time NAVs, direct plans, AMC rankings, and sector allocations.
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                Indian Mutual Funds
+              </h1>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                AMFI Verified
+              </span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+              Latest NAVs, direct plans, AMC rankings &amp; category performance
             </p>
           </div>
           
-          {/* Search bar inside header */}
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input 
-              type="text" 
-              placeholder="Search mutual funds, categories, AMCs..." 
-              className="w-full bg-slate-900/60 border border-slate-800 text-xs text-[var(--text-primary)] rounded-lg py-2.5 pl-9 pr-4 focus:outline-none focus:border-indigo-500 transition-colors"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Search mutual funds, categories, AMCs..." 
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 rounded-lg py-2 pl-9 pr-8 focus:outline-none focus:border-blue-500 transition-colors"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  title="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Download Data Button */}
+            <button
+              onClick={() => {
+                const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(enrichedFunds, null, 2))}`;
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", jsonString);
+                downloadAnchor.setAttribute("download", `MarketPulse_Mutual_Funds_${new Date().toISOString().slice(0,10)}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+              }}
+              className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Download size={14} />
+              <span>Download Data</span>
+            </button>
           </div>
         </div>
 
-        {/* ── TRADOX CATEGORY NAVIGATION PILLS ── */}
-        <div className="flex flex-col gap-3 border-b border-slate-800/60 pb-3">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-            {MUTUAL_FUND_CATEGORIES.map(category => (
-              <button
-                key={category.id}
-                onClick={() => {
-                  setSelectedCategory(category.id);
-                  setSelectedSubCategories(['all']);
-                }}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                  selectedCategory === category.id 
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' 
-                    : 'bg-slate-900/50 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
-              >
-                {category.label}
-              </button>
-            ))}
-          </div>
+        {/* ── INDIAN MF MARKET OVERVIEW ── */}
+        <MfMarketOverview 
+          enrichedFunds={enrichedFunds} 
+          liveSummary={liveSummary}
+          onSelectAllFunds={() => {
+            setIsAllFundsMode(true);
+            setActiveMarketFilter('all');
+            setSelectedCategory('all');
+            setSelectedSubCategory('all');
+            setSearchQuery('');
+            if (rankingTableRef.current) {
+              rankingTableRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+        />
 
-          {/* ── SUB-CATEGORY SELECTOR PILLS & DROPDOWN ── */}
-          {SUB_CATEGORIES[selectedCategory] && SUB_CATEGORIES[selectedCategory].length > 1 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-                Sub-categories (Multi-Select):
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {SUB_CATEGORIES[selectedCategory].map(sub => {
-                  const isActive = selectedSubCategories.includes(sub.id);
-                  return (
-                    <button
-                      key={sub.id}
-                      onClick={() => {
-                        if (sub.id === 'all') {
-                          setSelectedSubCategories(['all']);
-                        } else {
-                          setSelectedSubCategories(prev => {
-                            const withoutAll = prev.filter(x => x !== 'all');
-                            if (withoutAll.includes(sub.id)) {
-                              const next = withoutAll.filter(x => x !== sub.id);
-                              return next.length === 0 ? ['all'] : next;
-                            } else {
-                              return [...withoutAll, sub.id];
-                            }
-                          });
-                        }
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                          : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      {isActive && sub.id !== 'all' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>}
-                      {sub.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        {/* ── MARKET FILTER STRIP ── */}
+        <MarketFilterStrip
+          activeFilter={activeMarketFilter}
+          onSelectFilter={(filterId) => {
+            setActiveMarketFilter(filterId);
+            setSelectedSubCategory('all');
+            setIsAllFundsMode(false);
+          }}
+          rankMode={rankMode}
+          onRankModeChange={setRankMode}
+          isAllFundsMode={isAllFundsMode}
+        />
+
+        {/* ── MAIN FULL-WIDTH MARKET TERMINAL EXPANDABLE ACCORDION TABLE ── */}
+        <div ref={rankingTableRef} className="w-full scroll-mt-20">
+          <MfRankingTable
+            funds={filteredDashboardFunds}
+            groupedCategories={groupedCategories}
+            isAllFundsMode={isAllFundsMode}
+            activeTimeframe={rankingTimeframe}
+            rankMode={rankMode}
+            onTimeframeChange={(tf) => setRankingTimeframe(tf)}
+            onSelectFund={(fund) => setActiveModalFund(fund)}
+          />
         </div>
 
-        {/* ── TRADOX STAT CARDS / METRICS BANNER ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {/* Total Funds Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Funds</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.totalFunds?.source || 'AMFI NAVAll.txt'}\nFormula: ${liveSummary?.totalFunds?.formulaDescription || 'Count of distinct scheme codes in AMFI NAVAll.txt'}\nUpdated: ${liveSummary?.totalFunds?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-lg font-extrabold text-slate-200">
-              {filteredDashboardFunds.length}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-emerald-400 font-medium">{selectedCategory === 'all' && selectedSubCategories.includes('all') ? '+12 New' : 'Direct Growth'}</span>
-              <span className="text-slate-600 font-mono text-[8px]">Live</span>
-            </div>
-          </div>
-
-          {/* Total AUM Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total AUM</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: AMFI Monthly AAUM Disclosures & Fund Portfolio AUM\nSum of active scheme AUMs for selected category: ₹ ${statsBanner.totalAUM}\nUpdated: ${liveSummary?.totalAUM?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-base font-extrabold text-slate-200">
-              ₹ {statsBanner.totalAUM}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-emerald-400 font-medium">+2.35% (1M)</span>
-              <span className="text-slate-600 font-mono text-[8px]">Live</span>
-            </div>
-          </div>
-
-          {/* Top 1Y Return Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Top 1Y Return</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.top1Y?.source || 'AMFI & mfapi.in'}\nFund: ${liveSummary?.top1Y?.fundName || 'Top 1Y Performer'}\nFormula: ${liveSummary?.top1Y?.formulaDescription || 'max((NAV_today - NAV_365_days_ago) / NAV_365_days_ago)'}\nUpdated: ${liveSummary?.top1Y?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-lg font-extrabold text-emerald-400">
-              {liveSummary?.top1Y?.display || statsBanner.top1Y}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-slate-400 truncate max-w-[80px]" title={liveSummary?.top1Y?.fundName || 'Gainer'}>{liveSummary?.top1Y?.fundName ? liveSummary.top1Y.fundName.split(' ')[0] : 'Gainer'}</span>
-              <span className="text-slate-600 font-mono text-[8px]">{liveSummary?.top1Y?.lastUpdated ? new Date(liveSummary.top1Y.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live'}</span>
-            </div>
-          </div>
-
-          {/* Top 3Y Return Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Top 3Y Return</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.top3Y?.source || 'AMFI & mfapi.in 3Y CAGR'}\nFund: ${liveSummary?.top3Y?.fundName || 'Top 3Y Performer'}\nFormula: ${liveSummary?.top3Y?.formulaDescription || 'max(((NAV_today / NAV_1095_days_ago)^(1/3)) - 1)'}\nUpdated: ${liveSummary?.top3Y?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-lg font-extrabold text-emerald-400">
-              {liveSummary?.top3Y?.display || statsBanner.top3Y}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-slate-400">3Y CAGR</span>
-              <span className="text-slate-600 font-mono text-[8px]">{liveSummary?.top3Y?.lastUpdated ? new Date(liveSummary.top3Y.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live'}</span>
-            </div>
-          </div>
-
-          {/* Avg 1Y Return Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Avg. 1Y Return</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.avg1Y?.source || 'Equal-weighted mean across active funds'}\nMethod: Equal-weighted average\nFormula: ${liveSummary?.avg1Y?.formulaDescription || 'Sum(1Y_Return_i) / N_schemes'}\nUpdated: ${liveSummary?.avg1Y?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-lg font-extrabold text-slate-200">
-              {liveSummary?.avg1Y?.display || statsBanner.avg1Y}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-slate-400">Equal-Weighted</span>
-              <span className="text-slate-600 font-mono text-[8px]">{liveSummary?.avg1Y?.lastUpdated ? new Date(liveSummary.avg1Y.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live'}</span>
-            </div>
-          </div>
-
-          {/* Most Invested SIP Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Most Invested SIP</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.mostInvestedSIP?.source || 'AMFI Top Invested SIP Analytics'}\nFund: ${liveSummary?.mostInvestedSIP?.display || statsBanner.mostInvestedSIP}\nUpdated: ${liveSummary?.mostInvestedSIP?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-xs font-bold text-slate-200 truncate pr-1" title={liveSummary?.mostInvestedSIP?.display || statsBanner.mostInvestedSIP}>
-              {liveSummary?.mostInvestedSIP?.display || statsBanner.mostInvestedSIP}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-indigo-400 font-medium">Top Pick</span>
-              <span className="text-slate-600 font-mono text-[8px]">Live</span>
-            </div>
-          </div>
-
-          {/* New Fund Offers Card */}
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between group relative">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">New Fund Offers</span>
-              <div className="cursor-pointer text-slate-600 hover:text-slate-400" title={`Source: ${liveSummary?.nfos?.source || 'AMFI NFO Disclosures'}\nActive NFO Count: 12 Open NFOs\nUpdated: ${liveSummary?.nfos?.lastUpdated || new Date().toISOString()}`}>
-                <Info size={12} />
-              </div>
-            </div>
-            <div className="mt-1.5 text-lg font-extrabold text-orange-400">
-              {liveSummary?.nfos?.display || '12'}
-            </div>
-            <div className="flex items-center justify-between text-[9px] mt-1">
-              <span className="text-slate-400 font-medium">This Month</span>
-              <span className="text-slate-600 font-mono text-[8px]">Live</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── SIDE-BY-SIDE CATEGORY COMPARISON SECTION (When Multi-selected or Toggled) ── */}
-        {!selectedSubCategories.includes('all') && selectedSubCategories.length >= 1 && (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 space-y-4 animate-in fade-in duration-300">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                  <BarChart3 size={18} className="text-indigo-400" />
-                  Side-by-Side Category Comparison ({selectedSubCategories.length} Categories Selected)
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Comparing top funds and performance metrics across selected subcategories side-by-side.
-                </p>
-              </div>
-              <button 
-                onClick={() => setSelectedSubCategories(['all'])}
-                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors self-start sm:self-auto"
-              >
-                Reset to All Funds
-              </button>
-            </div>
-
-            {/* Side-by-side Columns Grid */}
-            <div className={`grid grid-cols-1 md:grid-cols-${Math.min(selectedSubCategories.length, 3)} gap-4`}>
-              {selectedSubCategories.map(subId => {
-                const subMeta = (SUB_CATEGORIES[selectedCategory] || []).find(s => s.id === subId) || { label: subId.toUpperCase() };
-                
-                // Get funds matching this specific subcategory
-                const subFunds = enrichedFunds.filter(f => {
-                  if (selectedCategory !== 'all' && f.type !== selectedCategory) return false;
-                  if (f.subType === subId) return true;
-                  const nameLower = (f.name || '').toLowerCase();
-                  if (subId === 'smallcap') return nameLower.includes('small cap') || nameLower.includes('smallcap');
-                  if (subId === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
-                  if (subId === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
-                  if (subId === 'flexicap') return nameLower.includes('flexi cap') || nameLower.includes('flexicap');
-                  if (subId === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
-                  if (subId === 'gold_etf') return nameLower.includes('gold etf') || (nameLower.includes('etf') && nameLower.includes('gold')) || (nameLower.includes('bees') && nameLower.includes('gold'));
-                  if (subId === 'silver_etf') return nameLower.includes('silver etf') || (nameLower.includes('etf') && nameLower.includes('silver'));
-                  if (subId === 'niftybank' || subId === 'banking') return nameLower.includes('bank') || nameLower.includes('banking') || nameLower.includes('financial') || nameLower.includes('psu');
-                  if (subId === 'global_etf') return nameLower.includes('nasdaq') || nameLower.includes('fang') || nameLower.includes('mon100') || nameLower.includes('s&p');
-                  return false;
-                }).sort((a, b) => (b.returns[navTimeframe] || 0) - (a.returns[navTimeframe] || 0));
-
-                const avgTf = subFunds.length > 0 ? (subFunds.reduce((sum, f) => sum + (f.returns[navTimeframe] || 0), 0) / subFunds.length).toFixed(2) : '0';
-                const avgSharpe = subFunds.length > 0 ? (subFunds.reduce((sum, f) => sum + (f.sharpeRatio || 0), 0) / subFunds.length).toFixed(2) : '0';
-                const totalSubAum = subFunds.reduce((sum, f) => sum + (f.aum || 0), 0);
-
-                return (
-                  <div key={subId} className="bg-slate-950/80 border border-indigo-500/20 rounded-xl p-4 flex flex-col justify-between space-y-4">
-                    {/* Category Column Header */}
-                    <div className="border-b border-slate-800 pb-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-indigo-300">{subMeta.label}</span>
-                        <span className="text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
-                          {subFunds.length} Funds
-                        </span>
-                      </div>
-                      
-                      {/* Summary Metrics */}
-                      <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                        <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                          <span className="text-[9px] text-slate-500 block uppercase font-bold">Avg {navTimeframe} Return</span>
-                          <span className="text-xs font-mono font-extrabold text-emerald-400">+{avgTf}%</span>
-                        </div>
-                        <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                          <span className="text-[9px] text-slate-500 block uppercase font-bold">Avg Sharpe</span>
-                          <span className="text-xs font-mono font-extrabold text-slate-200">{avgSharpe}</span>
-                        </div>
-                        <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                          <span className="text-[9px] text-slate-500 block uppercase font-bold">Segment AUM</span>
-                          <span className="text-xs font-mono font-extrabold text-slate-200">₹{(totalSubAum / 1000).toFixed(1)}k Cr</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Top Schemes List */}
-                    <div className="space-y-2 flex-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Top Performing Schemes ({navTimeframe})</span>
-                      {subFunds.slice(0, 5).map((fund, idx) => (
-                        <div key={fund.id} className="bg-slate-900/40 border border-slate-800 hover:border-slate-700 p-2.5 rounded-lg flex items-center justify-between gap-2 text-xs transition-colors">
-                          <div className="truncate flex-1">
-                            <div className="font-semibold text-slate-200 truncate" title={fund.name}>#{idx + 1} {fund.name}</div>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
-                              <span>NAV: ₹{fund.nav}</span>
-                              <span>•</span>
-                              <span>Sharpe: {fund.sharpeRatio}</span>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-xs font-mono font-extrabold text-emerald-400 block">+{fund.returns[navTimeframe]}%</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Nifty 200 Momentum 30 Index Constituent Stock Holdings Table */}
-            {selectedSubCategories.includes('momentum30') && (
-              <div className="bg-slate-950/90 border border-emerald-500/30 rounded-xl p-4 mt-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                      <Layers size={14} className="text-emerald-400" />
-                      Nifty 200 Momentum 30 Index — All 30 Stock Portfolio Constituents
-                    </h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Exact stock weightage and sector allocation held across Momentum 30 Index Funds and ETFs.
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                    30 Top Stock Holdings
-                  </span>
-                </div>
-
-                {/* Stock Holdings Table Grid */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] font-semibold">
-                        <th className="py-2 px-3">#</th>
-                        <th className="py-2 px-3">Stock / Symbol</th>
-                        <th className="py-2 px-3">Sector</th>
-                        <th className="py-2 px-3 text-right">Portfolio Weight %</th>
-                        <th className="py-2 px-3 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/40">
-                      {MOMENTUM30_CONSTITUENT_HOLDINGS.map((item, idx) => (
-                        <tr key={item.symbol} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="py-2 px-3 font-bold text-slate-500">{idx + 1}</td>
-                          <td className="py-2 px-3">
-                            <div className="font-semibold text-slate-200">{item.stock}</div>
-                            <div className="text-[9px] font-mono text-slate-500">{item.symbol}.NS</div>
-                          </td>
-                          <td className="py-2 px-3">
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-300">
-                              {item.sector}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-extrabold text-emerald-400">
-                            {item.allocation}%
-                          </td>
-                          <td className="py-2 px-3 text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                pin({
-                                  type: 'stock',
-                                  id: `${item.symbol}.NS`,
-                                  name: item.stock,
-                                  currency: 'INR'
-                                });
-                              }}
-                              className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1 text-[10px]"
-                              title="Compare stock in workbench"
-                            >
-                              <Pin size={11} /> Compare
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── TRADOX DOUBLE TABLE LAYOUT ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Top Funds by Return (Left 5 cols) */}
-          <div className="lg:col-span-5 bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
-                  <Flame size={14} className="text-orange-400" />
-                  Top Funds by {leftCardTimeframe} Return
-                </h3>
-                {/* Timeframe Selector Pills for Left Card */}
-                <div className="flex items-center gap-1 mt-1.5">
-                  <span className="text-[10px] text-slate-500 font-semibold mr-1">Timeframe:</span>
-                  {['1Y', '3Y', '5Y', '10Y', 'All'].map(tf => (
-                    <button
-                      key={tf}
-                      onClick={() => setLeftCardTimeframe(tf)}
-                      className={`px-2 py-0.5 text-[9px] font-bold font-mono rounded transition-colors ${
-                        leftCardTimeframe === tf 
-                          ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/20' 
-                          : 'bg-slate-950 text-slate-500 border border-slate-800 hover:text-slate-300'
-                      }`}
-                    >
-                      {tf}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button onClick={() => setViewAllTopFunds(!viewAllTopFunds)} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 self-start sm:self-auto">{viewAllTopFunds ? 'Show Less' : 'View All'}</button>
-            </div>
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-500">
-                    <th className="py-2.5 px-4 font-semibold w-10 text-center">Rank</th>
-                    <th className="py-2.5 px-2 font-semibold">Fund Name</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">NAV</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">AUM</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">Sharpe (1Y)</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">Sortino (1Y)</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">{leftCardTimeframe} Return</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(viewAllTopFunds ? topFundsByReturn : topFundsByReturn.slice(0, 10)).map((fund, index) => (
-                    <FundRankingRow
-                      key={fund.id}
-                      fund={fund}
-                      rank={index + 1}
-                      activeTimeframe={leftCardTimeframe}
-                      sortBy="returns"
-                    />
-                  ))}
-                  {topFundsByReturn.length === 0 && (
-                    <tr>
-                      <td colSpan="7" className="p-6 text-center text-slate-500">No funds found in this category.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* NAV, Sharpe, Sortino & Returns table (Right 7 cols) */}
-          <div ref={rankingTableRef} className="lg:col-span-7 bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold text-slate-200">NAV, Ratios & Returns <span className="text-[10px] font-medium text-slate-500">(Direct Plan)</span></h3>
-                  <button onClick={() => setViewAllRanking(!viewAllRanking)} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300">{viewAllRanking ? 'Show Less' : 'View All'}</button>
-                </div>
-                {/* Sort selector */}
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[10px] text-slate-500 font-semibold">Sort by:</span>
-                  <div className="flex items-center gap-1">
-                    {[
-                      { id: 'returns', label: 'Return' },
-                      { id: 'aum', label: 'AUM (Highest)' },
-                      { id: 'sharpe', label: 'Sharpe (1Y)' },
-                      { id: 'sortino', label: 'Sortino (1Y)' }
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setSortBy(opt.id)}
-                        className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-colors ${
-                          sortBy === opt.id 
-                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' 
-                            : 'bg-slate-950 text-slate-500 border-slate-800 hover:text-slate-300'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Returns Timeframe Tabs */}
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-950/80 border border-slate-800/60 self-start">
-                {TIMEFRAMES_NAV.map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => setNavTimeframe(tf)}
-                    className={`px-2 py-1 text-[10px] font-mono font-bold rounded transition-colors ${
-                      navTimeframe === tf ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-500">
-                    <th className="py-2.5 px-4 font-semibold text-center w-10">Rank</th>
-                    <th className="py-2.5 px-2 font-semibold">Fund Name</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">NAV</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">AUM</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">Sharpe (1Y)</th>
-                    <th className="py-2.5 px-2 font-semibold text-right">Sortino (1Y)</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">Return</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(viewAllRanking ? sortedRankingFunds : sortedRankingFunds.slice(0, 10)).map((fund, index) => (
-                    <FundRankingRow 
-                      key={fund.id}
-                      fund={fund}
-                      rank={index + 1}
-                      activeTimeframe={navTimeframe}
-                      sortBy={sortBy}
-                    />
-                  ))}
-                  {sortedRankingFunds.length === 0 && (
-                    <tr>
-                      <td colSpan="7" className="p-6 text-center text-slate-500">No funds found in this category.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        {/* ── CUSTOM FUND-WISE CROSS-CATEGORY COMPARISON MODULE ── */}
+        <CustomFundComparison 
+          funds={enrichedFunds} 
+          onSelectFundDetail={setActiveModalFund} 
+        />
 
         {/* ── EXCHANGE TRADED FUNDS (ETF) LIVE MARKET BOARD ── */}
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-3.5 sm:p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-5 space-y-4 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-4">
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 Exchange Traded Funds (ETF) Live Market Board
               </h3>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-1">
-                Real-time NSE/BSE ETF prices, underlying benchmark assets, volume, transaction value, NAV, and 52-week ranges. Click any row to inspect fund details.
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Latest available NSE/BSE ETF prices, underlying benchmark assets, volume, transaction value, NAV, and 52-week ranges. Click any row to inspect fund details.
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
               <span className="hidden md:inline text-[10px] text-slate-500 font-mono mr-1">Sort: Column Header</span>
               <button 
                 onClick={() => setViewAllEtfBoard(!viewAllEtfBoard)} 
-                className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
               >
                 {viewAllEtfBoard ? 'Show Top 10' : 'View All ETFs (36+)'}
                 <ChevronRight className={`w-3.5 h-3.5 transition-transform ${viewAllEtfBoard ? 'rotate-90' : ''}`} />
@@ -1638,59 +1514,59 @@ export const IndianMfSectorAnalysis = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto custom-scrollbar rounded-lg border border-slate-800/60">
+          <div className="overflow-x-auto custom-scrollbar rounded-lg border border-slate-200 dark:border-slate-800/60">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 bg-slate-950/80 font-semibold uppercase tracking-wider text-[10px] select-none">
-                  <th onClick={() => handleEtfSort('symbol')} className="py-3 px-3 cursor-pointer hover:text-slate-200 sticky left-0 bg-slate-950/90 backdrop-blur z-10">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/80 font-semibold uppercase tracking-wider text-[10px] select-none">
+                  <th onClick={() => handleEtfSort('symbol')} className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 sticky left-0 bg-slate-50 dark:bg-slate-950/90 backdrop-blur z-10">
                     Symbol {etfSortField === 'symbol' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('underlying')} className="py-3 px-3 cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('underlying')} className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Underlying Asset {etfSortField === 'underlying' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('open')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('open')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Open {etfSortField === 'open' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('high')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('high')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     High {etfSortField === 'high' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('low')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('low')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Low {etfSortField === 'low' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('prevClose')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('prevClose')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Prev Close {etfSortField === 'prevClose' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('ltp')} className="py-3 px-2 text-right text-slate-200 cursor-pointer hover:text-white font-bold">
+                  <th onClick={() => handleEtfSort('ltp')} className="py-3 px-2 text-right text-slate-900 dark:text-slate-200 cursor-pointer hover:text-blue-600 dark:hover:text-white font-bold">
                     LTP (₹) {etfSortField === 'ltp' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th className="py-3 px-2 text-center text-slate-500">Indicative Close</th>
-                  <th onClick={() => handleEtfSort('change')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th className="py-3 px-2 text-center text-slate-400 dark:text-slate-500">Indicative Close</th>
+                  <th onClick={() => handleEtfSort('change')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Change {etfSortField === 'change' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('pctChange')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200 font-bold">
+                  <th onClick={() => handleEtfSort('pctChange')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 font-bold">
                     % Change {etfSortField === 'pctChange' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('volumeNum')} className="py-3 px-2 text-right font-mono cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('volumeNum')} className="py-3 px-2 text-right font-mono cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Volume {etfSortField === 'volumeNum' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('valueCr')} className="py-3 px-2 text-right font-mono cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('valueCr')} className="py-3 px-2 text-right font-mono cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     Value (₹ Cr) {etfSortField === 'valueCr' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('nav')} className="py-3 px-2 text-right font-mono text-emerald-400 cursor-pointer hover:text-emerald-300 font-bold">
+                  <th onClick={() => handleEtfSort('nav')} className="py-3 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 cursor-pointer hover:text-emerald-500 font-bold">
                     NAV (₹) {etfSortField === 'nav' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('high52')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('high52')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     52W H {etfSortField === 'high52' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('low52')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('low52')} className="py-3 px-2 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     52W L {etfSortField === 'low52' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
-                  <th onClick={() => handleEtfSort('change30D')} className="py-3 px-3 text-right cursor-pointer hover:text-slate-200">
+                  <th onClick={() => handleEtfSort('change30D')} className="py-3 px-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-slate-200">
                     30D % Chng {etfSortField === 'change30D' ? (etfSortAsc ? '▲' : '▼') : ''}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
                 {(() => {
                   const rawList = [
                     { symbol: 'SILVERBEES', underlying: 'Domestic price of Silver (LBMA)', open: 214.35, high: 214.87, low: 212.65, prevClose: 212.23, ltp: 213.00, indicativeClose: '-', change: 0.77, pctChange: 0.36, volume: '1,20,79,076', volumeNum: 12079076, valueCr: 258.48, nav: 212.24, high52: 360.00, low52: 105.42, change30D: -4.15, category: 'silver_etf' },
@@ -1785,33 +1661,33 @@ export const IndianMfSectorAnalysis = () => {
                         oneYrReturn: etf.pctChange,
                         returns: { '1D': etf.pctChange, '1M': etf.change30D, '1Y': etf.pctChange * 12, '3Y': etf.pctChange * 24 }
                       })}
-                      className="hover:bg-indigo-500/10 cursor-pointer transition-colors group"
+                      className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer transition-colors group"
                       title="Click to view full holdings & portfolio breakdown"
                     >
-                      <td className="py-2.5 px-3 font-bold text-slate-100 flex items-center gap-1.5 sticky left-0 bg-slate-900/90 backdrop-blur group-hover:bg-slate-800 transition-colors">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        <span className="group-hover:text-indigo-400 transition-colors">{etf.symbol}</span>
+                      <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 sticky left-0 bg-white dark:bg-slate-900/90 backdrop-blur group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{etf.symbol}</span>
                       </td>
-                      <td className="py-2.5 px-3 text-slate-300 max-w-[220px] truncate" title={etf.underlying}>{etf.underlying}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.open.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.high.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.low.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.prevClose.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-100">{etf.ltp.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-center text-slate-600 font-mono">{etf.indicativeClose}</td>
-                      <td className={`py-2.5 px-2 text-right font-mono font-semibold ${etf.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {etf.change >= 0 ? `+${etf.change.toFixed(2)}` : etf.change.toFixed(2)}
+                      <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300 max-w-[220px] truncate" title={etf.underlying}>{etf.underlying}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.open != null ? etf.open.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.high != null ? etf.high.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.low != null ? etf.low.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.prevClose != null ? etf.prevClose.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900 dark:text-slate-100">{etf.ltp != null ? etf.ltp.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-center text-slate-400 dark:text-slate-600 font-mono">{etf.indicativeClose}</td>
+                      <td className={`py-2.5 px-2 text-right font-mono font-semibold ${etf.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {etf.change != null ? (etf.change >= 0 ? `+${etf.change.toFixed(2)}` : etf.change.toFixed(2)) : '-'}
                       </td>
-                      <td className={`py-2.5 px-2 text-right font-mono font-bold ${etf.pctChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {etf.pctChange >= 0 ? `+${etf.pctChange.toFixed(2)}%` : `${etf.pctChange.toFixed(2)}%`}
+                      <td className={`py-2.5 px-2 text-right font-mono font-bold ${etf.pctChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {etf.pctChange != null ? (etf.pctChange >= 0 ? `+${etf.pctChange.toFixed(2)}%` : `${etf.pctChange.toFixed(2)}%`) : '-'}
                       </td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.volume}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-300 font-semibold">{etf.valueCr.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-emerald-400 font-bold">{etf.nav.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.high52.toFixed(2)}</td>
-                      <td className="py-2.5 px-2 text-right font-mono text-slate-400">{etf.low52.toFixed(2)}</td>
-                      <td className={`py-2.5 px-3 text-right font-mono font-bold ${etf.change30D >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {etf.change30D >= 0 ? `+${etf.change30D.toFixed(2)}%` : `${etf.change30D.toFixed(2)}%`}
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.volume}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-800 dark:text-slate-300 font-semibold">{etf.valueCr != null ? etf.valueCr.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">{etf.nav != null ? etf.nav.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.high52 != null ? etf.high52.toFixed(2) : '-'}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-slate-500 dark:text-slate-400">{etf.low52 != null ? etf.low52.toFixed(2) : '-'}</td>
+                      <td className={`py-2.5 px-3 text-right font-mono font-bold ${etf.change30D >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {etf.change30D != null ? (etf.change30D >= 0 ? `+${etf.change30D.toFixed(2)}%` : `${etf.change30D.toFixed(2)}%`) : '-'}
                       </td>
                     </tr>
                   ));
@@ -1822,19 +1698,19 @@ export const IndianMfSectorAnalysis = () => {
         </div>
 
         {/* ── SECTOR-WISE & MAJOR STOCK HOLDINGS CARD ── */}
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4">
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-6 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800/80 pb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-indigo-400" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 Mutual Funds Sector-Wise & Major Stock Holdings
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Aggregated sector allocations and top individual stock positions held across Indian Mutual Funds by Weight %, Market Cap, Volume, and Fund Exposure.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-full">
                 Live Holdings Analytics
               </span>
             </div>
@@ -1842,7 +1718,7 @@ export const IndianMfSectorAnalysis = () => {
 
           {/* Sector-Wise Allocation Summary Grid */}
           <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
               Sector-Wise Asset Distribution
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1858,15 +1734,15 @@ export const IndianMfSectorAnalysis = () => {
                 { sector: 'Chemicals & Materials', weight: '3.9%', aum: '₹ 0.31 Lakh Cr', fundsCount: 12, color: 'bg-teal-500', pct: 3.9 },
                 { sector: 'Construction & Metals', weight: '3.1%', aum: '₹ 0.25 Lakh Cr', fundsCount: 10, color: 'bg-blue-500', pct: 3.1 }
               ].map(sec => (
-                <div key={sec.sector} className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between space-y-2">
+                <div key={sec.sector} className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 flex flex-col justify-between space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-200 truncate">{sec.sector}</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-400">{sec.weight}</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{sec.sector}</span>
+                    <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">{sec.weight}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div className={`h-full ${sec.color}`} style={{ width: `${sec.pct}%` }} />
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
                     <span>AUM: {sec.aum}</span>
                     <span>{sec.fundsCount} Funds</span>
                   </div>
@@ -1878,15 +1754,15 @@ export const IndianMfSectorAnalysis = () => {
           {/* Top Stocks Majorly Invested Table */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Top Stocks Majorly Invested by Mutual Funds
               </h4>
-              <span className="text-[10px] text-slate-500">Sorted by Portfolio Weight & MF Exposure</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">Sorted by Portfolio Weight & MF Exposure</span>
             </div>
-            <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800/80 rounded-xl">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 bg-slate-950/60">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/60">
                     <th className="py-3 px-4 font-semibold">Stock Name</th>
                     <th className="py-3 px-3 font-semibold">Sector</th>
                     <th className="py-3 px-3 font-semibold text-right">Avg Weight %</th>
@@ -1896,7 +1772,7 @@ export const IndianMfSectorAnalysis = () => {
                     <th className="py-3 px-4 font-semibold">Top Invested Funds</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/40">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/40">
                   {[
                     { stock: 'HDFC Bank Ltd.', symbol: 'HDFCBANK', sector: 'Financial Services', weight: '8.45%', mcap: '₹ 12.85 Lakh Cr', volume: '18.4M', mfHolding: '19.4%', topFunds: 'HDFC Flexi Cap, ICICI Bluechip, SBI Small Cap' },
                     { stock: 'ICICI Bank Ltd.', symbol: 'ICICIBANK', sector: 'Financial Services', weight: '7.80%', mcap: '₹ 8.42 Lakh Cr', volume: '14.2M', mfHolding: '17.8%', topFunds: 'Parag Parikh Flexi Cap, Quant Small Cap' },
@@ -1909,29 +1785,29 @@ export const IndianMfSectorAnalysis = () => {
                     { stock: 'ITC Ltd.', symbol: 'ITC', sector: 'FMCG', weight: '3.25%', mcap: '₹ 5.82 Lakh Cr', volume: '12.5M', mfHolding: '11.2%', topFunds: 'SBI Small Cap, Bank of India Flexi Cap' },
                     { stock: 'Sun Pharmaceutical Ltd.', symbol: 'SUNPHARMA', sector: 'Healthcare', weight: '2.90%', mcap: '₹ 4.15 Lakh Cr', volume: '2.9M', mfHolding: '13.8%', topFunds: 'Mirae ELSS Tax Saver, Quant Focused' }
                   ].map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-200">{item.stock}</div>
+                        <div className="font-semibold text-slate-900 dark:text-slate-200">{item.stock}</div>
                         <div className="text-[10px] font-mono text-slate-500">{item.symbol}</div>
                       </td>
                       <td className="py-3 px-3">
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300">
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                           {item.sector}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-400 bg-indigo-500/5">
+                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/5">
                         {item.weight}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-200">
+                      <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
                         {item.mcap}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-400">
+                      <td className="py-3 px-3 text-right font-mono text-slate-500 dark:text-slate-400">
                         {item.volume}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-emerald-400">
+                      <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                         {item.mfHolding}
                       </td>
-                      <td className="py-3 px-4 text-[10px] text-slate-400 truncate max-w-[220px]" title={item.topFunds}>
+                      <td className="py-3 px-4 text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]" title={item.topFunds}>
                         {item.topFunds}
                       </td>
                     </tr>
@@ -1944,7 +1820,7 @@ export const IndianMfSectorAnalysis = () => {
 
         {/* ── TRADOX CATEGORY TILES GRID ── */}
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-slate-300">Explore Mutual Funds by Category</h3>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-300">Explore Mutual Funds by Category</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[
               { label: 'Momentum 30', desc: '48 Funds & ETFs', icon: '🚀', cat: 'index', sub: 'momentum30' },
@@ -1971,11 +1847,11 @@ export const IndianMfSectorAnalysis = () => {
                     rankingTableRef.current.scrollIntoView({ behavior: 'smooth' });
                   }
                 }}
-                className="bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-850 transition-all rounded-xl p-4 text-left flex items-start gap-3 group cursor-pointer"
+                className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-850 transition-all rounded-xl p-4 text-left flex items-start gap-3 group cursor-pointer shadow-2xs"
               >
                 <div className="text-2xl mt-0.5 group-hover:scale-110 transition-transform">{cat.icon}</div>
                 <div>
-                  <div className="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{cat.label}</div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{cat.label}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{cat.desc}</div>
                 </div>
               </button>
@@ -1986,24 +1862,24 @@ export const IndianMfSectorAnalysis = () => {
         {/* ── TRADOX SIP, LEADERBOARDS & NFOs SECTION ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Top SIP Funds */}
-          <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300">Top SIP Funds</span>
-              <span onClick={() => setViewAllSIP(!viewAllSIP)} className="text-[9px] text-blue-400 cursor-pointer hover:text-blue-300">{viewAllSIP ? 'Show Less' : 'View All'}</span>
+          <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Top SIP Funds</span>
+              <span onClick={() => setViewAllSIP(!viewAllSIP)} className="text-[9px] text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">{viewAllSIP ? 'Show Less' : 'View All'}</span>
             </div>
             <div className="p-2 space-y-1.5 max-h-[400px] overflow-y-auto">
               {enrichedFunds.filter(f => f.isSIP).sort((a, b) => b.returns['1Y'] - a.returns['1Y']).slice(0, viewAllSIP ? 20 : 5).map(f => (
                 <div 
                   key={f.id} 
                   onClick={() => setActiveModalFund(f)}
-                  className="flex items-center justify-between p-2 rounded hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors truncate w-36">{f.name}</div>
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate w-36">{f.name}</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">{f.category}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold text-emerald-400">+{f.returns['1Y']}%</div>
+                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">+{f.returns['1Y']}%</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">₹{f.nav}</div>
                   </div>
                 </div>
@@ -2012,24 +1888,24 @@ export const IndianMfSectorAnalysis = () => {
           </div>
 
           {/* Top Funds by 5Y Return */}
-          <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300">Top Funds by 5Y Return</span>
-              <span onClick={() => setViewAll5Y(!viewAll5Y)} className="text-[9px] text-blue-400 cursor-pointer hover:text-blue-300">{viewAll5Y ? 'Show Less' : 'View All'}</span>
+          <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Top Funds by 5Y Return</span>
+              <span onClick={() => setViewAll5Y(!viewAll5Y)} className="text-[9px] text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">{viewAll5Y ? 'Show Less' : 'View All'}</span>
             </div>
             <div className="p-2 space-y-1.5 max-h-[400px] overflow-y-auto">
               {[...enrichedFunds].sort((a, b) => b.returns['5Y'] - a.returns['5Y']).slice(0, viewAll5Y ? 20 : 5).map(f => (
                 <div 
                   key={f.id} 
                   onClick={() => setActiveModalFund(f)}
-                  className="flex items-center justify-between p-2 rounded hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors truncate w-36">{f.name}</div>
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate w-36">{f.name}</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">{f.category}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold text-emerald-400">+{f.returns['5Y']}%</div>
+                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">+{f.returns['5Y']}%</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">5Y CAGR</div>
                   </div>
                 </div>
@@ -2038,10 +1914,10 @@ export const IndianMfSectorAnalysis = () => {
           </div>
 
           {/* Most Invested AMCs */}
-          <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300">Most Invested AMCs</span>
-              <span onClick={() => setViewAllAMCs(!viewAllAMCs)} className="text-[9px] text-blue-400 cursor-pointer hover:text-blue-300">{viewAllAMCs ? 'Show Less' : 'View All'}</span>
+          <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Most Invested AMCs</span>
+              <span onClick={() => setViewAllAMCs(!viewAllAMCs)} className="text-[9px] text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">{viewAllAMCs ? 'Show Less' : 'View All'}</span>
             </div>
             <div className="p-2 space-y-1.5 max-h-[400px] overflow-y-auto">
               {mostInvestedAMCs.slice(0, viewAllAMCs ? mostInvestedAMCs.length : 5).map((amc, idx) => (
@@ -2051,14 +1927,14 @@ export const IndianMfSectorAnalysis = () => {
                     setSearchQuery(amc.name);
                     if (rankingTableRef.current) rankingTableRef.current.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="flex items-center justify-between p-2 rounded hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors truncate w-36">{amc.name}</div>
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate w-36">{amc.name}</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">AUM: ₹{amc.aumStr}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold text-indigo-400">{amc.share}</div>
+                    <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{amc.share}</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">Mkt Share</div>
                   </div>
                 </div>
@@ -2070,10 +1946,10 @@ export const IndianMfSectorAnalysis = () => {
           </div>
 
           {/* New Fund Offers (NFO) */}
-          <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300">New Fund Offers</span>
-              <span onClick={() => setViewAllNFOs(!viewAllNFOs)} className="text-[9px] text-blue-400 cursor-pointer hover:text-blue-300">{viewAllNFOs ? 'Show Less' : 'View All'}</span>
+          <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300">New Fund Offers</span>
+              <span onClick={() => setViewAllNFOs(!viewAllNFOs)} className="text-[9px] text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">{viewAllNFOs ? 'Show Less' : 'View All'}</span>
             </div>
             <div className="p-2 space-y-1.5">
               {[
@@ -2090,20 +1966,20 @@ export const IndianMfSectorAnalysis = () => {
                     name: nfo.name,
                     category: nfo.category,
                     family: nfo.family,
-                    nav: 10.00,
-                    aum: 1420,
-                    sharpeRatio: 1.84,
-                    sortinoRatio: 2.70,
-                    returns: { '1Y': 35.8 }
+                    nav: null,
+                    aum: null,
+                    sharpeRatio: null,
+                    sortinoRatio: null,
+                    returns: { '1Y': null }
                   })}
-                  className="flex items-center justify-between p-2 rounded hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors truncate w-36">{nfo.name}</div>
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate w-36">{nfo.name}</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">Open Ends</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold text-orange-400">NFO Open</div>
+                    <div className="text-xs font-bold text-orange-600 dark:text-orange-400">NFO Open</div>
                     <div className="text-[9px] text-slate-500 mt-0.5">Ends {nfo.date}</div>
                   </div>
                 </div>
@@ -2115,8 +1991,8 @@ export const IndianMfSectorAnalysis = () => {
         {/* ── Category Performance Analytics (Tradox style) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Bar chart of 1Y Return */}
-          <div className="lg:col-span-6 bg-slate-900/30 border border-slate-800 rounded-xl p-5">
-            <h3 className="text-sm font-bold text-slate-200 mb-4">Category Performance (1Y Return)</h3>
+          <div className="lg:col-span-6 bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4">Category Performance (1Y Return)</h3>
             <div className="space-y-4">
               {[
                 { cat: 'Small Cap', ret: 62.45, color: 'bg-emerald-500' },
@@ -2127,11 +2003,11 @@ export const IndianMfSectorAnalysis = () => {
                 { cat: 'Multi Cap', ret: 21.75, color: 'bg-indigo-500/80' }
               ].map((item, idx) => (
                 <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium text-slate-300">
+                  <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
                     <span>{item.cat}</span>
                     <span className="font-bold">{item.ret}%</span>
                   </div>
-                  <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.ret}%` }}></div>
                   </div>
                 </div>
@@ -2140,9 +2016,9 @@ export const IndianMfSectorAnalysis = () => {
           </div>
 
           {/* Heatmap / Popular Searches */}
-          <div className="lg:col-span-6 bg-slate-900/30 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow-2xs">
             <div>
-              <h3 className="text-sm font-bold text-slate-200 mb-4">Popular Searches</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4">Popular Searches</h3>
               <div className="flex flex-wrap gap-2.5">
                 {[
                   'Best Small Cap Funds',
@@ -2164,7 +2040,7 @@ export const IndianMfSectorAnalysis = () => {
                       setSearchQuery(keyword);
                       setSelectedCategory('all');
                     }}
-                    className="px-3 py-1.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 text-xs font-medium rounded-lg text-slate-300 transition-colors"
+                    className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     {term}
                   </button>
@@ -2172,12 +2048,12 @@ export const IndianMfSectorAnalysis = () => {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-slate-800/80 pt-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+            <div className="mt-6 border-t border-slate-200 dark:border-slate-800/80 pt-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 size={20} />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-200">Start Your SIP Investment today</div>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Start Your SIP Investment today</div>
                 <div className="text-[10px] text-slate-500 mt-0.5">Setup automated monthly investments in top performing direct plans.</div>
               </div>
             </div>
@@ -2185,11 +2061,11 @@ export const IndianMfSectorAnalysis = () => {
         </div>
 
         {/* ── OLD VIEW TOGGLES & DETAIL PANELS (Retained below for consistency) ── */}
-        <div className="border-t border-slate-800/80 pt-8 space-y-6">
+        <div className="border-t border-slate-200 dark:border-slate-800/80 pt-8 space-y-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-200">Sector Allocations & Comparison</h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1">Deep-dive comparison table and sector aggregates.</p>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Sector Allocations & Comparison</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Deep-dive comparison table and sector aggregates.</p>
             </div>
             
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-1 rounded-xl inline-flex shadow-sm">
@@ -2327,11 +2203,14 @@ export const IndianMfSectorAnalysis = () => {
           <MacroCorrelationSection />
 
           {/* All Funds Directory Section */}
-          <AllMutualFundsDirectory />
+          <AllMutualFundsDirectory externalSearchQuery={searchQuery} />
         </div>
 
         {/* Fund Detail Drawer / Modal */}
         <FundDetailModal fund={activeModalFund} onClose={() => setActiveModalFund(null)} />
+
+        {/* Sharpe & Sortino Range Guide Modal */}
+        {showRatioGuide && <RatioRangeGuideModal onClose={() => setShowRatioGuide(false)} />}
 
       </div>
     </div>

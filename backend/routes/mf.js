@@ -71,10 +71,11 @@ router.get('/sectors/:sectorId', (req, res) => {
   }
 });
 
-// GET /api/mf/:region/:id/profile
+// GET /api/mf/:region/:id/profile?timeframe=1y|3y|5y|max
 router.get('/:region/:id/profile', async (req, res) => {
+  const timeframe = req.query.timeframe || req.query.range || '1y';
   try {
-    const profile = await unifiedMfService.getFundProfile(req.params.id, req.params.region);
+    const profile = await unifiedMfService.getFundProfile(req.params.id, req.params.region, timeframe);
     res.json(profile);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,8 +85,9 @@ router.get('/:region/:id/profile', async (req, res) => {
 // THIN ALIAS for backward compatibility with old frontend components
 // GET /api/mf/:schemeCode/holdings
 router.get('/:schemeCode/holdings', async (req, res) => {
+  const timeframe = req.query.timeframe || req.query.range || '1y';
   try {
-    const profile = await unifiedMfService.getFundProfile(req.params.schemeCode, 'india');
+    const profile = await unifiedMfService.getFundProfile(req.params.schemeCode, 'india', timeframe);
     res.json(profile);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -94,7 +96,7 @@ router.get('/:schemeCode/holdings', async (req, res) => {
 
 // GET /api/mf/:region/:id/nav?range=1y|3y|5y|max
 router.get('/:region/:id/nav', async (req, res) => {
-  const range = req.query.range || '1y';
+  const range = req.query.range || req.query.timeframe || '1y';
   try {
     const navHistory = await unifiedMfService.getFundNavHistory(req.params.id, req.params.region, range);
     if (navHistory && navHistory.earliestDate) {
@@ -109,7 +111,7 @@ router.get('/:region/:id/nav', async (req, res) => {
 // THIN ALIAS for backward compatibility
 // GET /api/mf/:schemeCode/nav?range=1y|3y|5y|max
 router.get('/:schemeCode/nav', async (req, res) => {
-  const range = req.query.range || '1y';
+  const range = req.query.range || req.query.timeframe || '1y';
   try {
     const navHistory = await unifiedMfService.getFundNavHistory(req.params.schemeCode, 'india', range);
     if (navHistory && navHistory.earliestDate) {
@@ -121,18 +123,4 @@ router.get('/:schemeCode/nav', async (req, res) => {
   }
 });
 
-import fundScoringService from '../services/FundScoringService.js';
-
-router.get('/:region/:id/score', async (req, res) => {
-  try {
-    const { region, id } = req.params;
-    const navHistory = await unifiedMfService.getFundNavHistory(id, region, 'max');
-    const score = await fundScoringService.scoreFund(navHistory, id, region);
-    res.json(score);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 export default router;
-

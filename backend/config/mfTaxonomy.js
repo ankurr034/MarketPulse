@@ -26,7 +26,7 @@ export const CATEGORY_GROUPS = {
   ],
   Hybrid: [
     "Balanced Hybrid", "Dynamic Asset Allocation", "Equity Savings",
-    "Multi Asset Allocation", "Aggressive Hybrid", "Conservative Hybrid", "Arbitrage"
+    "Multi Asset", "Aggressive Hybrid", "Conservative Hybrid", "Arbitrage"
   ],
   Equity: [
     "Multi Cap", "Flexi Cap", "International", "Large & MidCap", "Thematic", 

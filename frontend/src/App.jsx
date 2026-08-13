@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import useWebSocket from './hooks/useWebSocket';
 import axios from 'axios';
@@ -11,19 +11,27 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import MarketIndicesTicker from './components/MarketIndicesTicker';
 import TopMoversWidget from './components/TopMoversWidget';
-
-// Pages
 import SectorHeatmap from './pages/SectorHeatmap';
-import SectorDetail from './pages/SectorDetail';
-import StockDetails from './pages/StockDetails';
-import MfExplorer from './components/MfExplorer';
-import MfAnalytics from './components/MfAnalytics';
-import MfAnalyticsDashboard from './pages/MfAnalyticsDashboard';
-import SectorExplorer from './components/SectorExplorer';
-import SectorTrendsDashboard from './components/SectorTrendsDashboard';
-import IndianMfSectorAnalysis from './pages/IndianMfSectorAnalysis';
 import { WorkbenchProvider } from './context/WorkbenchContext';
-import ComparisonWorkbench from './components/ComparisonWorkbench';
+
+// Lazy-loaded pages for fast initial bundle loading
+const SectorDetail = lazy(() => import('./pages/SectorDetail'));
+const StockDetails = lazy(() => import('./pages/StockDetails'));
+const MfExplorer = lazy(() => import('./components/MfExplorer'));
+const MfAnalyticsDashboard = lazy(() => import('./pages/MfAnalyticsDashboard'));
+const SectorExplorer = lazy(() => import('./components/SectorExplorer'));
+const SectorTrendsDashboard = lazy(() => import('./components/SectorTrendsDashboard'));
+const IndianMfSectorAnalysis = lazy(() => import('./pages/IndianMfSectorAnalysis'));
+const ComparisonWorkbench = lazy(() => import('./components/ComparisonWorkbench'));
+
+const PageFallback = () => (
+  <div className="flex items-center justify-center p-12 min-h-[300px]">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-mono text-[var(--text-muted)] animate-pulse">Loading module...</span>
+    </div>
+  </div>
+);
 
 function App() {
   const dispatch = useDispatch();
@@ -92,8 +100,10 @@ function App() {
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('theme-light');
+      document.documentElement.classList.remove('dark');
     } else {
       document.documentElement.classList.remove('theme-light');
+      document.documentElement.classList.add('dark');
     }
   }, [theme]);
 
@@ -134,7 +144,9 @@ function App() {
           <div className="flex flex-col lg:flex-row gap-5">
             {/* Primary content */}
             <div className="flex-1 min-w-0">
-              {renderPage()}
+              <Suspense fallback={<PageFallback />}>
+                {renderPage()}
+              </Suspense>
             </div>
 
             {/* Sidebar - Top Movers (visible on heatmap and sector-detail views) */}
@@ -150,7 +162,9 @@ function App() {
 
         {/* Footer with disclaimers */}
         <Footer />
-        <ComparisonWorkbench />
+        <Suspense fallback={null}>
+          <ComparisonWorkbench />
+        </Suspense>
 
         {/* Decorative background elements */}
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">

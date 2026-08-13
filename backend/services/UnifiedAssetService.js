@@ -1,6 +1,7 @@
 import yahooFinanceService from './YahooFinanceService.js';
 import unifiedMfService from './UnifiedMfService.js';
 import riskAnalyticsService from './RiskAnalyticsService.js';
+import liveMfAnalyticsService from './LiveMfAnalyticsService.js';
 import sectorBasket from '../config/sectorBasket.js';
 import axios from 'axios';
 
@@ -22,7 +23,7 @@ class UnifiedAssetService {
       };
     } else {
       // Mutual Fund / ETF
-      const navHistoryRes = await unifiedMfService.getFundNavHistory(id, region, '1y');
+      const navHistoryRes = await unifiedMfService.getFundNavHistory(id, region, 'all');
       const navHistory = navHistoryRes && navHistoryRes.data ? navHistoryRes.data : (Array.isArray(navHistoryRes) ? navHistoryRes : []);
       const meta = navHistoryRes && navHistoryRes.meta ? navHistoryRes.meta : null;
 
@@ -41,9 +42,25 @@ class UnifiedAssetService {
       const hasNavHistory = navHistory && navHistory.length > 0;
       const latestNav = hasNavHistory ? navHistory[navHistory.length - 1].value : null;
       const startNav = hasNavHistory ? navHistory[0].value : null;
-      const oneYearChangePct = (startNav && startNav > 0) ? parseFloat((((latestNav - startNav) / startNav) * 100).toFixed(2)) : null;
+      
+      // Calculate full timeframe metrics from NAV history if available
+      let calcMetrics = { return1W: null, return1M: null, return3M: null, return6M: null, return1Y: null, return3Y: null, return5Y: null, returnAll: null, sharpeRatio: null, sortinoRatio: null };
+      const { default: macroDataService } = await import('./MacroDataService.js');
+      const rfData = await macroDataService.getRiskFreeRate();
+      const rfVal = (rfData && typeof rfData.value === 'number') ? rfData.value : null;
 
-      const riskMetrics = riskAnalyticsService.getRiskMetrics(navHistory);
+      if (hasNavHistory && navHistory.length > 2) {
+        liveMfAnalyticsService.setRiskFreeRate(rfVal);
+        // Convert to format required by calculateSchemeMetrics (date: "DD-MM-YYYY", nav: value)
+        const formattedNavData = [...navHistory].reverse().map(item => ({
+          date: new Date(item.time).toLocaleDateString('en-GB').replace(/\//g, '-'),
+          nav: item.value
+        }));
+        calcMetrics = liveMfAnalyticsService.calculateSchemeMetrics(formattedNavData);
+      }
+
+      const oneYearChangePct = calcMetrics.return1Y !== null ? calcMetrics.return1Y : ((startNav && startNav > 0) ? parseFloat((((latestNav - startNav) / startNav) * 100).toFixed(2)) : null);
+      const riskMetrics = riskAnalyticsService.getRiskMetrics(navHistory, [], rfVal, profile);
 
       let curatedName = 'Unknown Fund';
       for (const sectorName in sectorBasket) {
@@ -59,6 +76,29 @@ class UnifiedAssetService {
       const currentPrice_or_nav = latestNav !== null ? latestNav : (profile.nav || null);
       const navAvailable = currentPrice_or_nav !== null;
 
+      let aum = null;
+      let expenseRatio = null;
+      if (region === 'india' && id && /^\d+$/.test(String(id))) {
+        try {
+          const { default: holdingsFallbackService } = await import('./HoldingsFallbackService.js');
+          const finapiData = await holdingsFallbackService.fetchFinapiHoldings(String(id));
+          if (finapiData && finapiData.available) {
+            aum = finapiData.aum ?? null;
+            expenseRatio = finapiData.expenseRatio ?? null;
+          }
+          // If fetchFinapiHoldings didn't return AUM (rate limit, timeout, etc.),
+          // fall back to the dedicated getAum() method with its own fallback chain
+          if (aum === null || aum === undefined || aum <= 0) {
+            const fallbackAum = await holdingsFallbackService.getAum(String(id));
+            if (fallbackAum && !isNaN(fallbackAum) && fallbackAum > 0) {
+              aum = fallbackAum;
+            }
+          }
+        } catch (e) {
+          console.warn(`FinAPI AUM fetch warning for ${id}:`, e.message);
+        }
+      }
+
       return {
         type: 'mf',
         id: profile.schemeCode || id,
@@ -66,9 +106,31 @@ class UnifiedAssetService {
         currentPrice_or_nav,
         currency: profile.currency || 'INR',
         sector: profile.category || 'Mutual Funds',
+        oneDayChangePct: calcMetrics.return1D ?? null,
+        oneWeekChangePct: calcMetrics.return1W,
+        oneMonthChangePct: calcMetrics.return1M,
+        threeMonthChangePct: calcMetrics.return6M,
+        sixMonthChangePct: calcMetrics.return6M,
         oneYearChangePct,
-        sharpeRatio: riskMetrics.sharpeRatio,
-        sortinoRatio: riskMetrics.sortinoRatio,
+        threeYearCagr: calcMetrics.return3Y,
+        fiveYearCagr: calcMetrics.return5Y,
+        inceptionCagr: calcMetrics.returnAll,
+        returns: {
+          '1D': calcMetrics.return1D ?? null,
+          '1W': calcMetrics.return1W,
+          '1M': calcMetrics.return1M,
+          '3M': calcMetrics.return3M,
+          '6M': calcMetrics.return6M,
+          '1Y': oneYearChangePct,
+          '3Y': calcMetrics.return3Y,
+          '5Y': calcMetrics.return5Y,
+          'All': calcMetrics.returnAll
+        },
+
+        sharpeRatio: (riskMetrics && riskMetrics.sharpeRatio !== null) ? riskMetrics.sharpeRatio : calcMetrics.sharpeRatio,
+        sortinoRatio: (riskMetrics && riskMetrics.sortinoRatio !== null) ? riskMetrics.sortinoRatio : calcMetrics.sortinoRatio,
+        aum,
+        expenseRatio,
         navAvailable
       };
     }

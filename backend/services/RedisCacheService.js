@@ -55,6 +55,47 @@ class RedisCacheService {
     this._setMemory(key, value, ttlSeconds);
   }
 
+  async acquireLock(lockKey, ttlSeconds = 300) {
+    if (this.isRedisConnected) {
+      try {
+        const acquired = await this.client.set(lockKey, 'LOCKED', {
+          NX: true,
+          EX: ttlSeconds
+        });
+        return acquired === 'OK';
+      } catch (e) {
+        return this._acquireMemoryLock(lockKey, ttlSeconds);
+      }
+    }
+    return this._acquireMemoryLock(lockKey, ttlSeconds);
+  }
+
+  async releaseLock(lockKey) {
+    if (this.isRedisConnected) {
+      try {
+        await this.client.del(lockKey);
+        return;
+      } catch (e) {
+        this.memoryFallback.delete(`lock:${lockKey}`);
+        return;
+      }
+    }
+    this.memoryFallback.delete(`lock:${lockKey}`);
+  }
+
+  _acquireMemoryLock(lockKey, ttlSeconds) {
+    const key = `lock:${lockKey}`;
+    const item = this.memoryFallback.get(key);
+    if (item && Date.now() < item.expiresAt) {
+      return false;
+    }
+    this.memoryFallback.set(key, {
+      value: 'LOCKED',
+      expiresAt: Date.now() + (ttlSeconds * 1000)
+    });
+    return true;
+  }
+
   _getMemory(key) {
     const item = this.memoryFallback.get(key);
     if (!item) return null;
@@ -74,3 +115,4 @@ class RedisCacheService {
 }
 
 export default new RedisCacheService();
+

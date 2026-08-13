@@ -116,7 +116,7 @@ function resolveRangeToDates(range) {
     else if (range === '3y' || range === '3yr') start.setFullYear(start.getFullYear() - 3);
     else if (range === '5y' || range === '5yr') start.setFullYear(start.getFullYear() - 5);
     else if (range === 'ytd') start = new Date(start.getFullYear(), 0, 1); // Jan 1 of current year
-    else if (range === 'max') start = new Date('1970-01-01T00:00:00Z');
+    else if (range === 'max' || range === 'all') start = new Date('1970-01-01T00:00:00Z');
     else if (range === 'fy') { // legacy string 'fy'
        start = getFinancialYearRange(getCurrentFinancialYear()).start;
     }

@@ -128,7 +128,7 @@ export const Sectors = ({ setActiveTab }) => {
                         {sec.name}
                         <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
                       </h3>
-                      <span className="text-[10px] text-slate-500 font-mono">CAP: ₹{sec.marketCap.toLocaleString()} Cr</span>
+                      <span className="text-[10px] text-slate-500 font-mono">CAP: ₹{sec.marketCap != null ? sec.marketCap.toLocaleString() : '—'} Cr</span>
                     </div>
                     <span className={`text-sm font-mono font-extrabold px-2 py-0.5 rounded ${
                       isPositive ? 'text-emerald-400 bg-emerald-950/20' : 'text-rose-400 bg-rose-950/20'
@@ -227,7 +227,7 @@ export const Sectors = ({ setActiveTab }) => {
                       >
                         <td className="py-3 font-bold text-white">{s.symbol}</td>
                         <td className="py-3 font-sans text-slate-400">{s.name}</td>
-                        <td className="py-3 text-right text-slate-200">₹{s.ltp.toLocaleString()}</td>
+                        <td className="py-3 text-right text-slate-200">₹{s.ltp != null ? s.ltp.toLocaleString() : '—'}</td>
                         <td className={`py-3 text-right font-bold ${s.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {s.changePercent >= 0 ? '+' : ''}{s.changePercent}%
                         </td>

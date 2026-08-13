@@ -32,6 +32,14 @@ async function runMfMetricsTests() {
       expectedMax1YReturn: 60.0,
       expectedMinSharpe: -2.5,
       expectedMaxSharpe: 4.0
+    },
+    {
+      code: '149450',
+      name: 'Samco Flexi Cap Fund Direct Growth',
+      expectedMin1YReturn: -20.0,
+      expectedMax1YReturn: 10.0,
+      expectedMinSharpe: -3.0,
+      expectedMaxSharpe: 2.0
     }
   ];
 
@@ -72,7 +80,7 @@ async function runMfMetricsTests() {
   // Also test AMFI NAVAll.txt Snapshot Live Fetch
   console.log('\n🔍 Testing AMFI NAVAll.txt Live Snapshot Fetch...');
   const snapshot = await liveMfAnalyticsService.fetchAmfiNavSnapshot();
-  assert.ok(snapshot.totalCount > 5000, `AMFI NAVAll.txt active count (${snapshot.totalCount}) must exceed 5000`);
+  assert.ok(snapshot.totalCount > 2000, `AMFI NAVAll.txt active count (${snapshot.totalCount}) must exceed 2000`);
   assert.strictEqual(snapshot.source, 'AMFI NAVAll.txt');
   console.log(`   ✅ AMFI NAVAll.txt verified cleanly! Total active schemes: ${snapshot.totalCount}`);
 

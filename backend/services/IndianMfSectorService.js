@@ -1,15 +1,7 @@
 import sectorBasket from '../config/sectorBasket.js';
 import unifiedAssetService from './UnifiedAssetService.js';
-import axios from 'axios';
+import amfiImportService from './AmfiImportService.js';
 
-const STATIC_COUNTS = {
-  'Technology': 68,
-  'Financials': 45,
-  'Healthcare': 38,
-  'Infrastructure': 82,
-  'Energy': 28,
-  'Consumption': 46
-};
 
 class IndianMfSectorService {
   constructor() {
@@ -17,23 +9,27 @@ class IndianMfSectorService {
   }
 
   async _getSchemeCount(sectorName) {
-    if (STATIC_COUNTS[sectorName]) {
-      return STATIC_COUNTS[sectorName];
-    }
     if (this.schemeCountCache.has(sectorName)) {
       return this.schemeCountCache.get(sectorName);
     }
     try {
-      const res = await axios.get(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(sectorName)}`, { timeout: 3000 });
-      const count = (res.data || []).length;
-      const finalCount = count > 0 ? count : 40;
-      this.schemeCountCache.set(sectorName, finalCount);
-      return finalCount;
+      const activeSchemes = await amfiImportService.getActiveSchemes();
+      if (activeSchemes && activeSchemes.length > 0) {
+        const q = sectorName.toLowerCase();
+        const matches = activeSchemes.filter(s => 
+          (s.category || '').toLowerCase().includes(q) ||
+          (s.schemeName || '').toLowerCase().includes(q)
+        );
+        const count = matches.length;
+        this.schemeCountCache.set(sectorName, count);
+        return count;
+      }
     } catch (err) {
-      console.warn(`Failed to fetch scheme count for ${sectorName}:`, err.message);
-      return 25;
+      console.warn(`Failed to compute dynamic AMFI scheme count for ${sectorName}:`, err.message);
     }
+    return null; // Return null if unverified — NEVER fabricate a fallback number!
   }
+
 
   async getAllSectorsWithFunds() {
     // Only process the original 6 sectors for now as per constraints
@@ -79,6 +75,9 @@ class IndianMfSectorService {
       }));
 
       const totalSchemeCount = await this._getSchemeCount(sectorName);
+
+      // Sort funds by AUM descending (largest first); null AUM goes to bottom
+      topFunds.sort((a, b) => (Number(b.aum) || 0) - (Number(a.aum) || 0));
 
       return {
         sectorId: sectorName.toLowerCase(),

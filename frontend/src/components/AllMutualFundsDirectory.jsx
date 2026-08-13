@@ -31,10 +31,10 @@ const Row = React.memo(({ index, style, data }) => {
   );
 });
 
-export default function AllMutualFundsDirectory() {
+export default function AllMutualFundsDirectory({ externalSearchQuery = '' }) {
   const [schemes, setSchemes] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(externalSearchQuery || '');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
@@ -44,6 +44,13 @@ export default function AllMutualFundsDirectory() {
   
   // Track loaded pages
   const loadedPagesMap = useRef({});
+
+  // Sync external search query
+  useEffect(() => {
+    if (externalSearchQuery !== undefined) {
+      setSearchQuery(externalSearchQuery);
+    }
+  }, [externalSearchQuery]);
 
   // Reset when search or category changes
   useEffect(() => {
@@ -242,7 +249,7 @@ export default function AllMutualFundsDirectory() {
               <option value="Conservative Allocation">Conservative Allocation</option>
               <option value="Dynamic Asset Allocation">Dynamic Asset Allocation</option>
               <option value="Equity Savings">Equity Savings</option>
-              <option value="Multi Asset Allocation">Multi Asset Allocation</option>
+              <option value="Multi Asset">Multi Asset</option>
               <option value="Children">Children</option>
               <option value="Retirement">Retirement</option>
               <option value="Fund of Funds">Fund of Funds</option>

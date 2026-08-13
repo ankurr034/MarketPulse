@@ -26,16 +26,110 @@
   --bg-secondary: #f1f5f9;
   --bg-card: #ffffff;
   --bg-card-hover: #f1f5f9;
-  --border-color: #e2e8f0;
+  --border-color: #cbd5e1;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
   --gain: #16a34a;
-  --gain-bg: rgba(22, 163, 74, 0.08);
+  --gain-bg: rgba(22, 163, 74, 0.12);
   --loss: #dc2626;
-  --loss-bg: rgba(220, 38, 38, 0.08);
+  --loss-bg: rgba(220, 38, 38, 0.12);
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
+}
+
+/* Light mode high-contrast component overrides */
+.theme-light,
+.theme-light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Backgrounds in Light Mode */
+.theme-light .bg-slate-950,
+.theme-light .bg-slate-950\/90,
+.theme-light .bg-slate-950\/80,
+.theme-light .bg-slate-950\/70,
+.theme-light .bg-slate-950\/60,
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-900\/90,
+.theme-light .bg-slate-900\/80,
+.theme-light .bg-slate-900\/60,
+.theme-light .bg-slate-900\/50,
+.theme-light .bg-slate-900\/40,
+.theme-light .bg-slate-900\/30,
+.theme-light .bg-slate-900\/25,
+.theme-light .bg-slate-900\/20,
+.theme-light .bg-slate-900\/10 {
+  background-color: #ffffff !important;
+}
+
+.theme-light .bg-slate-800,
+.theme-light .bg-slate-800\/80,
+.theme-light .bg-slate-800\/60,
+.theme-light .bg-slate-800\/40,
+.theme-light .bg-slate-800\/30,
+.theme-light .bg-slate-800\/20,
+.theme-light .bg-slate-800\/10 {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-light .hover\:bg-slate-800\/60:hover,
+.theme-light .hover\:bg-slate-800\/40:hover,
+.theme-light .hover\:bg-slate-800\/30:hover,
+.theme-light .hover\:bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* High-contrast Text in Light Mode */
+.theme-light .text-slate-100,
+.theme-light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+.theme-light .text-slate-300 {
+  color: #1e293b !important;
+}
+
+.theme-light .text-slate-400 {
+  color: #334155 !important;
+}
+
+.theme-light .text-slate-500 {
+  color: #475569 !important;
+}
+
+.theme-light .text-slate-600 {
+  color: #64748b !important;
+}
+
+/* Clean Crisp Borders in Light Mode */
+.theme-light .border-slate-800,
+.theme-light .border-slate-800\/90,
+.theme-light .border-slate-800\/80,
+.theme-light .border-slate-800\/60,
+.theme-light .border-slate-800\/40,
+.theme-light .border-slate-700,
+.theme-light .border-slate-700\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .divide-slate-800\/40 > :not([hidden]) ~ :not([hidden]),
+.theme-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Headers & Tables in Light Mode */
+.theme-light th,
+.theme-light tr.border-b {
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light input,
+.theme-light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
 
 * {

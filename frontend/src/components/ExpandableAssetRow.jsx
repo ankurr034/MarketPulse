@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Percent, Calculat
 import MfInvestmentCalculator from './MfInvestmentCalculator';
 import TimeframeSelector from './TimeframeSelector';
 import { useWorkbench } from '../context/WorkbenchContext';
+import MiniRatioIndicator from './MiniRatioIndicator';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -25,9 +26,10 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
 
   // Format currency properly
   const formatPrice = (val, currency) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
     const symbol = currency === 'USD' ? '$' : '₹';
     const locale = currency === 'USD' ? 'en-US' : 'en-IN';
-    return `${symbol}${val?.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`;
+    return `${symbol}${Number(val).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const fetchDetail = async (range) => {
@@ -77,7 +79,7 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
         },
         timeScale: {
           timeVisible: true,
-          borderColor: '#334155',
+          seconds: false,
         },
         priceScale: {
           borderColor: '#334155',
@@ -206,15 +208,11 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                   <>
                     <div className="text-right">
                       <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sharpe (1Y)</div>
-                      <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
-                        {asset.sharpeRatio !== 0 ? asset.sharpeRatio?.toFixed(2) : '—'}
-                      </div>
+                      <MiniRatioIndicator value={asset.sharpeRatio} type="sharpe" />
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">Sortino (1Y)</div>
-                      <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
-                        {asset.sortinoRatio !== 0 ? asset.sortinoRatio?.toFixed(2) : '—'}
-                      </div>
+                      <MiniRatioIndicator value={asset.sortinoRatio} type="sortino" />
                     </div>
                   </>
                 )}
@@ -309,31 +307,15 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                   </div>
                   <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 flex flex-col justify-center items-center text-center shadow-sm hover:border-indigo-500/30 transition-colors">
                     <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold tracking-wider mb-1">Sharpe (1Y) / Sortino (1Y)</div>
-                    <div className="text-lg font-bold text-[var(--text-primary)]">
-                      {asset.type === 'mf' ? (
-                        <>
-                          <span className={
-                            (asset.sharpeRatio || Number(detail?.advancedAnalysis?.performance?.sharpeRatio)) > 1 ? 'text-gain' : 
-                            (asset.sharpeRatio || Number(detail?.advancedAnalysis?.performance?.sharpeRatio)) < 0 ? 'text-loss' : ''
-                          }>
-                            {asset.sharpeRatio !== undefined && asset.sharpeRatio !== 0 ? 
-                              asset.sharpeRatio.toFixed(2) : 
-                              (detail?.advancedAnalysis?.performance?.sharpeRatio ? Number(detail.advancedAnalysis.performance.sharpeRatio).toFixed(2) : '—')}
-                          </span>
-                          {' / '}
-                          <span className={
-                            (asset.sortinoRatio || Number(detail?.advancedAnalysis?.performance?.sortinoRatio)) > 1 ? 'text-gain' : 
-                            (asset.sortinoRatio || Number(detail?.advancedAnalysis?.performance?.sortinoRatio)) < 0 ? 'text-loss' : ''
-                          }>
-                            {asset.sortinoRatio !== undefined && asset.sortinoRatio !== 0 ? 
-                              asset.sortinoRatio.toFixed(2) : 
-                              (detail?.advancedAnalysis?.performance?.sortinoRatio ? Number(detail.advancedAnalysis.performance.sortinoRatio).toFixed(2) : '—')}
-                          </span>
-                        </>
-                      ) : (
-                        detail.sharpeRatio || '—'
-                      )}
-                    </div>
+                    {asset.type === 'mf' ? (
+                      <div className="flex items-center justify-center gap-2 mt-0.5">
+                        <MiniRatioIndicator value={asset.sharpeRatio || Number(detail?.advancedAnalysis?.performance?.sharpeRatio)} type="sharpe" />
+                        <span className="text-[var(--text-muted)] font-bold text-xs">/</span>
+                        <MiniRatioIndicator value={asset.sortinoRatio || Number(detail?.advancedAnalysis?.performance?.sortinoRatio)} type="sortino" />
+                      </div>
+                    ) : (
+                      <div className="text-sm font-bold text-[var(--text-primary)]">{detail?.sharpeRatio || '—'}</div>
+                    )}
                   </div>
                 </div>
               </div>

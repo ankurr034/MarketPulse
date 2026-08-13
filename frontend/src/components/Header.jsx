@@ -65,8 +65,10 @@ export default function Header() {
     dispatch(setTheme(next));
     if (next === 'light') {
       document.documentElement.classList.add('theme-light');
+      document.documentElement.classList.remove('dark');
     } else {
       document.documentElement.classList.remove('theme-light');
+      document.documentElement.classList.add('dark');
     }
   };
 
@@ -74,8 +76,12 @@ export default function Header() {
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('theme-light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.remove('theme-light');
+      document.documentElement.classList.add('dark');
     }
-  }, []);
+  }, [theme]);
 
   const regions = [
     { value: 'all', label: 'All' },
@@ -232,7 +238,7 @@ export default function Header() {
 
             {/* Upstox Connect Button */}
             <a 
-              href="http://localhost:5001/api/upstox/login"
+              href={`${API_BASE}/upstox/login`}
               className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:-translate-y-0.5"
               style={{
                 background: upstoxConnected ? 'rgba(34, 197, 94, 0.1)' : 'rgba(99, 102, 241, 0.1)',

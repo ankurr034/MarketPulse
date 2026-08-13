@@ -710,26 +710,60 @@ const ALL_SECTORS = [...INDIAN_SECTORS, ...GLOBAL_SECTORS, ...INDIAN_MUTUAL_FUND
 class SectorDataService {
   constructor() {
     this.cache = new Map();
+    this.symbolCache = new Map();
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    this.SYMBOL_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
+    // Automatically pre-warm cache in background on server startup
+    setTimeout(() => {
+      this.getAllSectors('all', '1D', 'stocks').catch(e => console.error('Cache warm error:', e.message));
+    }, 100);
   }
 
   /**
-   * Batch fetch quotes in chunks of 8 with 600ms delay to avoid Yahoo rate limiting.
+   * Fast batch fetch quotes in parallel chunks of 25 with symbol-level caching.
    */
   async _batchFetchQuotes(symbols) {
-    const CHUNK_SIZE = 8;
-    const DELAY_MS = 600;
-    const results = [];
-    for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
-      const chunk = symbols.slice(i, i + CHUNK_SIZE);
-      const quotesRes = await yahooFinanceService.getQuotes(chunk);
-      const quotes = quotesRes.available ? quotesRes.data : [];
-      results.push(...quotes);
-      if (i + CHUNK_SIZE < symbols.length) {
-        await new Promise(r => setTimeout(r, DELAY_MS));
+    const now = Date.now();
+    const uncached = [];
+    const resultsMap = new Map();
+
+    for (const sym of symbols) {
+      const cached = this.symbolCache.get(sym);
+      if (cached && now - cached.timestamp < this.SYMBOL_CACHE_TTL) {
+        resultsMap.set(sym, cached.data);
+      } else {
+        uncached.push(sym);
       }
     }
-    return results;
+
+    if (uncached.length === 0) {
+      return Array.from(resultsMap.values());
+    }
+
+    const CHUNK_SIZE = 25;
+    const chunks = [];
+    for (let i = 0; i < uncached.length; i += CHUNK_SIZE) {
+      chunks.push(uncached.slice(i, i + CHUNK_SIZE));
+    }
+
+    // Process chunks concurrently with Promise.allSettled
+    const chunkPromises = chunks.map(async (chunk) => {
+      try {
+        const quotesRes = await yahooFinanceService.getQuotes(chunk);
+        if (quotesRes && quotesRes.available && quotesRes.data) {
+          for (const q of quotesRes.data) {
+            this.symbolCache.set(q.symbol, { data: q, timestamp: now });
+            resultsMap.set(q.symbol, q);
+          }
+        }
+      } catch (err) {
+        console.warn('Batch chunk quote fetch warning:', err.message);
+      }
+    });
+
+    await Promise.allSettled(chunkPromises);
+    return Array.from(resultsMap.values());
   }
 
   /**
@@ -1082,15 +1116,36 @@ class SectorDataService {
   async getTopMovers(count = 10) {
     const cacheKey = `top_movers_${count}`;
     return this._getCachedOrFetch(cacheKey, async () => {
-      const allSymbols = this.getAllSymbols();
-      const allQuotes = await this._batchFetchQuotes(allSymbols);
-      const validQuotes = allQuotes.filter(q => q && q.ltp > 0);
+      try {
+        const allSymbols = this.getAllSymbols();
+        const allQuotes = await this._batchFetchQuotes(allSymbols);
+        let validQuotes = allQuotes.filter(q => q && q.ltp > 0);
 
-      const sortedByChange = [...validQuotes].sort((a, b) => b.changePercent - a.changePercent);
-      const gainers = sortedByChange.slice(0, count);
-      const losers = sortedByChange.slice(-count).reverse();
+        if (validQuotes.length === 0) {
+          const simStocks = (await import('./SimulatorService.js')).default.getStocks();
+          validQuotes = simStocks.map(s => ({
+            symbol: s.symbol,
+            name: s.name,
+            ltp: s.ltp,
+            change: s.change,
+            changePercent: s.changePercent
+          }));
+        }
 
-      return { gainers, losers };
+        const sortedByChange = [...validQuotes].sort((a, b) => b.changePercent - a.changePercent);
+        const gainers = sortedByChange.slice(0, count);
+        const losers = sortedByChange.slice(-count).reverse();
+
+        return { gainers, losers };
+      } catch (e) {
+        console.warn('Top movers error, falling back to simulator:', e.message);
+        const simStocks = (await import('./SimulatorService.js')).default.getStocks();
+        const sorted = [...simStocks].sort((a, b) => b.changePercent - a.changePercent);
+        return {
+          gainers: sorted.slice(0, count),
+          losers: sorted.slice(-count).reverse()
+        };
+      }
     });
   }
 

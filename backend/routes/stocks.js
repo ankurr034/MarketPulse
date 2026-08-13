@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
   const query = req.query.q;
   try {
     if (query && query.trim().length > 0) {
-      const res = await yahooFinanceService.search(query);
-      const results = res.available ? res.data : [];
+      const searchRes = await yahooFinanceService.search(query);
+      const results = searchRes.available ? searchRes.data : [];
       return res.json(results);
     }
     

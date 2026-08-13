@@ -11,19 +11,29 @@ export default function TopMoversWidget() {
   const topGainers = useSelector(state => state.market.topGainers);
   const topLosers = useSelector(state => state.market.topLosers);
   const [activeTab, setActiveTab] = useState('gainers');
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    let failCount = 0;
+    let timer = null;
+
     const fetchMovers = async () => {
       try {
         const res = await axios.get(`${API_BASE}/sectors/top-movers?count=10`);
         dispatch(setTopMovers(res.data));
+        setHasError(false);
+        failCount = 0;
       } catch (err) {
-        console.error('Failed to fetch top movers:', err.message);
+        failCount++;
+        if (failCount >= 3) {
+          setHasError(true);
+        }
       }
     };
+
     fetchMovers();
-    const interval = setInterval(fetchMovers, 30000);
-    return () => clearInterval(interval);
+    timer = setInterval(fetchMovers, 30000);
+    return () => clearInterval(timer);
   }, [dispatch]);
 
   const items = activeTab === 'gainers' ? topGainers : topLosers;
@@ -46,13 +56,17 @@ export default function TopMoversWidget() {
       </div>
 
       <div className="space-y-1">
-        {items.length === 0 && (
+        {hasError && items.length === 0 ? (
+          <div className="text-center py-6 text-xs text-[var(--text-muted)] border border-dashed border-slate-800 rounded-lg">
+            Market Top Movers Temporarily Unavailable
+          </div>
+        ) : items.length === 0 ? (
           <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="skeleton h-9 w-full" />
             ))}
           </div>
-        )}
+        ) : null}
         {items.map((stock, i) => (
           <button
             key={stock.symbol}

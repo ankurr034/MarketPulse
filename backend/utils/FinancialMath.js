@@ -1,4 +1,6 @@
 import * as math from 'mathjs';
+import riskAnalyticsService from '../services/RiskAnalyticsService.js';
+
 
 class FinancialMath {
   /**
@@ -60,30 +62,19 @@ class FinancialMath {
   }
 
   /**
-   * Calculate Sharpe Ratio (Risk-adjusted return)
-   * @param {number} fundReturn - Annualized
-   * @param {number} riskFreeRate - Annualized
-   * @param {number} standardDeviation - Annualized volatility
-   * @returns {number} Sharpe Ratio
+   * Calculate Sharpe Ratio (Delegates to canonical RiskAnalyticsService)
    */
-  calculateSharpeRatio(fundReturn, riskFreeRate, standardDeviation) {
-    if (standardDeviation === 0) return 0;
-    return (fundReturn - riskFreeRate) / standardDeviation;
+  calculateSharpeRatio(returns, riskFreeRateAnnual = null) {
+    return riskAnalyticsService.calculateDailySharpeRatio(returns, riskFreeRateAnnual);
   }
 
   /**
-   * Calculate Sortino Ratio (Downside risk-adjusted return)
-   * @param {number} fundReturn 
-   * @param {number} riskFreeRate 
-   * @param {Array<number>} returns 
-   * @returns {number} Sortino Ratio
+   * Calculate Sortino Ratio (Delegates to canonical RiskAnalyticsService)
    */
-  calculateSortinoRatio(fundReturn, riskFreeRate, returns) {
-    const downsideReturns = returns.filter(r => r < 0);
-    const downsideDeviation = this.calculateStandardDeviation(downsideReturns);
-    if (downsideDeviation === 0) return 0;
-    return (fundReturn - riskFreeRate) / downsideDeviation;
+  calculateSortinoRatio(returns, riskFreeRateAnnual = null) {
+    return riskAnalyticsService.calculateDailySortinoRatio(returns, riskFreeRateAnnual);
   }
+
 
   /**
    * Calculate Maximum Drawdown

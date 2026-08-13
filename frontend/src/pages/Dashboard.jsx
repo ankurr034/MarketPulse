@@ -103,7 +103,7 @@ export const Dashboard = ({ setActiveTab }) => {
               <div className="space-y-1">
                 <span className="text-xs text-slate-400 font-semibold block">{name}</span>
                 <span className="text-2xl font-display font-extrabold text-white block">
-                  {idx.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                  {idx.price != null ? idx.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 }) : '—'}
                 </span>
                 <span className={`text-xs font-semibold flex items-center gap-0.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isPositive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
@@ -198,7 +198,7 @@ export const Dashboard = ({ setActiveTab }) => {
                       <td className={`py-3 text-right font-mono font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                         {isPositive ? '+' : ''}{sec.changePercent}%
                       </td>
-                      <td className="py-3 text-right font-mono text-slate-400">₹{sec.marketCap.toLocaleString()} Cr</td>
+                      <td className="py-3 text-right font-mono text-slate-400">₹{sec.marketCap != null ? sec.marketCap.toLocaleString() : '—'} Cr</td>
                       <td className="py-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden flex">

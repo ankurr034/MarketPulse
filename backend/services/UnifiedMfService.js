@@ -1,7 +1,6 @@
 import mfDataAggregatorService from './MfDataAggregatorService.js';
 import globalMfService from './GlobalMfService.js';
 import sectorBasket from '../config/sectorBasket.js';
-import { AMC_LIST } from '../config/mfTaxonomy.js';
 
 class UnifiedMfService {
   /**
@@ -12,7 +11,6 @@ class UnifiedMfService {
 
     if (region === 'india' || region === 'all') {
       const indianFunds = await mfDataAggregatorService.searchSchemes(query);
-      // Map to the unified schema
       const mapped = indianFunds.map(f => ({
         id: f.schemeCode,
         name: f.schemeName,
@@ -43,16 +41,16 @@ class UnifiedMfService {
   }
 
   /**
-   * Get fund profile (holdings, sector breakdown, etc)
+   * Get fund profile (holdings, sector breakdown, dynamic risk metrics)
    */
-  async getFundProfile(id, region = 'india') {
+  async getFundProfile(id, region = 'india', timeframe = '1y') {
     if (region === 'global') {
       const profile = await globalMfService.getSchemeHoldings(id);
       return { ...profile, currency: 'USD' };
     }
 
     // India
-    const profile = await mfDataAggregatorService.getSchemeHoldings(id);
+    const profile = await mfDataAggregatorService.getSchemeHoldings(id, timeframe);
     return { ...profile, currency: 'INR' };
   }
 
@@ -69,17 +67,20 @@ class UnifiedMfService {
   }
 
   /**
-   * Get a list of popular funds (curated)
+   * Get a list of popular funds (curated with 100% verified AMFI Direct Growth scheme codes)
    */
   async getPopularFunds(region = 'all') {
     let results = [];
 
     if (region === 'india' || region === 'all') {
       results = results.concat([
-        { id: '122639', name: 'Parag Parikh Flexi Cap Fund', family: 'Parag Parikh', region: 'india', currency: 'INR' },
-        { id: '118989', name: 'HDFC Mid-Cap Opportunities Fund', family: 'HDFC', region: 'india', currency: 'INR' },
-        { id: '125464', name: 'SBI Small Cap Fund', family: 'SBI', region: 'india', currency: 'INR' },
-        { id: '119062', name: 'ICICI Prudential Bluechip Fund', family: 'ICICI', region: 'india', currency: 'INR' }
+        { id: '122639', name: 'Parag Parikh Flexi Cap Fund Direct Growth', family: 'Parag Parikh', region: 'india', currency: 'INR' },
+        { id: '118989', name: 'HDFC Mid-Cap Opportunities Fund Direct Growth', family: 'HDFC', region: 'india', currency: 'INR' },
+        { id: '125497', name: 'SBI Small Cap Fund Direct Growth', family: 'SBI', region: 'india', currency: 'INR' },
+        { id: '120586', name: 'ICICI Prudential Bluechip Fund Direct Growth', family: 'ICICI Prudential', region: 'india', currency: 'INR' },
+        { id: '120828', name: 'Quant Small Cap Fund Direct Growth', family: 'Quant', region: 'india', currency: 'INR' },
+        { id: '125354', name: 'Axis Small Cap Fund Direct Growth', family: 'Axis', region: 'india', currency: 'INR' },
+        { id: '118777', name: 'Nippon India Small Cap Fund Direct Growth', family: 'Nippon India', region: 'india', currency: 'INR' }
       ]);
     }
 
@@ -124,73 +125,28 @@ class UnifiedMfService {
    */
   async getFilteredFunds(amc, category, risk, duration, region = 'india') {
     if (region === 'global') {
-      const popular = await this.getPopularFunds('global');
-      return popular;
+      return await this.getPopularFunds('global');
     }
 
     let searchParts = [];
-    
-    // Add AMC to search query if provided
-    if (amc) {
-      searchParts.push(amc);
-    }
-
-    // Add Category to search query if provided, handling generic groups
+    if (amc) searchParts.push(amc);
     if (category) {
-      if (category !== 'Equity' && category !== 'Debt' && category !== 'Hybrid' && category !== 'Commodities' && category !== 'ETFs' && category !== 'Others') {
+      if (!['Equity', 'Debt', 'Hybrid', 'Commodities', 'ETFs', 'Others'].includes(category)) {
         searchParts.push(category);
       } else if (!amc && !risk && !duration) {
         searchParts.push(category);
       }
     }
-
-    // Append duration modifiers if applicable
     if (duration === 'Low') searchParts.push('Low Duration');
     if (duration === 'Medium') searchParts.push('Medium Duration');
     if (duration === 'Long') searchParts.push('Long Duration');
 
-    // Append risk modifiers if applicable (Liquid funds are low risk)
-    if (risk === 'Low' && !category) searchParts.push('Liquid');
-    if (risk === 'High' && !category) searchParts.push('Small Cap');
-
-    let searchWord = searchParts.join(' ').trim();
-    if (!searchWord && category) searchWord = category;
-
-    if (!searchWord) {
+    const query = searchParts.join(' ');
+    if (!query) {
       return await this.getPopularFunds('india');
     }
 
-    const rawFunds = await mfDataAggregatorService.searchSchemes(searchWord);
-    
-    let results = rawFunds.map(f => {
-      const nameLower = f.schemeName.toLowerCase();
-      let matchedAmc = amc || 'Unknown';
-      if (!amc) {
-        const foundAmc = AMC_LIST.find(a => nameLower.includes(a.toLowerCase()));
-        if (foundAmc) matchedAmc = foundAmc;
-      }
-      return {
-        id: f.schemeCode,
-        name: f.schemeName,
-        family: matchedAmc,
-        category: category || 'Other',
-        region: 'india',
-        currency: 'INR'
-      };
-    });
-
-    // Post-filter the results if they don't match the exact category keyword in their name
-    if (category && category !== 'Equity' && category !== 'Debt' && category !== 'Hybrid') {
-      // Create a loose regex or substring match
-      const catParts = category.toLowerCase().split(/[ \-\&]+/);
-      results = results.filter(f => {
-        const nameL = f.name.toLowerCase();
-        // Check if at least one significant part of the category name is in the fund name
-        return catParts.some(p => p.length > 2 && nameL.includes(p));
-      });
-    }
-
-    return results;
+    return await this.searchFunds(query, 'india');
   }
 }
 

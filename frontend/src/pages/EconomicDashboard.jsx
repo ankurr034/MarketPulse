@@ -84,7 +84,7 @@ export const EconomicDashboard = ({ socket }) => {
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">Latest Value</span>
               <span className="text-2xl font-extrabold text-white">
                 {selectedKey === 'gold' || selectedKey === 'usdInr' ? '₹' : ''}
-                {selectedMetric.value.toLocaleString()}
+                {selectedMetric?.value != null ? selectedMetric.value.toLocaleString() : '—'}
                 {selectedMetric.unit}
               </span>
             </div>
@@ -139,7 +139,7 @@ export const EconomicDashboard = ({ socket }) => {
                 </span>
                 <span className="text-2xl font-display font-extrabold text-white block">
                   {key === 'gold' || key === 'usdInr' ? '₹' : ''}
-                  {item.value.toLocaleString()}
+                  {item?.value != null ? item.value.toLocaleString() : '—'}
                   {item.unit}
                 </span>
               </div>
