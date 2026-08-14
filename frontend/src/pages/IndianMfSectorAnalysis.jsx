@@ -1382,7 +1382,7 @@ export const IndianMfSectorAnalysis = () => {
   }).filter(sector => sector.filteredFunds.length > 0 || (sector.sectorName || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
 
   return (
-    <div className="flex-1 w-full min-h-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
       <div className="w-full max-w-full p-4 md:p-8 space-y-6">
         
         {/* Title Header */}

@@ -198,8 +198,8 @@ export default function MfRankingTable({
     return (
       <th
         onClick={() => handleSort(field)}
-        className={`sticky top-[57px] z-30 py-3 px-2 font-bold text-[10.5px] uppercase cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap bg-slate-100 dark:bg-slate-900 ${alignment} ${
-          isSorted ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
+        className={`py-3 px-2 font-bold text-[10.5px] uppercase cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap ${alignment} ${
+          isSorted ? 'text-blue-600 dark:text-blue-400 bg-slate-50 dark:bg-slate-900/80' : 'text-slate-500 dark:text-slate-400'
         }`}
       >
         <div className={`flex items-center gap-1 ${alignment === 'text-right' ? 'justify-end' : alignment === 'text-center' ? 'justify-center' : 'justify-start'}`}>
@@ -308,7 +308,7 @@ export default function MfRankingTable({
   };
 
   return (
-    <div className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs flex flex-col my-3">
+    <div className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs flex flex-col my-3">
       
       {/* Table Header Strip */}
       <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/50">
@@ -324,12 +324,12 @@ export default function MfRankingTable({
       {/* Main Full-Width Table */}
       <div className="w-full overflow-x-auto scrollbar-thin">
         <table className="w-full text-left border-collapse min-w-[1100px]">
-          <thead className="sticky top-[57px] z-30 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10.5px]">
+          <thead className="bg-slate-100/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10.5px]">
             <tr>
               {/* Mandatory Correction 4: Category rows NEVER display rank numbers (#). # column only in All Funds Mode */}
-              {isAllFundsMode && <th className="sticky top-[57px] z-30 bg-slate-100 dark:bg-slate-900 py-3 px-3 text-center text-slate-500 dark:text-slate-400 font-normal w-8">#</th>}
+              {isAllFundsMode && <th className="py-3 px-3 text-center text-slate-500 dark:text-slate-400 font-normal w-8">#</th>}
               {renderSortHeader('FUND / CATEGORY', 'name', 'text-left')}
-              <th className="sticky top-[57px] z-30 bg-slate-100 dark:bg-slate-900 py-3 px-2 text-center font-bold text-[10.5px] text-slate-500 dark:text-slate-400 uppercase">FUNDS</th>
+              <th className="py-3 px-2 text-center font-bold text-[10.5px] text-slate-500 dark:text-slate-400 uppercase">FUNDS</th>
               {renderSortHeader('AUM (₹ Cr)', 'aum', 'text-right')}
               {renderSortHeader('NAV (₹)', 'nav', 'text-right')}
               {renderSortHeader('1W %', 'return_1W', 'text-right')}
@@ -342,7 +342,7 @@ export default function MfRankingTable({
               {renderSortHeader('INCEP. CAGR', 'return_All', 'text-right')}
               {renderSortHeader('SHARPE', 'sharpeRatio', 'text-right')}
               {renderSortHeader('SORTINO', 'sortinoRatio', 'text-right')}
-              <th className="sticky top-[57px] z-30 bg-slate-100 dark:bg-slate-900 py-3 px-2 text-center text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase">TREND (1Y)</th>
+              <th className="py-3 px-2 text-center text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase">TREND (1Y)</th>
             </tr>
           </thead>
           <tbody>
