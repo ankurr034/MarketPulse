@@ -253,7 +253,12 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
             <span className="text-[8px] text-slate-500 shrink-0 mt-0.5">{expanded ? '▼' : '▶'}</span>
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-slate-200 text-[10.5px] leading-tight line-clamp-2 break-words" title={fund.name}>{fund.name}</div>
-              <div className="text-[8.5px] text-slate-500 leading-none truncate mt-0.5">{fund.category}</div>
+              <div className="text-[8.5px] text-slate-500 leading-none truncate mt-0.5 flex items-center gap-1">
+                <span>{fund.category}</span>
+                {(fund.launchYear || fund.inceptionYear) && (
+                  <span className="text-amber-400 font-semibold">• Launched {fund.launchYear || fund.inceptionYear}</span>
+                )}
+              </div>
             </div>
             
             {/* Compare Pin Button */}

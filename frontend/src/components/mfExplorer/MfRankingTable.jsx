@@ -249,6 +249,14 @@ export default function MfRankingTable({
             </span>
             <span>•</span>
             <span className="truncate">{fund.amc || fund.family || 'Mutual Fund'}</span>
+            {(fund.launchYear || fund.inceptionYear) && (
+              <>
+                <span>•</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                  Launched {fund.launchYear || fund.inceptionYear}
+                </span>
+              </>
+            )}
           </div>
         </td>
 

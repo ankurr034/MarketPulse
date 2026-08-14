@@ -192,7 +192,12 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                 </span>
               )}
             </div>
-            <div className="text-xs text-[var(--text-muted)] font-mono">(Scheme Code: {asset.id})</div>
+            <div className="text-xs text-[var(--text-muted)] font-mono flex items-center gap-2">
+              <span>(Scheme Code: {asset.id})</span>
+              {(asset.launchYear || asset.inceptionYear) && (
+                <span className="text-amber-500 font-semibold">• Launched {asset.launchYear || asset.inceptionYear}</span>
+              )}
+            </div>
           </div>
         </div>
 
