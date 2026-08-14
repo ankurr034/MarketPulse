@@ -371,10 +371,42 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
   );
 };
 
+const CustomNavTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900 border border-slate-700/80 px-3 py-2 rounded-lg shadow-xl text-xs z-50">
+        <div className="text-[11px] text-slate-300 font-semibold font-mono">{data.fullDate || data.date}</div>
+        <div className="text-sm font-extrabold text-indigo-400 font-mono mt-0.5">NAV: ₹{data.nav}</div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomSectorTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const name = data.name || data.payload?.name || 'Sector';
+    const val = typeof data.value === 'number' ? data.value.toFixed(1) : data.value;
+    return (
+      <div className="bg-slate-900 border border-slate-700/80 px-3 py-2 rounded-lg shadow-xl text-xs z-50">
+        <div className="text-[11px] text-slate-200 font-bold">{name}</div>
+        <div className="text-xs font-extrabold text-indigo-400 font-mono mt-0.5">{val}% Allocation</div>
+      </div>
+    );
+  }
+  return null;
+};
+
 /* Interactive Fund Detail Modal Component */
 const FundDetailModal = ({ fund, onClose }) => {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chartTimeframe, setChartTimeframe] = useState('1Y');
+  const [navChartData, setNavChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [showAllHoldings, setShowAllHoldings] = useState(false);
 
   useEffect(() => {
     if (!fund) return;
@@ -392,55 +424,62 @@ const FundDetailModal = ({ fund, onClose }) => {
     fetchHoldings();
   }, [fund]);
 
+  useEffect(() => {
+    if (!fund) return;
+    const fetchNavHistory = async () => {
+      setChartLoading(true);
+      try {
+        const code = fund.id || fund.schemeCode || '118991';
+        const rangeParam = chartTimeframe.toLowerCase() === 'all' ? 'max' : chartTimeframe.toLowerCase();
+        const res = await axios.get(`${API_BASE}/mf/india/${code}/nav?range=${rangeParam}`);
+        const rawPoints = res.data?.data || [];
+        const formatted = rawPoints.map(p => {
+          const d = new Date(p.time);
+          const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+          const fullDateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+          return {
+            date: dateStr,
+            fullDate: fullDateStr,
+            nav: Number(p.value.toFixed(2)),
+            time: p.time
+          };
+        });
+        setNavChartData(formatted);
+      } catch (err) {
+        console.error('Failed to fetch NAV history chart:', err);
+        setNavChartData([]);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+    fetchNavHistory();
+  }, [fund, chartTimeframe]);
+
   if (!fund) return null;
 
-  const isMomentumFund = fund.subType === 'momentum30' || (fund.name || '').toLowerCase().includes('momentum');
-  
-  const holdings = (detail?.holdings && detail.holdings.length > 0) 
-    ? detail.holdings 
-    : (isMomentumFund ? MOMENTUM30_CONSTITUENT_HOLDINGS : [
-        { stock: 'HDFC Bank Ltd.', sector: 'Financial Services', allocation: '8.45' },
-        { stock: 'ICICI Bank Ltd.', sector: 'Financial Services', allocation: '7.80' },
-        { stock: 'Reliance Industries Ltd.', sector: 'Energy & Oil', allocation: '7.15' },
-        { stock: 'Infosys Ltd.', sector: 'Technology', allocation: '6.20' },
-        { stock: 'Tata Consultancy Services', sector: 'Technology', allocation: '5.40' },
-        { stock: 'Larsen & Toubro Ltd.', sector: 'Capital Goods', allocation: '4.80' },
-        { stock: 'Axis Bank Ltd.', sector: 'Financial Services', allocation: '4.10' },
-        { stock: 'Bharti Airtel Ltd.', sector: 'Telecommunication', allocation: '3.60' },
-        { stock: 'ITC Ltd.', sector: 'FMCG', allocation: '3.25' },
-        { stock: 'Sun Pharmaceutical Ltd.', sector: 'Healthcare', allocation: '2.90' }
-      ]);
+  const allHoldings = detail?.holdings || [];
+  const holdings = allHoldings.filter(h => 
+    h.securityType === 'Equity' || 
+    h.securityType === 'ETF/REIT' || 
+    (!h.securityType && !/future|futures|\bfut\b|option|options|\bopt\b|cash offset|cash margin|treps|repo/i.test(h.name || h.stock || ''))
+  );
+  const sectorData = detail?.sectorBreakdown || detail?.profile?.sectorBreakdown || {};
 
-  const sectorData = detail?.sectorBreakdown || detail?.profile?.sectorBreakdown || (isMomentumFund ? {
-    'Capital Goods & Defence': 24.8,
-    'Automobile & Auto': 21.3,
-    'Financial Services': 16.4,
-    'Energy & Utilities': 14.3,
-    'Consumer & Tech': 12.4,
-    'Healthcare & Pharma': 8.3,
-    'Telecommunication': 5.7,
-    'Metals & Mining': 1.5
-  } : {
-    'Financial Services': 31.4,
-    'Technology & IT': 18.2,
-    'Energy & Oil': 14.5,
-    'Capital Goods & Infra': 12.8,
-    'Healthcare & Pharma': 9.6,
-    'FMCG & Consumer': 7.2,
-    'Automobile & Auto': 6.3
-  });
-
-  const sectorEntries = Object.entries(sectorData).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const sectorEntries = Object.entries(sectorData).filter(([_, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
   const SECTOR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
 
-  const navDisplay = Number.isFinite(Number(fund?.nav ?? fund?.currentPrice_or_nav))
-    ? `₹${Number(fund?.nav ?? fund?.currentPrice_or_nav).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+  const currentNavVal = fund?.nav ?? fund?.currentPrice_or_nav ?? detail?.nav;
+  const navDisplay = Number.isFinite(Number(currentNavVal))
+    ? `₹${Number(currentNavVal).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
     : '₹—';
-  const aumDisplay = Number.isFinite(Number(fund?.aum))
-    ? `₹${Number(fund?.aum).toLocaleString('en-IN')} Cr`
+  const aumVal = fund?.aum ?? detail?.aum;
+  const aumDisplay = Number.isFinite(Number(aumVal))
+    ? `₹${Number(aumVal).toLocaleString('en-IN')} Cr`
     : '₹— Cr';
-  const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? 0);
+  const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? detail?.oneYearChangePct ?? 0);
   const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
+
+  const displayedHoldings = showAllHoldings ? holdings : holdings.slice(0, 10);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
@@ -453,16 +492,88 @@ const FundDetailModal = ({ fund, onClose }) => {
         </button>
 
         {/* Modal Header */}
-        <div className="pr-8 mb-5">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full inline-block mb-2">
-            {fund.category || fund.type || 'Mutual Fund'}
+        <div className="pr-8 mb-4">
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full">
+              {fund.category || fund.type || 'Mutual Fund'}
+            </span>
+            {(fund.launchYear || detail?.launchYear) && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
+                Launched: {fund.launchYear || detail?.launchYear}
+              </span>
+            )}
           </div>
           <h2 className="text-lg font-extrabold text-slate-100 leading-tight">{fund.name}</h2>
           <p className="text-xs text-slate-400 mt-1">{fund.family || 'Direct Growth Plan'} • AMFI Verified Scheme</p>
         </div>
 
+        {/* NAV Area Chart Component */}
+        <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 mb-5 shadow-inner">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Historical NAV Movement</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {navChartData.length > 0 ? `${navChartData[0]?.date} — ${navChartData[navChartData.length - 1]?.date}` : 'Loading NAV history...'}
+              </span>
+            </div>
+
+            {/* Timeframe Selector Pills */}
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs">
+              {['1Y', '3Y', '5Y', 'All'].map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => setChartTimeframe(tf)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                    chartTimeframe === tf
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  {tf === 'All' ? 'Inception' : tf}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recharts Area Chart */}
+          <div className="h-44 w-full">
+            {chartLoading ? (
+              <div className="h-full flex items-center justify-center text-xs text-slate-500 gap-2">
+                <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+                Fetching NAV chart...
+              </div>
+            ) : navChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={navChartData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
+                  <defs>
+                    <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#94a3b8" 
+                    tick={{ fontSize: 10, fill: '#94a3b8' }} 
+                    minTickGap={40} 
+                    dy={5}
+                  />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 10, fill: '#94a3b8' }} domain={['auto', 'auto']} />
+                  <Tooltip content={<CustomNavTooltip />} />
+                  <Area type="monotone" dataKey="nav" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#navGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-500 italic">
+                NAV history chart unavailable for this timeframe.
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
             <span className="text-[10px] text-slate-500 font-semibold block">NAV</span>
             <span className="text-sm font-bold font-mono text-slate-200">{navDisplay}</span>
@@ -471,78 +582,210 @@ const FundDetailModal = ({ fund, onClose }) => {
             <span className="text-[10px] text-slate-500 font-semibold block">AUM</span>
             <span className="text-sm font-bold font-mono text-slate-200">{aumDisplay}</span>
           </div>
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
-            <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">Sharpe (1Y)</span>
-            <MiniRatioIndicator value={fund.sharpeRatio || 1.84} type="sharpe" />
-          </div>
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
-            <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">Sortino (1Y)</span>
-            <MiniRatioIndicator value={fund.sortinoRatio || 2.70} type="sortino" />
-          </div>
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
             <span className="text-[10px] text-slate-500 font-semibold block">1Y Return</span>
             <span className="text-sm font-bold font-mono text-emerald-400">{oneYReturnDisplay}</span>
           </div>
         </div>
 
+        {/* Multi-Period Risk Ratios Section */}
+        <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 mb-5">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Risk Metrics Across Timeframes</span>
+            <span className="text-[10px] text-slate-500 font-mono">Sharpe & Sortino Ratios</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              { label: '1-Year', key: '1Y' },
+              { label: '3-Year', key: '3Y' },
+              { label: '5-Year', key: '5Y' },
+              { label: 'Since Inception', key: 'All' }
+            ].map(({ label, key }) => {
+              const periodMetrics = detail?.riskRatios?.[key] || fund?.riskRatios?.[key];
+              const sharpeVal = periodMetrics?.sharpe ?? (key === 'All' ? (detail?.sharpeRatio ?? fund?.sharpeRatio) : null);
+              const sortinoVal = periodMetrics?.sortino ?? (key === 'All' ? (detail?.sortinoRatio ?? fund?.sortinoRatio) : null);
+
+              return (
+                <div key={key} className="bg-slate-900/80 border border-slate-800/90 rounded-lg p-2.5 text-center">
+                  <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1.5">{label}</div>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="text-center">
+                      <span className="text-[9px] text-slate-500 block uppercase font-semibold">Sharpe</span>
+                      {sharpeVal !== null && sharpeVal !== undefined ? (
+                        <span className="text-xs font-bold font-mono text-slate-200">{Number(sharpeVal).toFixed(2)}</span>
+                      ) : (
+                        <span className="text-xs font-mono text-slate-500">—</span>
+                      )}
+                    </div>
+                    <span className="text-slate-700 font-bold">|</span>
+                    <div className="text-center">
+                      <span className="text-[9px] text-slate-500 block uppercase font-semibold">Sortino</span>
+                      {sortinoVal !== null && sortinoVal !== undefined ? (
+                        <span className="text-xs font-bold font-mono text-emerald-400">{Number(sortinoVal).toFixed(2)}</span>
+                      ) : (
+                        <span className="text-xs font-mono text-slate-500">—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {loading ? (
           <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
             <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
-            Loading stock portfolio holdings...
+            Loading portfolio holdings...
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Holdings Grid */}
+            {/* Holdings Section */}
             <div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                <span>Top Stock Portfolio Positions</span>
-                <span className="text-[10px] text-slate-500">{holdings.length} Stocks</span>
+                <span>Top Stock Portfolio Positions — {holdings.length} Stocks</span>
+                {holdings.length > 10 && (
+                  <button
+                    onClick={() => setShowAllHoldings(!showAllHoldings)}
+                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    {showAllHoldings ? 'Show Top 10' : `View All (${holdings.length})`}
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {holdings.map((h, idx) => {
-                  const stockName = h.stock || h.name || h.Symbol || 'Unknown Stock';
-                  const allocation = h.allocation !== undefined ? h.allocation : (h['Holding Percent'] !== undefined ? (Number(h['Holding Percent']) * 100).toFixed(2) : '0.00');
-                  return (
-                    <div key={idx} className="bg-slate-900 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm transition hover:bg-slate-800">
-                      <div className="truncate w-3/4">
-                        <span className="font-bold text-slate-100 block truncate" title={stockName}>{stockName}</span>
-                        {h.sector && <span className="text-[10px] text-slate-400 font-medium">{h.sector}</span>}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {h.marketValue && <span className="text-[10px] font-mono text-slate-400">₹{h.marketValue} Cr</span>}
-                        <span className="font-mono text-indigo-300 font-bold bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30">{allocation}%</span>
-                      </div>
+
+              {holdings.length > 0 ? (
+                <>
+                  <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-900/90 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-2.5 px-3 text-center w-10">#</th>
+                          <th className="py-2.5 px-3">Stock</th>
+                          <th className="py-2.5 px-3">Sector</th>
+                          <th className="py-2.5 px-3 text-right">Value (₹ Cr)</th>
+                          <th className="py-2.5 px-3 text-right">Weight (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {displayedHoldings.map((h, idx) => {
+                          const stockName = h.name || h.stock || h.securityName || 'Stock Position';
+                          const sectorName = h.sector || h.industry || 'General';
+
+                          // Format Weight (%)
+                          let rawWeight = 0;
+                          if (typeof h.weightPct === 'number' && !isNaN(h.weightPct)) {
+                            rawWeight = h.weightPct;
+                          } else if (h.allocation !== undefined && !isNaN(Number(h.allocation))) {
+                            rawWeight = Number(h.allocation);
+                          } else if (h['Holding Percent'] !== undefined && !isNaN(Number(h['Holding Percent']))) {
+                            const hp = Number(h['Holding Percent']);
+                            rawWeight = (hp <= 1.0 && hp > 0.05) ? hp * 100.0 : hp;
+                          }
+                          const weightDisplay = `${rawWeight.toFixed(2)}%`;
+
+                          // Format Value (₹ Cr)
+                          let marketValDisplay = '—';
+                          const valNum = h.valueCr !== undefined && h.valueCr !== null ? Number(h.valueCr) : (h.marketValue ? parseFloat(String(h.marketValue).replace(/₹|,|\s/g, '')) : NaN);
+                          if (!isNaN(valNum) && valNum > 0) {
+                            marketValDisplay = `₹${valNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          }
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
+                              <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-500">{idx + 1}</td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-100 truncate max-w-[180px]" title={stockName}>{stockName}</td>
+                              <td className="py-2.5 px-3 text-slate-400 text-[11px] truncate max-w-[140px]">{sectorName}</td>
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-300 text-[11px]">{marketValDisplay}</td>
+                              <td className="py-2.5 px-3 text-right font-mono text-indigo-300 font-bold">{weightDisplay}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {holdings.length > 10 && (
+                    <div className="mt-2.5 text-center">
+                      <button
+                        onClick={() => setShowAllHoldings(!showAllHoldings)}
+                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 py-1 transition"
+                      >
+                        {showAllHoldings ? 'Show Top 10 Positions' : `View All ${holdings.length} Portfolio Positions ↓`}
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-4 text-center text-xs text-slate-500 italic">
+                  {detail?.holdingsReason || 'Official portfolio holdings disclosure unavailable for this fund.'}
+                </div>
+              )}
             </div>
 
-            {/* Sector Breakdown */}
-            {sectorEntries.length > 0 && (
+            {/* Sector Breakdown with Donut Chart */}
+            {sectorEntries.length > 0 ? (
               <div className="pt-4 border-t border-slate-800">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Sector Allocation Breakdown</div>
-                <div className="w-full h-3.5 rounded-full overflow-hidden flex mb-3">
-                  {sectorEntries.map(([sec, pct], idx) => (
-                    <div
-                      key={sec}
-                      style={{ width: `${pct}%`, backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }}
-                      title={`${sec}: ${pct}%`}
-                      className="h-full"
-                    />
-                  ))}
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                  <span>Sector Allocation Breakdown</span>
+                  <span className="text-[10px] text-slate-500 font-mono">{sectorEntries.length} Sectors</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                  {sectorEntries.map(([sec, pct], idx) => (
-                    <div key={sec} className="flex items-center justify-between bg-slate-950/40 border border-slate-800/60 p-2 rounded-lg">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }} />
-                        <span className="text-slate-300 truncate text-[11px]">{sec}</span>
-                      </div>
-                      <span className="font-mono font-bold text-slate-400 text-[10px]">{typeof pct === 'number' ? pct.toFixed(1) : pct}%</span>
+
+                {/* Donut Chart + Sector Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-3 bg-slate-950/40 border border-slate-800/60 p-3.5 rounded-xl">
+                  {/* Donut Chart */}
+                  <div className="h-36 w-full flex items-center justify-center sm:col-span-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={sectorEntries.map(([name, value]) => ({ name, value }))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={32}
+                          outerRadius={55}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {sectorEntries.map(([sec], idx) => (
+                            <Cell key={sec} fill={SECTOR_COLORS[idx % SECTOR_COLORS.length]} stroke="#0f172a" strokeWidth={2} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomSectorTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Sector Progress Bar & Grid */}
+                  <div className="sm:col-span-2 space-y-2.5">
+                    <div className="w-full h-3 rounded-full overflow-hidden flex mb-2">
+                      {sectorEntries.map(([sec, pct], idx) => (
+                        <div
+                          key={sec}
+                          style={{ width: `${pct}%`, backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }}
+                          title={`${sec}: ${pct}%`}
+                          className="h-full"
+                        />
+                      ))}
                     </div>
-                  ))}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs max-h-[220px] overflow-y-auto pr-1">
+                      {sectorEntries.map(([sec, pct], idx) => (
+                        <div key={sec} className="flex items-center justify-between bg-slate-900/90 border border-slate-700/60 px-2.5 py-1.5 rounded-lg shadow-sm">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }} />
+                            <span className="text-slate-100 truncate text-[11px] font-semibold">{sec}</span>
+                          </div>
+                          <span className="font-mono font-bold text-indigo-400 text-xs ml-1">{typeof pct === 'number' ? pct.toFixed(1) : pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              </div>
+            ) : (
+              <div className="pt-4 border-t border-slate-800 text-center py-3 text-xs text-slate-500 italic">
+                Sector allocation data currently unavailable for this fund.
               </div>
             )}
           </div>
@@ -1382,7 +1625,7 @@ export const IndianMfSectorAnalysis = () => {
   }).filter(sector => sector.filteredFunds.length > 0 || (sector.sectorName || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="flex-1 w-full min-h-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
       <div className="w-full max-w-full p-4 md:p-8 space-y-6">
         
         {/* Title Header */}
