@@ -413,6 +413,7 @@ const FundDetailModal = ({ fund, onClose }) => {
   const [navChartData, setNavChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [showAllHoldings, setShowAllHoldings] = useState(false);
+  const [holdingsSearch, setHoldingsSearch] = useState('');
 
   useEffect(() => {
     if (!fund) return;
@@ -469,6 +470,15 @@ const FundDetailModal = ({ fund, onClose }) => {
     h.securityType === 'ETF/REIT' || 
     (!h.securityType && !/future|futures|\bfut\b|option|options|\bopt\b|cash offset|cash margin|treps|repo/i.test(h.name || h.stock || ''))
   );
+
+  const filteredHoldings = holdings.filter(h => {
+    if (!holdingsSearch.trim()) return true;
+    const q = holdingsSearch.toLowerCase().trim();
+    const sName = (h.Symbol || h.stock || h.name || h.securityName || h.companyName || '').toLowerCase();
+    const sec = (h.sector || h.industry || '').toLowerCase();
+    return sName.includes(q) || sec.includes(q);
+  });
+
   const sectorData = detail?.sectorBreakdown || detail?.profile?.sectorBreakdown || {};
 
   const sectorEntries = Object.entries(sectorData).filter(([_, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
@@ -485,7 +495,7 @@ const FundDetailModal = ({ fund, onClose }) => {
   const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? detail?.oneYearChangePct ?? 0);
   const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
 
-  const displayedHoldings = showAllHoldings ? holdings : holdings.slice(0, 10);
+  const displayedHoldings = (showAllHoldings || holdingsSearch.trim()) ? filteredHoldings : filteredHoldings.slice(0, 10);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
@@ -648,33 +658,78 @@ const FundDetailModal = ({ fund, onClose }) => {
         ) : (
           <div className="space-y-5">
             {/* Holdings Section */}
-            <div>
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                <span>Top Stock Portfolio Positions — {holdings.length} Stocks</span>
-                {holdings.length > 10 && (
-                  <button
-                    onClick={() => setShowAllHoldings(!showAllHoldings)}
-                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    {showAllHoldings ? 'Show Top 10' : `View All (${holdings.length})`}
-                  </button>
-                )}
+            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Top Stock Portfolio Positions</span>
+                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono">
+                    {holdings.length} Positions Disclosed
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Search Bar Input */}
+                  <div className="relative flex-1 sm:w-48">
+                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={holdingsSearch}
+                      onChange={(e) => setHoldingsSearch(e.target.value)}
+                      placeholder="Search stock or sector..."
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-7 pr-2.5 py-1 text-[11px] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    {holdingsSearch && (
+                      <button 
+                        onClick={() => setHoldingsSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-[10px]"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* View All Pill Toggle */}
+                  {holdings.length > 10 && !holdingsSearch && (
+                    <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                      <button
+                        onClick={() => setShowAllHoldings(false)}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
+                          !showAllHoldings 
+                            ? 'bg-indigo-600 text-white shadow-sm' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Top 10
+                      </button>
+                      <button
+                        onClick={() => setShowAllHoldings(true)}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
+                          showAllHoldings 
+                            ? 'bg-indigo-600 text-white shadow-sm' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        All ({holdings.length})
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {holdings.length > 0 ? (
+              {filteredHoldings.length > 0 ? (
                 <>
-                  <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
+                  <div className="border border-slate-800/90 rounded-xl overflow-hidden bg-slate-900/60 max-h-[380px] overflow-y-auto relative shadow-inner">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-900/90 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          <th className="py-2.5 px-3 text-center w-10">#</th>
-                          <th className="py-2.5 px-3">Stock</th>
+                      <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10 border-b border-slate-800 shadow-xs">
+                        <tr className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          <th className="py-2.5 px-3 text-center w-12">#</th>
+                          <th className="py-2.5 px-3">Company / Asset</th>
                           <th className="py-2.5 px-3">Sector</th>
                           <th className="py-2.5 px-3 text-right">Value (₹ Cr)</th>
                           <th className="py-2.5 px-3 text-right">Weight (%)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60">
+                      <tbody className="divide-y divide-slate-800/50">
                         {displayedHoldings.map((h, idx) => {
                           const stockName = h.Symbol || h.stock || h.name || h.securityName || h.companyName || 'Stock Position';
                           const sectorName = h.sector && h.sector.trim() ? h.sector : (h.industry || 'General');
@@ -700,13 +755,76 @@ const FundDetailModal = ({ fund, onClose }) => {
                             marketValDisplay = `₹${valNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                           }
 
+                          // Rank Medal Styling
+                          const rankNum = idx + 1;
+                          const isGold = rankNum === 1;
+                          const isSilver = rankNum === 2;
+                          const isBronze = rankNum === 3;
+
+                          // Initial Letter for Avatar
+                          const initialChar = stockName.charAt(0).toUpperCase();
+
                           return (
-                            <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
-                              <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-500">{idx + 1}</td>
-                              <td className="py-2.5 px-3 font-semibold text-slate-100 truncate max-w-[180px]" title={stockName}>{stockName}</td>
-                              <td className="py-2.5 px-3 text-slate-400 text-[11px] truncate max-w-[140px]">{sectorName}</td>
-                              <td className="py-2.5 px-3 text-right font-mono text-slate-300 text-[11px]">{marketValDisplay}</td>
-                              <td className="py-2.5 px-3 text-right font-mono text-indigo-300 font-bold">{weightDisplay}</td>
+                            <tr key={idx} className="hover:bg-slate-800/40 transition-colors group">
+                              {/* Rank Column */}
+                              <td className="py-2.5 px-3 text-center align-middle">
+                                {isGold ? (
+                                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
+                                    #1
+                                  </span>
+                                ) : isSilver ? (
+                                  <span className="bg-slate-300/20 text-slate-200 border border-slate-400/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
+                                    #2
+                                  </span>
+                                ) : isBronze ? (
+                                  <span className="bg-amber-700/20 text-amber-500 border border-amber-700/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
+                                    #3
+                                  </span>
+                                ) : (
+                                  <span className="font-mono text-[11px] text-slate-500 font-semibold">{rankNum}</span>
+                                )}
+                              </td>
+
+                              {/* Company / Asset */}
+                              <td className="py-2.5 px-3 align-middle">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700/80 text-indigo-300 font-bold text-[10px] flex items-center justify-center shrink-0 shadow-2xs group-hover:border-indigo-500/50 transition-colors">
+                                    {initialChar}
+                                  </span>
+                                  <span className="font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors truncate max-w-[210px] text-xs" title={stockName}>
+                                    {stockName}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* Sector Badge */}
+                              <td className="py-2.5 px-3 align-middle">
+                                <span className="bg-slate-950/80 text-slate-300 border border-slate-800 text-[10px] font-medium rounded-md px-2 py-0.5 inline-block truncate max-w-[140px]" title={sectorName}>
+                                  {sectorName}
+                                </span>
+                              </td>
+
+                              {/* Market Value */}
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-200 font-semibold text-[11px] align-middle">
+                                {marketValDisplay}
+                              </td>
+
+                              {/* Weight Bar & Percentage Pill */}
+                              <td className="py-2.5 px-3 text-right align-middle">
+                                <div className="flex items-center justify-end gap-2">
+                                  {rawWeight > 0 && (
+                                    <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden sm:block">
+                                      <div 
+                                        className="h-full bg-indigo-500 rounded-full" 
+                                        style={{ width: `${Math.min(rawWeight * 8, 100)}%` }} 
+                                      />
+                                    </div>
+                                  )}
+                                  <span className="font-mono text-indigo-300 font-extrabold bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded text-[11px] shadow-2xs">
+                                    {weightDisplay}
+                                  </span>
+                                </div>
+                              </td>
                             </tr>
                           );
                         })}
@@ -714,20 +832,20 @@ const FundDetailModal = ({ fund, onClose }) => {
                     </table>
                   </div>
 
-                  {holdings.length > 10 && (
+                  {holdings.length > 10 && !holdingsSearch && (
                     <div className="mt-2.5 text-center">
                       <button
                         onClick={() => setShowAllHoldings(!showAllHoldings)}
-                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 py-1 transition"
+                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 py-1 transition-colors flex items-center justify-center gap-1 mx-auto"
                       >
-                        {showAllHoldings ? 'Show Top 10 Positions' : `View All ${holdings.length} Portfolio Positions ↓`}
+                        <span>{showAllHoldings ? 'Show Top 10 Positions' : `View All ${holdings.length} Portfolio Positions ↓`}</span>
                       </button>
                     </div>
                   )}
                 </>
               ) : (
-                <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-4 text-center text-xs text-slate-500 italic">
-                  {detail?.holdingsReason || 'Official portfolio holdings disclosure unavailable for this fund.'}
+                <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl p-6 text-center text-xs text-slate-400 italic">
+                  {holdingsSearch ? `No stock position matching "${holdingsSearch}"` : (detail?.holdingsReason || 'Official portfolio holdings disclosure unavailable for this fund.')}
                 </div>
               )}
             </div>
