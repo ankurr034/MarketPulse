@@ -153,22 +153,49 @@ class LiveMfAnalyticsService {
       return emptyMetrics;
     }
 
+    const parseDateTemp = (item) => {
+      if (!item) return new Date();
+      const dStr = item.date !== undefined ? item.date : item.time;
+      if (typeof dStr === 'number') return new Date(dStr);
+      const str = String(dStr);
+      const parts = str.split('-');
+      if (parts.length === 3 && parts[0].length <= 2) {
+        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+      return new Date(str);
+    };
 
-    const todayNav = parseFloat(navData[0].nav);
-    if (isNaN(todayNav) || todayNav <= 0) {
+    // Auto-detect and normalize sort order: ensure newest observation is at navData[0]
+    if (parseDateTemp(navData[0]).getTime() < parseDateTemp(navData[navData.length - 1]).getTime()) {
+      navData = [...navData].reverse();
+    }
+
+
+    const getNavVal = (item) => {
+      if (!item) return 0;
+      const v = parseFloat(item.nav !== undefined ? item.nav : item.value);
+      return isNaN(v) ? 0 : v;
+    };
+
+    const todayNav = getNavVal(navData[0]);
+    if (todayNav <= 0) {
       return emptyMetrics;
     }
 
     // Parse dates to calculate calendar day offsets
-    const parseDate = (dStr) => {
-      const parts = dStr.split('-');
-      if (parts.length === 3) {
+    const parseDate = (item) => {
+      if (!item) return new Date();
+      const dStr = item.date !== undefined ? item.date : item.time;
+      if (typeof dStr === 'number') return new Date(dStr);
+      const str = String(dStr);
+      const parts = str.split('-');
+      if (parts.length === 3 && parts[0].length <= 2) {
         return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
       }
-      return new Date(dStr);
+      return new Date(str);
     };
 
-    const todayDate = parseDate(navData[0].date);
+    const todayDate = parseDate(navData[0]);
 
     // Helper to find NAV closest to a target day offset
     const getNavAtOffset = (targetDays, maxToleranceDays) => {
@@ -176,9 +203,9 @@ class LiveMfAnalyticsService {
       let bestObj = null;
       let minDiff = Infinity;
       for (let i = 1; i < navData.length; i++) {
-        const d = parseDate(navData[i].date);
-        const navVal = parseFloat(navData[i].nav);
-        if (isNaN(navVal) || navVal <= 0) continue;
+        const d = parseDate(navData[i]);
+        const navVal = getNavVal(navData[i]);
+        if (navVal <= 0) continue;
         const diff = Math.abs(d.getTime() - targetTime);
         if (diff < minDiff && diff <= maxToleranceDays * 24 * 60 * 60 * 1000) {
           minDiff = diff;
@@ -196,8 +223,8 @@ class LiveMfAnalyticsService {
     const nav1095Obj = getNavAtOffset(1095, 60);
     const nav1826Obj = getNavAtOffset(1826, 60);
 
-    const oldestNavVal = parseFloat(navData[navData.length - 1].nav);
-    const oldestDate = parseDate(navData[navData.length - 1].date);
+    const oldestNavVal = getNavVal(navData[navData.length - 1]);
+    const oldestDate = parseDate(navData[navData.length - 1]);
     const totalDaysIncep = (todayDate.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000);
 
     const calcReturn = (navObj) => (navObj && navObj.nav > 0 ? parseFloat((((todayNav - navObj.nav) / navObj.nav) * 100).toFixed(2)) : null);
@@ -211,13 +238,13 @@ class LiveMfAnalyticsService {
       return parseFloat(cagr.toFixed(2));
     };
 
-    const return1W = calcReturn(nav7Obj);
-    const return1M = calcReturn(nav30Obj);
-    const return3M = calcReturn(nav90Obj);
-    const return6M = calcReturn(nav180Obj);
-    const return1Y = calcReturn(nav365Obj);
-    const return3Y = calcCagr(nav1095Obj);
-    const return5Y = calcCagr(nav1826Obj);
+    const return1W = totalDaysIncep >= 7 ? calcReturn(nav7Obj) : null;
+    const return1M = totalDaysIncep >= 25 ? calcReturn(nav30Obj) : null;
+    const return3M = totalDaysIncep >= 80 ? calcReturn(nav90Obj) : null;
+    const return6M = totalDaysIncep >= 160 ? calcReturn(nav180Obj) : null;
+    const return1Y = totalDaysIncep >= 330 ? calcReturn(nav365Obj) : null;
+    const return3Y = totalDaysIncep >= 1000 ? calcCagr(nav1095Obj) : null;
+    const return5Y = totalDaysIncep >= 1750 ? calcCagr(nav1826Obj) : null;
 
     let returnAll = null;
     if (oldestNavVal && oldestNavVal > 0 && totalDaysIncep > 10) {
@@ -230,11 +257,44 @@ class LiveMfAnalyticsService {
       }
     }
 
-    // Primary Metric Engine: Since-Inception Monthly Historical Rf Aligned Engine
+    // Primary Metric Engine: Since Inception Engine for frontpage
+    const effectiveRf = (typeof this.riskFreeRate === 'number' && this.riskFreeRate > 0) ? this.riskFreeRate : 0.0625;
     const chronologicalNavData = [...navData].reverse();
-    const riskMetricsObj = riskAnalyticsService.getRiskMetricsSinceInception(chronologicalNavData, [], this.riskFreeRate, {});
+    const riskMetricsObj = riskAnalyticsService.getRiskMetricsSinceInception(chronologicalNavData, [], effectiveRf, {});
     const sharpeRatio = riskMetricsObj.sharpeRatio;
     const sortinoRatio = riskMetricsObj.sortinoRatio;
+
+    // Multi-Period Risk Ratio Calculations (1Y, 3Y, 5Y, Inception)
+    const monthEndNavs = riskAnalyticsService.extractMonthEndNavs(chronologicalNavData);
+    const monthlyReturns = riskAnalyticsService.calculateMonthlyReturns(monthEndNavs);
+
+    const sharpeRatio1Y = (monthlyReturns.length >= 12 && totalDaysIncep >= 330) 
+      ? riskAnalyticsService.calculateSinceInceptionSharpeRatio(monthlyReturns.slice(-12), effectiveRf) 
+      : null;
+    const sortinoRatio1Y = (monthlyReturns.length >= 12 && totalDaysIncep >= 330) 
+      ? riskAnalyticsService.calculateSinceInceptionSortinoRatio(monthlyReturns.slice(-12), effectiveRf) 
+      : null;
+
+    const sharpeRatio3Y = (monthlyReturns.length >= 36 && totalDaysIncep >= 1000) 
+      ? riskAnalyticsService.calculateSinceInceptionSharpeRatio(monthlyReturns.slice(-36), effectiveRf) 
+      : null;
+    const sortinoRatio3Y = (monthlyReturns.length >= 36 && totalDaysIncep >= 1000) 
+      ? riskAnalyticsService.calculateSinceInceptionSortinoRatio(monthlyReturns.slice(-36), effectiveRf) 
+      : null;
+
+    const sharpeRatio5Y = (monthlyReturns.length >= 60 && totalDaysIncep >= 1750) 
+      ? riskAnalyticsService.calculateSinceInceptionSharpeRatio(monthlyReturns.slice(-60), effectiveRf) 
+      : null;
+    const sortinoRatio5Y = (monthlyReturns.length >= 60 && totalDaysIncep >= 1750) 
+      ? riskAnalyticsService.calculateSinceInceptionSortinoRatio(monthlyReturns.slice(-60), effectiveRf) 
+      : null;
+
+    const riskRatios = {
+      '1Y': { sharpe: sharpeRatio1Y, sortino: sortinoRatio1Y },
+      '3Y': { sharpe: sharpeRatio3Y, sortino: sortinoRatio3Y },
+      '5Y': { sharpe: sharpeRatio5Y, sortino: sortinoRatio5Y },
+      'All': { sharpe: sharpeRatio, sortino: sortinoRatio }
+    };
 
     // Advanced Daily NAV Metrics (available for detail endpoints)
     const dailyReturns = [];
@@ -273,9 +333,30 @@ class LiveMfAnalyticsService {
       'All': returnAll
     };
 
+    const oldestNavItem = navData && navData.length > 0 ? navData[navData.length - 1] : null;
+    let launchDate = oldestNavItem ? (oldestNavItem.date || null) : null;
+    let launchYear = null;
+    if (oldestNavItem) {
+      if (oldestNavItem.date) {
+        const match = String(oldestNavItem.date).match(/\b(19|20)\d{2}\b/);
+        if (match) launchYear = parseInt(match[0], 10);
+      }
+      if (!launchYear && oldestNavItem.time) {
+        const y = new Date(oldestNavItem.time).getFullYear();
+        if (y >= 1990 && y <= 2030) launchYear = y;
+      }
+    }
+
     return { 
       return1D, return1W, return1M, return3M, return6M, return1Y, return3Y, return5Y, returnAll,
-      returns, sharpeRatio, sortinoRatio 
+      returns, sharpeRatio, sortinoRatio,
+      riskRatios,
+      sharpeRatio1Y, sortinoRatio1Y,
+      sharpeRatio3Y, sortinoRatio3Y,
+      sharpeRatio5Y, sortinoRatio5Y,
+      sharpeRatioInception: sharpeRatio,
+      sortinoRatioInception: sortinoRatio,
+      launchYear, inceptionYear: launchYear, launchDate
     };
   }
 

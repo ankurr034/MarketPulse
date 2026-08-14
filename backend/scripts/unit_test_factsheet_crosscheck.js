@@ -47,15 +47,28 @@ assert(typeof monthlySharpe === 'number' && !isNaN(monthlySharpe), `Test B: Mont
 assert(typeof monthlySortino === 'number' && !isNaN(monthlySortino), `Test B: Monthly Sortino engine calculates valid number (${monthlySortino})`);
 
 // --------------------------------------------------------------------------
-// 3. 36-Month Window Isolation
+// 3. 36-Month Window Isolation & Purity
 // --------------------------------------------------------------------------
 console.log('\n--- Test C: 36-Month Window Selection ---');
-const monthlyReturns60 = Array(60).fill(0).map((_, i) => (i % 2 === 0 ? 0.02 : -0.01));
-const res36Only = riskAnalyticsService.calculateMonthlySharpeRatio(monthlyReturns60, 0.06);
-const resFirst36 = riskAnalyticsService.calculateMonthlySharpeRatio(monthlyReturns60.slice(0, 36), 0.06);
+const monthlyReturns60 = Array(60).fill(0).map((_, i) => 0.01 + Math.sin(i) * 0.02);
+const res60 = riskAnalyticsService.calculateMonthlySharpeRatio(monthlyReturns60, 0.06);
 const resLatest36 = riskAnalyticsService.calculateMonthlySharpeRatio(monthlyReturns60.slice(-36), 0.06);
+assert(res60 !== resLatest36, 'Test C: Pure calculation function behaves differently for 60 vs 36 returns');
 
-assert(res36Only === resLatest36, 'Test C: Monthly engine strictly isolates latest 36 monthly returns (3Y window)');
+const mockNavHistory61 = [];
+let navVal61 = 100;
+for (let i = 0; i < 61; i++) {
+  const year = 2020 + Math.floor(i / 12);
+  const month = i % 12;
+  const d = new Date(Date.UTC(year, month + 1, 0, 0, 0, 0));
+  navVal61 *= 1.01;
+  mockNavHistory61.push({ time: d.getTime(), value: navVal61, dateStr: d.toISOString().split('T')[0] });
+}
+const metrics3Y = riskAnalyticsService.getRiskMetrics3YMonthly(mockNavHistory61, [], 0.06);
+assert(metrics3Y.dataPointsCount === 36, 'Test C: 3Y monthly engine isolates exactly 36 returns');
+
+const metricsSinceInception = riskAnalyticsService.getRiskMetricsSinceInception(mockNavHistory61, [], 0.06);
+assert(metricsSinceInception.dataPointsCount === 60, 'Test C: Since Inception engine uses all 60 returns');
 
 // --------------------------------------------------------------------------
 // 4. Geometric Risk-Free Rate Conversion
@@ -89,7 +102,7 @@ assert(metrics3YNoRf.sharpeRatio === null && metrics3YNoRf.status === 'UNAVAILAB
 // --------------------------------------------------------------------------
 console.log('\n--- Test H: Cache Versioning ---');
 const metrics3YWithRf = riskAnalyticsService.getRiskMetrics3YMonthly(mockNavHistory, [], 0.06);
-assert(metrics3YWithRf.riskAnalyticsVersion === 'v6_historical_rf_aligned_excess_stddev', 'Test H: Since Inception metrics include canonical cache version v6_historical_rf_aligned_excess_stddev');
+assert(metrics3YWithRf.riskAnalyticsVersion === 'v7_3y_monthly_exact_excess_stddev', 'Test H: Since Inception metrics include canonical cache version v7_3y_monthly_exact_excess_stddev');
 
 // --------------------------------------------------------------------------
 // 8. Direct-Growth Scheme Identity Preservation

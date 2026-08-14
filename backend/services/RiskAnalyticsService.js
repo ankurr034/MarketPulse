@@ -2,7 +2,7 @@ class RiskAnalyticsService {
   constructor() {
     this.riskFreeRateAnnual = null; // Strictly NULL by default unless a verified RBI rate is provided
     this.dailyRiskFreeRate = null;
-    this.riskAnalyticsVersion = 'v6_historical_rf_aligned_excess_stddev';
+    this.riskAnalyticsVersion = 'v7_3y_monthly_exact_excess_stddev';
   }
 
   /**
@@ -18,8 +18,26 @@ class RiskAnalyticsService {
     }
     if (schemeName && typeof schemeName === 'string') {
       const lowerName = schemeName.toLowerCase();
-      if (lowerName.includes('regular') || lowerName.includes('idcw') || lowerName.includes('dividend')) {
+      if (
+        lowerName.includes('regular') || 
+        /\breg\b/.test(lowerName) ||
+        lowerName.includes('idcw') || 
+        lowerName.includes('dividend') ||
+        /\bdiv\b/.test(lowerName) ||
+        lowerName.includes('payout') ||
+        lowerName.includes('reinvestment') ||
+        lowerName.includes('reinvest')
+      ) {
         return false; // Reject Regular, IDCW, or Dividend schemes
+      }
+
+      const isEtfOrCommodity = /\b(etf|bees|gold|silver|commodity)\b/i.test(lowerName);
+      if (!isEtfOrCommodity) {
+        const isDir = lowerName.includes('direct') || lowerName.includes('-dir') || lowerName.includes('(dir)') || lowerName.includes(' dir ');
+        const isGr = lowerName.includes('growth') || lowerName.includes('-gr') || lowerName.includes('(gr)') || lowerName.includes(' gr ');
+        if (!isDir || !isGr) {
+          return false;
+        }
       }
     }
     if (isDirect === false || isGrowth === false) {
@@ -215,7 +233,7 @@ class RiskAnalyticsService {
       const time = d.getTime();
       const val = parseFloat(item.nav !== undefined ? item.nav : item.value);
 
-      if (!isNaN(time) && d <= today && !isNaN(val) && val > 0) {
+      if (!isNaN(time) && !isNaN(val) && val > 0) {
         const yearStr = d.getUTCFullYear();
         const monthStr = String(d.getUTCMonth() + 1).padStart(2, '0');
         const key = `${yearStr}-${monthStr}`;
@@ -239,8 +257,10 @@ class RiskAnalyticsService {
   calculateMonthlyReturns(monthEndPrices) {
     const returns = [];
     for (let i = 1; i < monthEndPrices.length; i++) {
-      const prev = monthEndPrices[i - 1];
-      const curr = monthEndPrices[i];
+      const prevItem = monthEndPrices[i - 1];
+      const currItem = monthEndPrices[i];
+      const prev = typeof prevItem === 'object' && prevItem !== null ? (prevItem.value !== undefined ? prevItem.value : prevItem.nav) : prevItem;
+      const curr = typeof currItem === 'object' && currItem !== null ? (currItem.value !== undefined ? currItem.value : currItem.nav) : currItem;
       if (!isNaN(prev) && !isNaN(curr) && prev > 0) {
         returns.push((curr - prev) / prev);
       }
@@ -254,20 +274,33 @@ class RiskAnalyticsService {
    * Sharpe = (mean(R_m) - rf_monthly) / sampleStdDev(R_m) * sqrt(12)
    */
   calculateSinceInceptionSharpeRatio(monthlyReturns, riskFreeRateAnnual = null) {
-    if (typeof riskFreeRateAnnual !== 'number' || isNaN(riskFreeRateAnnual) || riskFreeRateAnnual <= 0) {
-      return null; // Return null when RBI risk-free rate is unverified or UNAVAILABLE
+    if (riskFreeRateAnnual === null) return null;
+    if (!monthlyReturns || monthlyReturns.length < 12) return null;
+
+    let excessMonthlyReturns;
+    if (Array.isArray(riskFreeRateAnnual)) {
+      if (riskFreeRateAnnual.length !== monthlyReturns.length) return null;
+      excessMonthlyReturns = monthlyReturns.map((r, i) => {
+        const rf = riskFreeRateAnnual[i];
+        if (typeof rf !== 'number' || isNaN(rf) || rf <= 0) return 0;
+        const rfMonthly = Math.pow(1 + rf, 1 / 12) - 1;
+        return r - rfMonthly;
+      });
+    } else if (typeof riskFreeRateAnnual === 'number' && riskFreeRateAnnual > 0) {
+      const rfMonthly = Math.pow(1 + riskFreeRateAnnual, 1 / 12) - 1;
+      excessMonthlyReturns = monthlyReturns.map(r => r - rfMonthly);
+    } else {
+      return null;
     }
-    if (!monthlyReturns || monthlyReturns.length < 12) return null; // Requires at least 12 monthly returns (1Y history)
 
-    const rfMonthly = Math.pow(1 + riskFreeRateAnnual, 1 / 12) - 1;
-    const meanMonthly = monthlyReturns.reduce((a, b) => a + b, 0) / monthlyReturns.length;
-    const excessMonthly = meanMonthly - rfMonthly;
+    const N = excessMonthlyReturns.length;
+    const meanExcess = excessMonthlyReturns.reduce((a, b) => a + b, 0) / N;
 
-    const sumSqDiff = monthlyReturns.reduce((sum, val) => sum + Math.pow(val - meanMonthly, 2), 0);
-    const monthlyStdDev = Math.sqrt(sumSqDiff / (monthlyReturns.length - 1));
+    const sumSqDiff = excessMonthlyReturns.reduce((sum, val) => sum + Math.pow(val - meanExcess, 2), 0);
+    const sampleStdDev = Math.sqrt(sumSqDiff / (N - 1));
 
-    if (monthlyStdDev < 1e-8) return null;
-    const sharpe = (excessMonthly / monthlyStdDev) * Math.sqrt(12);
+    if (sampleStdDev < 1e-8) return null;
+    const sharpe = (meanExcess / sampleStdDev) * Math.sqrt(12);
     return parseFloat(sharpe.toFixed(2));
   }
 
@@ -278,24 +311,34 @@ class RiskAnalyticsService {
    * Uses N for downside deviation denominator (full-sample downside deviation).
    */
   calculateSinceInceptionSortinoRatio(monthlyReturns, riskFreeRateAnnual = null) {
-    if (typeof riskFreeRateAnnual !== 'number' || isNaN(riskFreeRateAnnual) || riskFreeRateAnnual <= 0) {
-      return null; // Return null when RBI risk-free rate is unverified or UNAVAILABLE
+    if (riskFreeRateAnnual === null) return null;
+    if (!monthlyReturns || monthlyReturns.length < 12) return null;
+
+    let excessMonthlyReturns;
+    if (Array.isArray(riskFreeRateAnnual)) {
+      if (riskFreeRateAnnual.length !== monthlyReturns.length) return null;
+      excessMonthlyReturns = monthlyReturns.map((r, i) => {
+        const rf = riskFreeRateAnnual[i];
+        if (typeof rf !== 'number' || isNaN(rf) || rf <= 0) return 0;
+        const rfMonthly = Math.pow(1 + rf, 1 / 12) - 1;
+        return r - rfMonthly;
+      });
+    } else if (typeof riskFreeRateAnnual === 'number' && riskFreeRateAnnual > 0) {
+      const rfMonthly = Math.pow(1 + riskFreeRateAnnual, 1 / 12) - 1;
+      excessMonthlyReturns = monthlyReturns.map(r => r - rfMonthly);
+    } else {
+      return null;
     }
-    if (!monthlyReturns || monthlyReturns.length < 12) return null; // Requires at least 12 monthly returns
 
-    const rfMonthly = Math.pow(1 + riskFreeRateAnnual, 1 / 12) - 1;
-    const meanMonthly = monthlyReturns.reduce((a, b) => a + b, 0) / monthlyReturns.length;
-    const excessMonthly = meanMonthly - rfMonthly;
+    const N = excessMonthlyReturns.length;
+    const meanExcess = excessMonthlyReturns.reduce((a, b) => a + b, 0) / N;
 
-    const negativeDeviations = monthlyReturns.map(r => Math.min(r - rfMonthly, 0));
-    const sumSq = negativeDeviations.reduce((sum, val) => sum + Math.pow(val, 2), 0);
-    const monthlyDownsideDev = Math.sqrt(sumSq / monthlyReturns.length);
+    const negativeExcess = excessMonthlyReturns.map(r => Math.min(r, 0));
+    const sumSqNeg = negativeExcess.reduce((sum, val) => sum + Math.pow(val, 2), 0);
+    const downsideDev = Math.sqrt(sumSqNeg / N); // N (population)
 
-    if (monthlyDownsideDev < 1e-8) {
-      return excessMonthly > 0 ? 99.9 : 0.0;
-    }
-
-    const sortino = (excessMonthly / monthlyDownsideDev) * Math.sqrt(12);
+    if (downsideDev < 1e-8) return null;
+    const sortino = (meanExcess / downsideDev) * Math.sqrt(12);
     return parseFloat(sortino.toFixed(2));
   }
 
@@ -325,7 +368,7 @@ class RiskAnalyticsService {
         volatility: null,
         dataPointsCount: 0,
         riskFreeRate: null,
-        riskAnalyticsVersion: 'v5_since_inception_historical_rf',
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
         methodologyLabel: 'Sharpe Ratio (Since Inception - Historical Rf Aligned)',
         sortinoMethodologyLabel: 'Sortino Ratio (Since Inception - Historical Rf Aligned)',
         sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
@@ -357,7 +400,7 @@ class RiskAnalyticsService {
         volatility: null,
         dataPointsCount: 0,
         riskFreeRate: null,
-        riskAnalyticsVersion: 'v5_since_inception_historical_rf',
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
         methodologyLabel: 'Sharpe Ratio (Since Inception - Historical Rf Aligned)',
         sortinoMethodologyLabel: 'Sortino Ratio (Since Inception - Historical Rf Aligned)',
         sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
@@ -379,7 +422,7 @@ class RiskAnalyticsService {
         firstNAVDate,
         lastNAVDate,
         riskFreeRate: rfAnnual,
-        riskAnalyticsVersion: 'v5_since_inception_historical_rf',
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
         methodologyLabel: 'Sharpe Ratio (Since Inception - Historical Rf Aligned)',
         sortinoMethodologyLabel: 'Sortino Ratio (Since Inception - Historical Rf Aligned)',
         sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
@@ -388,61 +431,36 @@ class RiskAnalyticsService {
       };
     }
 
-    const monthlyReturnObjs = [];
+    const monthlyReturns = [];
+    const rfList = [];
     for (let i = 1; i < monthEndNavs.length; i++) {
       const prev = monthEndNavs[i - 1];
       const curr = monthEndNavs[i];
       const mReturn = (curr.value - prev.value) / prev.value;
       const year = curr.dateStr ? curr.dateStr.split('-')[0] : (curr.key ? curr.key.split('-')[0] : '2026');
       const annualRfForYear = rbiHistoricalRf[year] !== undefined ? rbiHistoricalRf[year] : rfAnnual;
-      const monthlyRf = Math.pow(1 + annualRfForYear, 1 / 12) - 1;
-      const excessReturn = mReturn - monthlyRf;
+      
+      monthlyReturns.push(mReturn);
+      rfList.push(annualRfForYear);
+    }
 
-      monthlyReturnObjs.push({
-        date: curr.dateStr,
-        year,
-        monthlyReturn: mReturn,
-        annualRf: annualRfForYear,
-        monthlyRf,
-        excessReturn
+    const N = monthlyReturns.length;
+    // Pass to pure calculation functions
+    const sharpeRatio = this.calculateSinceInceptionSharpeRatio(monthlyReturns, rfList);
+    const sortinoRatio = this.calculateSinceInceptionSortinoRatio(monthlyReturns, rfList);
+
+    // Volatility calculation (annualized sample standard deviation of excess returns)
+    let volatilityAnnualized = 0;
+    if (N > 1) {
+      const excessReturnList = monthlyReturns.map((r, i) => {
+        const rfMonthly = Math.pow(1 + rfList[i], 1 / 12) - 1;
+        return r - rfMonthly;
       });
+      const meanExcess = excessReturnList.reduce((sum, val) => sum + val, 0) / N;
+      const sumSqExcessDiff = excessReturnList.reduce((sum, val) => sum + Math.pow(val - meanExcess, 2), 0);
+      const sampleStdDevExcess = Math.sqrt(sumSqExcessDiff / (N - 1));
+      volatilityAnnualized = sampleStdDevExcess * Math.sqrt(12);
     }
-
-    const N = monthlyReturnObjs.length;
-    const excessReturnList = monthlyReturnObjs.map(o => o.excessReturn);
-    const meanExcess = excessReturnList.reduce((sum, val) => sum + val, 0) / N;
-
-    const sumSqExcessDiff = excessReturnList.reduce((sum, val) => sum + Math.pow(val - meanExcess, 2), 0);
-    const sampleStdDevExcess = Math.sqrt(sumSqExcessDiff / (N - 1));
-
-    if (sampleStdDevExcess < 1e-8) {
-      return {
-        sharpeRatio: null,
-        sortinoRatio: null,
-        volatility: 0,
-        dataPointsCount: N,
-        firstNAVDate,
-        lastNAVDate,
-        status: 'UNAVAILABLE'
-      };
-    }
-
-    const sharpeVal = (meanExcess / sampleStdDevExcess) * Math.sqrt(12);
-    const sharpeRatio = parseFloat(sharpeVal.toFixed(2));
-
-    const negativeExcess = excessReturnList.map(r => Math.min(r, 0));
-    const sumSqNeg = negativeExcess.reduce((sum, val) => sum + Math.pow(val, 2), 0);
-    const downsideDev = Math.sqrt(sumSqNeg / N);
-
-    let sortinoRatio = null;
-    if (downsideDev < 1e-8) {
-      sortinoRatio = meanExcess > 0 ? 99.9 : 0.0;
-    } else {
-      const sortinoVal = (meanExcess / downsideDev) * Math.sqrt(12);
-      sortinoRatio = parseFloat(sortinoVal.toFixed(2));
-    }
-
-    const volatilityAnnualized = sampleStdDevExcess * Math.sqrt(12);
 
     return {
       sharpeRatio,
@@ -455,7 +473,7 @@ class RiskAnalyticsService {
       lastObservationMonth: monthEndNavs[monthEndNavs.length - 1] ? monthEndNavs[monthEndNavs.length - 1].key : null,
       riskFreeRate: rfAnnual,
       rfCoverage: '100% (RBI Historical Series 2013-2026)',
-      riskAnalyticsVersion: 'v6_historical_rf_aligned_excess_stddev',
+      riskAnalyticsVersion: this.riskAnalyticsVersion,
       methodologyLabel: 'Sharpe Ratio (Since Inception - Historical Rf Aligned)',
       sortinoMethodologyLabel: 'Sortino Ratio (Since Inception - Historical Rf Aligned)',
       sourceLabel: 'Calculated by MarketPulse from monthly NAV history and verified RBI T-Bill historical series',
@@ -464,11 +482,256 @@ class RiskAnalyticsService {
   }
 
   getRiskMetrics3YMonthly(navHistory, benchmarkHistory = [], customRf = null, schemeMetadata = {}) {
-    return this.getRiskMetricsSinceInception(navHistory, benchmarkHistory, customRf, schemeMetadata);
+    if (!this.validateSchemeIdentity(schemeMetadata)) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: 0,
+        riskFreeRate: null,
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
+        methodologyLabel: 'Sharpe Ratio (3-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (3-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'SCHEME_IDENTITY_MISMATCH'
+      };
+    }
+
+    let rfAnnual = null;
+    if (customRf && typeof customRf === 'object') {
+      if (customRf.status === 'VERIFIED' && typeof customRf.value === 'number' && customRf.value > 0) {
+        rfAnnual = customRf.value;
+      }
+    } else if (typeof customRf === 'number' && customRf > 0) {
+      rfAnnual = customRf;
+    }
+
+    if (rfAnnual === null || typeof rfAnnual !== 'number' || rfAnnual <= 0) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: 0,
+        riskFreeRate: null,
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
+        methodologyLabel: 'Sharpe Ratio (3-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (3-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'Verified RBI risk-free rate unavailable'
+      };
+    }
+
+    const monthEndNavs = this.extractMonthEndNavs(navHistory);
+    const firstNAVDate = monthEndNavs[0] ? monthEndNavs[0].dateStr : null;
+    const lastNAVDate = monthEndNavs[monthEndNavs.length - 1] ? monthEndNavs[monthEndNavs.length - 1].dateStr : null;
+
+    if (monthEndNavs.length < 37) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: Math.max(0, monthEndNavs.length - 1),
+        firstNAVDate,
+        lastNAVDate,
+        riskFreeRate: rfAnnual,
+        riskAnalyticsVersion: this.riskAnalyticsVersion,
+        methodologyLabel: 'Sharpe Ratio (3-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (3-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'INSUFFICIENT_HISTORY_MIN_37_MONTH_END_NAVS_REQUIRED'
+      };
+    }
+
+    // Take the latest 37 month-end observations to get exactly 36 monthly returns
+    const targetNavs = monthEndNavs.slice(-37);
+    const N = 36;
+    const sliceFirstNAVDate = targetNavs[0] ? targetNavs[0].dateStr : null;
+    const sliceLastNAVDate = targetNavs[targetNavs.length - 1] ? targetNavs[targetNavs.length - 1].dateStr : null;
+
+    const rbiHistoricalRf = {
+      '2013': 0.0785, '2014': 0.0835, '2015': 0.0760, '2016': 0.0685,
+      '2017': 0.0620, '2018': 0.0675, '2019': 0.0590, '2020': 0.0375,
+      '2021': 0.0355, '2022': 0.0510, '2023': 0.0670, '2024': 0.0680,
+      '2025': 0.0650, '2026': 0.0625
+    };
+
+    const monthlyReturns = [];
+    const rfList = [];
+    for (let i = 1; i < targetNavs.length; i++) {
+      const prev = targetNavs[i - 1];
+      const curr = targetNavs[i];
+      const mReturn = (curr.value - prev.value) / prev.value;
+      const year = curr.dateStr ? curr.dateStr.split('-')[0] : (curr.key ? curr.key.split('-')[0] : '2026');
+      const annualRfForYear = rbiHistoricalRf[year] !== undefined ? rbiHistoricalRf[year] : rfAnnual;
+      
+      monthlyReturns.push(mReturn);
+      rfList.push(annualRfForYear);
+    }
+
+    // Pass the 36 returns and aligned rfList to pure calculation functions
+    const sharpeRatio = this.calculateMonthlySharpeRatio(monthlyReturns, rfList);
+    const sortinoRatio = this.calculateMonthlySortinoRatio(monthlyReturns, rfList);
+
+    // Volatility calculation (annualized sample standard deviation of excess returns)
+    let volatilityAnnualized = 0;
+    if (monthlyReturns.length > 1) {
+      const excessReturnList = monthlyReturns.map((r, i) => {
+        const rfMonthly = Math.pow(1 + rfList[i], 1 / 12) - 1;
+        return r - rfMonthly;
+      });
+      const meanExcess = excessReturnList.reduce((sum, val) => sum + val, 0) / N;
+      const sumSqExcessDiff = excessReturnList.reduce((sum, val) => sum + Math.pow(val - meanExcess, 2), 0);
+      const sampleStdDevExcess = Math.sqrt(sumSqExcessDiff / (N - 1));
+      volatilityAnnualized = sampleStdDevExcess * Math.sqrt(12);
+    }
+
+    return {
+      sharpeRatio,
+      sortinoRatio,
+      volatility: parseFloat((volatilityAnnualized * 100).toFixed(2)),
+      dataPointsCount: N,
+      firstNAVDate: sliceFirstNAVDate,
+      lastNAVDate: sliceLastNAVDate,
+      firstObservationMonth: targetNavs[0] ? targetNavs[0].key : null,
+      lastObservationMonth: targetNavs[targetNavs.length - 1] ? targetNavs[targetNavs.length - 1].key : null,
+      riskFreeRate: rfAnnual,
+      rfCoverage: '100% (3-Year RBI Historical Series Aligned)',
+      riskAnalyticsVersion: this.riskAnalyticsVersion,
+      methodologyLabel: 'Sharpe Ratio (3-Year Monthly)',
+      sortinoMethodologyLabel: 'Sortino Ratio (3-Year Monthly)',
+      sourceLabel: 'Calculated by MarketPulse from 36 monthly NAV returns',
+      status: rfAnnual !== null && sharpeRatio !== null ? 'CALCULATED' : 'UNAVAILABLE'
+    };
+  }
+
+  getRiskMetrics5YMonthly(navHistory, benchmarkHistory = [], customRf = null, schemeMetadata = {}) {
+    if (!this.validateSchemeIdentity(schemeMetadata)) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: 0,
+        riskFreeRate: null,
+        riskAnalyticsVersion: 'v8_5y_monthly_exact_excess_stddev',
+        methodologyLabel: 'Sharpe Ratio (5-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (5-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'SCHEME_IDENTITY_MISMATCH'
+      };
+    }
+
+    let rfAnnual = null;
+    if (customRf && typeof customRf === 'object') {
+      if (customRf.status === 'VERIFIED' && typeof customRf.value === 'number' && customRf.value > 0) {
+        rfAnnual = customRf.value;
+      }
+    } else if (typeof customRf === 'number' && customRf > 0) {
+      rfAnnual = customRf;
+    }
+
+    if (rfAnnual === null || typeof rfAnnual !== 'number' || rfAnnual <= 0) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: 0,
+        riskFreeRate: null,
+        riskAnalyticsVersion: 'v8_5y_monthly_exact_excess_stddev',
+        methodologyLabel: 'Sharpe Ratio (5-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (5-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'Verified RBI risk-free rate unavailable'
+      };
+    }
+
+    const monthEndNavs = this.extractMonthEndNavs(navHistory);
+    const firstNAVDate = monthEndNavs[0] ? monthEndNavs[0].dateStr : null;
+    const lastNAVDate = monthEndNavs[monthEndNavs.length - 1] ? monthEndNavs[monthEndNavs.length - 1].dateStr : null;
+
+    if (monthEndNavs.length < 61) {
+      return {
+        sharpeRatio: null,
+        sortinoRatio: null,
+        volatility: null,
+        dataPointsCount: Math.max(0, monthEndNavs.length - 1),
+        firstNAVDate,
+        lastNAVDate,
+        riskFreeRate: rfAnnual,
+        riskAnalyticsVersion: 'v8_5y_monthly_exact_excess_stddev',
+        methodologyLabel: 'Sharpe Ratio (5-Year Monthly)',
+        sortinoMethodologyLabel: 'Sortino Ratio (5-Year Monthly)',
+        sourceLabel: 'Calculated by MarketPulse from monthly NAV history',
+        status: 'UNAVAILABLE',
+        reason: 'INSUFFICIENT_HISTORY_MIN_61_MONTH_END_NAVS_REQUIRED'
+      };
+    }
+
+    const targetNavs = monthEndNavs.slice(-61);
+    const N = 60;
+    const sliceFirstNAVDate = targetNavs[0] ? targetNavs[0].dateStr : null;
+    const sliceLastNAVDate = targetNavs[targetNavs.length - 1] ? targetNavs[targetNavs.length - 1].dateStr : null;
+
+    const rbiHistoricalRf = {
+      '2013': 0.0785, '2014': 0.0835, '2015': 0.0760, '2016': 0.0685,
+      '2017': 0.0620, '2018': 0.0675, '2019': 0.0590, '2020': 0.0375,
+      '2021': 0.0355, '2022': 0.0510, '2023': 0.0670, '2024': 0.0680,
+      '2025': 0.0650, '2026': 0.0625
+    };
+
+    const monthlyReturns = [];
+    const rfList = [];
+    for (let i = 1; i < targetNavs.length; i++) {
+      const prev = targetNavs[i - 1];
+      const curr = targetNavs[i];
+      const mReturn = (curr.value - prev.value) / prev.value;
+      const year = curr.dateStr ? curr.dateStr.split('-')[0] : (curr.key ? curr.key.split('-')[0] : '2026');
+      const annualRfForYear = rbiHistoricalRf[year] !== undefined ? rbiHistoricalRf[year] : rfAnnual;
+      
+      monthlyReturns.push(mReturn);
+      rfList.push(annualRfForYear);
+    }
+
+    const sharpeRatio = this.calculateMonthlySharpeRatio(monthlyReturns, rfList);
+    const sortinoRatio = this.calculateMonthlySortinoRatio(monthlyReturns, rfList);
+
+    let volatilityAnnualized = 0;
+    if (monthlyReturns.length > 1) {
+      const excessReturnList = monthlyReturns.map((r, i) => {
+        const rfMonthly = Math.pow(1 + rfList[i], 1 / 12) - 1;
+        return r - rfMonthly;
+      });
+      const meanExcess = excessReturnList.reduce((sum, val) => sum + val, 0) / N;
+      const sumSqExcessDiff = excessReturnList.reduce((sum, val) => sum + Math.pow(val - meanExcess, 2), 0);
+      const sampleStdDevExcess = Math.sqrt(sumSqExcessDiff / (N - 1));
+      volatilityAnnualized = sampleStdDevExcess * Math.sqrt(12);
+    }
+
+    return {
+      sharpeRatio,
+      sortinoRatio,
+      volatility: parseFloat((volatilityAnnualized * 100).toFixed(2)),
+      dataPointsCount: N,
+      firstNAVDate: sliceFirstNAVDate,
+      lastNAVDate: sliceLastNAVDate,
+      firstObservationMonth: targetNavs[0] ? targetNavs[0].key : null,
+      lastObservationMonth: targetNavs[targetNavs.length - 1] ? targetNavs[targetNavs.length - 1].key : null,
+      riskFreeRate: rfAnnual,
+      rfCoverage: '100% (5-Year RBI Historical Series Aligned)',
+      riskAnalyticsVersion: 'v8_5y_monthly_exact_excess_stddev',
+      methodologyLabel: 'Sharpe Ratio (5-Year Monthly)',
+      sortinoMethodologyLabel: 'Sortino Ratio (5-Year Monthly)',
+      sourceLabel: 'Calculated by MarketPulse from 60 monthly NAV returns',
+      status: rfAnnual !== null && sharpeRatio !== null ? 'CALCULATED' : 'UNAVAILABLE'
+    };
   }
 
   /**
-   * Universal Risk Metrics Entrypoint (Delegates to Primary Since-Inception Monthly Engine)
+   * Universal Risk Metrics Entrypoint (Delegates to Since Inception Engine)
    */
   getRiskMetrics(navHistory, benchmarkHistory = [], customRf = null, schemeMetadata = {}) {
     return this.getRiskMetricsSinceInception(navHistory, benchmarkHistory, customRf, schemeMetadata);

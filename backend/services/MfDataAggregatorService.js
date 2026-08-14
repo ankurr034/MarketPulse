@@ -96,14 +96,17 @@ class MfDataAggregatorService {
     return result;
   }
 
-  async getSchemeHoldings(schemeCode, timeframe = '1y') {
+  async getSchemeHoldings(schemeCode, timeframe = 'all') {
     const cacheKey = `holdings_${schemeCode}_${timeframe}_dynamic`;
     const cached = this._getCached(cacheKey);
     if (cached) return cached;
 
-    const navHistoryRes = await this.getSchemeNavHistory(schemeCode, timeframe);
+    const maxNavHistoryRes = await this.getSchemeNavHistory(schemeCode, 'max');
+    const fullNavHistory = maxNavHistoryRes && maxNavHistoryRes.data ? maxNavHistoryRes.data : [];
+
+    const navHistoryRes = (timeframe === 'max' || timeframe === 'all') ? maxNavHistoryRes : await this.getSchemeNavHistory(schemeCode, timeframe);
     const navHistory = navHistoryRes && navHistoryRes.data ? navHistoryRes.data : [];
-    const meta = navHistoryRes && navHistoryRes.meta ? navHistoryRes.meta : null;
+    const meta = maxNavHistoryRes && maxNavHistoryRes.meta ? maxNavHistoryRes.meta : null;
 
     const schemeName = meta ? meta.scheme_name : `Scheme ${schemeCode}`;
     const category = meta ? meta.scheme_category : 'Equity Scheme';
@@ -120,9 +123,10 @@ class MfDataAggregatorService {
     let low52 = null;
     let pe = null;
     let pb = null;
+    let finapiRes = null;
 
     try {
-      const finapiRes = await holdingsFallbackService.fetchFinapiHoldings(schemeCode);
+      finapiRes = await holdingsFallbackService.fetchFinapiHoldings(schemeCode);
       if (finapiRes && finapiRes.available) {
         holdings = finapiRes.holdings || [];
         sectorBreakdown = finapiRes.sector_weightings || {};
@@ -149,12 +153,28 @@ class MfDataAggregatorService {
 
     const latestNav = navHistory.length > 0 ? navHistory[navHistory.length - 1].value : null;
 
-    let calcMetrics = { return1W: null, return1M: null, return3M: null, return6M: null, return1Y: null, return3Y: null, return5Y: null, returnAll: null, returns: null, sharpeRatio: null, sortinoRatio: null };
-    if (navHistory && navHistory.length > 2) {
+    let calcMetrics = { return1W: null, return1M: null, return3M: null, return6M: null, return1Y: null, return3Y: null, return5Y: null, returnAll: null, returns: null, sharpeRatio: null, sortinoRatio: null, riskRatios: null };
+    const navCalcHistory = fullNavHistory.length > 0 ? fullNavHistory : navHistory;
+    if (navCalcHistory && navCalcHistory.length > 2) {
       const { default: liveMfAnalyticsService } = await import('./LiveMfAnalyticsService.js');
-      const formattedNavData = [...navHistory].reverse().map(item => ({
+      // Ensure risk-free rate is set before computing risk metrics
+      if (liveMfAnalyticsService.riskFreeRate === null || liveMfAnalyticsService.riskFreeRate === undefined) {
+        try {
+          const { default: macroDataService } = await import('./MacroDataService.js');
+          const rfData = await macroDataService.getRiskFreeRate();
+          if (rfData && typeof rfData.value === 'number' && rfData.value > 0) {
+            liveMfAnalyticsService.setRiskFreeRate(rfData.value);
+          } else {
+            liveMfAnalyticsService.setRiskFreeRate(0.0625);
+          }
+        } catch (e) {
+          liveMfAnalyticsService.setRiskFreeRate(0.0625);
+        }
+      }
+      const formattedNavData = [...navCalcHistory].reverse().map(item => ({
         date: new Date(item.time).toLocaleDateString('en-GB').replace(/\//g, '-'),
-        nav: item.value
+        nav: item.value,
+        time: item.time
       }));
       calcMetrics = liveMfAnalyticsService.calculateSchemeMetrics(formattedNavData);
     }
@@ -201,6 +221,7 @@ class MfDataAggregatorService {
       sharpeRatio: calcMetrics.sharpeRatio !== null ? calcMetrics.sharpeRatio : aiEvaluation.sharpeRatio,
       sortinoRatio: calcMetrics.sortinoRatio !== null ? calcMetrics.sortinoRatio : aiEvaluation.sortinoRatio,
       alpha: aiEvaluation.alpha,
+      riskRatios: calcMetrics.riskRatios,
       beta: aiEvaluation.beta,
       volatility: aiEvaluation.volatility,
       maxDrawdown: aiEvaluation.maxDrawdown,
@@ -208,10 +229,17 @@ class MfDataAggregatorService {
       // Official AMC Reported Fundamentals
       expenseRatio: expenseRatio,
       aum: aum,
+      aumAsOf: finapiRes?.aumAsOf ?? null,
+      aumSource: finapiRes?.aumSource ?? (aum ? 'Upvaly FinAPI Disclosure' : null),
+      aumReason: finapiRes?.aumReason ?? (aum ? null : `Official AMC AUM disclosure unavailable for scheme code ${schemeCode}`),
       high52: high52,
       low52: low52,
       pe: pe,
-      pb: pb
+      pb: pb,
+      launchYear: calcMetrics.launchYear ?? finapiRes?.launchYear ?? null,
+      inceptionYear: calcMetrics.launchYear ?? finapiRes?.launchYear ?? null,
+      launchDate: calcMetrics.launchDate ?? finapiRes?.launchDate ?? null,
+      launchSource: calcMetrics.launchSource ?? finapiRes?.launchSource ?? null
     };
 
     this._setCache(cacheKey, result);

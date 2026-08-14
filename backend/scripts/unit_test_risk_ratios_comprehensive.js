@@ -18,113 +18,119 @@ function assert(condition, message) {
   }
 }
 
-// 1. 1Y Daily NAV History (252 trading days)
-console.log('--- Test 1: 1Y Daily NAV History (252 trading days) ---');
-const nav1Y = [];
-let baseNav = 100;
-const startTime = Date.now() - 365 * 24 * 60 * 60 * 1000;
-for (let i = 0; i < 252; i++) {
-  const time = startTime + i * (24 * 60 * 60 * 1000 * (365 / 252));
-  baseNav = baseNav * (1 + (Math.sin(i / 10) * 0.005 + 0.0005));
-  nav1Y.push({ time, value: parseFloat(baseNav.toFixed(4)) });
+// Helper for NAV history generation
+function generateNavHistory(days, dailyGain = 0.0004, noise = 0.003, startYear = 2023) {
+  const navs = [];
+  let nav = 100;
+  // Use a fixed start time so year mapping works deterministically
+  const startTime = new Date(`${startYear}-01-01T00:00:00Z`).getTime();
+  for (let i = 0; i < days; i++) {
+    const time = startTime + i * 24 * 60 * 60 * 1000;
+    const factor = 1 + dailyGain + (Math.sin(i / 10) * noise);
+    nav *= factor;
+    navs.push({ time, value: parseFloat(nav.toFixed(4)) });
+  }
+  return navs;
 }
-const metrics1Y = riskAnalyticsService.getRiskMetrics(nav1Y, [], 0.0625);
-assert(metrics1Y.dataPointsCount === 251, 'Correct daily return data points (251 for 252 NAVs)');
-assert(typeof metrics1Y.volatility === 'number' && metrics1Y.volatility > 0, 'Annualized volatility is positive');
-assert(typeof metrics1Y.sharpeRatio === 'number', 'Sharpe ratio calculated for 1Y history');
-assert(typeof metrics1Y.sortinoRatio === 'number', 'Sortino ratio calculated for 1Y history');
 
-// 2. 3Y Daily NAV History (756 trading days)
-console.log('\n--- Test 2: 3Y Daily NAV History (756 trading days) ---');
-const nav3Y = [];
-let baseNav3Y = 100;
-const startTime3Y = Date.now() - 3 * 365 * 24 * 60 * 60 * 1000;
-for (let i = 0; i < 756; i++) {
-  const time = startTime3Y + i * (24 * 60 * 60 * 1000 * (1095 / 756));
-  baseNav3Y = baseNav3Y * (1 + (Math.cos(i / 15) * 0.004 + 0.0003));
-  nav3Y.push({ time, value: parseFloat(baseNav3Y.toFixed(4)) });
-}
-const metrics3Y = riskAnalyticsService.getRiskMetrics(nav3Y, [], 0.0625);
-assert(metrics3Y.dataPointsCount === 755, 'Correct return data points for 3Y history');
-assert(typeof metrics3Y.sharpeRatio === 'number', 'Sharpe ratio calculated for 3Y history');
-assert(typeof metrics3Y.maxDrawdown === 'number' && metrics3Y.maxDrawdown >= 0, 'Max Drawdown calculated correctly');
+// 1. 1Y Daily NAV History (252 trading days / ~12 months)
+console.log('--- Test 1: 1Y Daily NAV History (Insufficient for 3Y Monthly) ---');
+const nav1Y = generateNavHistory(365);
+const metrics1Y = riskAnalyticsService.getRiskMetrics(nav1Y, [], 0.06);
+assert(metrics1Y.status === 'UNAVAILABLE', '1Y history returns UNAVAILABLE status');
+assert(metrics1Y.sharpeRatio === null, '1Y history returns null Sharpe ratio due to insufficient observations');
+assert(metrics1Y.sortinoRatio === null, '1Y history returns null Sortino ratio due to insufficient observations');
+
+// 2. 3Y Daily NAV History (1100 days / ~36 months)
+console.log('\n--- Test 2: 3Y Daily NAV History (Sufficient history) ---');
+const nav3Y = generateNavHistory(1150); // 1150 days = ~38 months
+const metrics3Y = riskAnalyticsService.getRiskMetrics(nav3Y, [], 0.06);
+assert(metrics3Y.status === 'CALCULATED', '3Y history returns CALCULATED status');
+assert(typeof metrics3Y.sharpeRatio === 'number', 'Sharpe ratio calculated for 3Y history is a valid number');
+assert(typeof metrics3Y.sortinoRatio === 'number', 'Sortino ratio calculated for 3Y history is a valid number');
+  assert(metrics3Y.dataPointsCount >= 36, 'Data points count is sufficient');
 
 // 3. Missing NAV Dates / Irregular Time Steps
 console.log('\n--- Test 3: Missing NAV Dates / Irregular Time Steps ---');
-const navMissing = [
-  { time: Date.now() - 30 * 86400000, value: 100 },
-  { time: Date.now() - 25 * 86400000, value: 102 }, // 5-day gap (weekend/holiday)
-  { time: Date.now() - 20 * 86400000, value: 101 },
-  { time: Date.now() - 15 * 86400000, value: 104 },
-  { time: Date.now() - 10 * 86400000, value: 103 },
-  { time: Date.now() - 5 * 86400000, value: 106 },
-  { time: Date.now(), value: 107 }
-];
-// Add enough points to exceed 15 threshold
-for (let i = 0; i < 15; i++) {
-  navMissing.unshift({ time: Date.now() - (35 + i * 2) * 86400000, value: 99 - i * 0.5 });
+const nav3YIrregular = [];
+let navVal = 100;
+const startTime = new Date('2023-01-01T00:00:00Z').getTime();
+for (let i = 0; i < 1150; i++) {
+  // skip weekends and random days to create irregular dates
+  if (i % 7 === 5 || i % 7 === 6 || i % 25 === 0) continue;
+  const time = startTime + i * 24 * 60 * 60 * 1000;
+  navVal *= 1.0004 + Math.sin(i / 10) * 0.003;
+  nav3YIrregular.push({ time, value: parseFloat(navVal.toFixed(4)) });
 }
-const metricsMissing = riskAnalyticsService.getRiskMetrics(navMissing, [], 0.0625);
-assert(metricsMissing.sharpeRatio !== null, 'Sharpe ratio handles irregular/missing weekend dates');
+const metricsMissing = riskAnalyticsService.getRiskMetrics(nav3YIrregular, [], 0.06);
+assert(metricsMissing.status === 'CALCULATED', 'Ratios calculated successfully for irregular dates');
+assert(metricsMissing.sharpeRatio !== null, 'Sharpe ratio handles irregular dates successfully');
 
 // 4. Duplicate NAV Records (same timestamp or same NAV value)
 console.log('\n--- Test 4: Duplicate NAV Records & Zero Change Days ---');
-const navDupes = [...nav1Y];
-// Insert flat NAV days
-for (let i = 50; i < 60; i++) {
-  navDupes[i] = { ...navDupes[49] };
+const nav3YDupes = [...nav3Y];
+// Insert duplicate/flat NAV records (only overwrite value, not timestamp)
+for (let i = 200; i < 300; i++) {
+  nav3YDupes[i] = { time: nav3YDupes[i].time, value: nav3YDupes[199].value };
 }
-const metricsDupes = riskAnalyticsService.getRiskMetrics(navDupes, [], 0.0625);
-assert(metricsDupes.sharpeRatio !== null, 'Sharpe ratio handles zero-change duplicate NAV days without divide-by-zero');
+const metricsDupes = riskAnalyticsService.getRiskMetrics(nav3YDupes, [], 0.06);
+assert(metricsDupes.status === 'CALCULATED', 'Calculated successfully with duplicate NAV records');
+assert(metricsDupes.sharpeRatio !== null, 'Sharpe ratio handles duplicate/zero change days cleanly');
 
 // 5. Zero / Invalid NAV Records
 console.log('\n--- Test 5: Zero / Invalid NAV Records Filtered Out ---');
 const navInvalid = [
-  { time: 1000, value: 10 },
-  { time: 2000, value: 0 }, // Invalid zero NAV
-  { time: 3000, value: -5 }, // Invalid negative NAV
-  { time: 4000, value: NaN }, // Invalid NaN NAV
-  { time: 5000, value: 12 }
+  { time: new Date('2023-01-31').getTime(), value: 100 },
+  { time: new Date('2023-02-28').getTime(), value: 0 }, // Invalid zero NAV
+  { time: new Date('2023-03-31').getTime(), value: -5 }, // Invalid negative NAV
+  { time: new Date('2023-04-30').getTime(), value: NaN }, // Invalid NaN NAV
+  { time: new Date('2023-05-31').getTime(), value: 102 }
 ];
-const returnsSanitized = riskAnalyticsService.calculateReturns(navInvalid.map(n => n.value).filter(v => v > 0));
-assert(returnsSanitized.length === 1 && returnsSanitized[0] === 0.2, 'Invalid zero/negative/NaN NAVs safely excluded from returns calculation');
+const extractedInvalid = riskAnalyticsService.extractMonthEndNavs(navInvalid);
+assert(extractedInvalid.length === 2 && extractedInvalid[0].value === 100 && extractedInvalid[1].value === 102, 'Invalid zero/negative/NaN NAVs safely excluded from month-end extraction');
 
-// 6. Recently Launched Funds (< 15 Trading Days)
-console.log('\n--- Test 6: Recently Launched Funds (< 15 Trading Days Threshold) ---');
-const navRecent = [];
-for (let i = 0; i < 10; i++) {
-  navRecent.push({ time: Date.now() - (10 - i) * 86400000, value: 10 + i * 0.1 });
-}
-const metricsRecent = riskAnalyticsService.getRiskMetrics(navRecent, [], 0.0625);
-assert(metricsRecent.sharpeRatio === null, 'Sharpe ratio correctly returns null for funds with < 15 daily returns');
-assert(metricsRecent.sortinoRatio === null, 'Sortino ratio correctly returns null for funds with < 15 daily returns');
+// 6. Recently Launched Funds (< 13 month-end NAVs / < 12 monthly returns)
+console.log('\n--- Test 6: Recently Launched Funds (< 13 month-end NAVs) ---');
+const navRecent = generateNavHistory(200); // ~6 months
+const metricsRecent = riskAnalyticsService.getRiskMetrics(navRecent, [], 0.06);
+assert(metricsRecent.status === 'UNAVAILABLE', 'Recently launched fund returns UNAVAILABLE status');
+assert(metricsRecent.sharpeRatio === null, 'Recently launched fund returns null Sharpe ratio');
+assert(metricsRecent.sortinoRatio === null, 'Recently launched fund returns null Sortino ratio');
 
 // 7. Insufficient History (< 2 NAV Points)
 console.log('\n--- Test 7: Insufficient History (< 2 NAV Points) ---');
-const metricsSingle = riskAnalyticsService.getRiskMetrics([{ time: Date.now(), value: 10 }], [], 0.0625);
+const metricsSingle = riskAnalyticsService.getRiskMetrics([{ time: Date.now(), value: 10 }], [], 0.06);
 assert(metricsSingle.sharpeRatio === null && metricsSingle.status === 'UNAVAILABLE', 'Returns UNAVAILABLE state for single NAV record');
 
 // 8. Changing Risk-Free Rates
 console.log('\n--- Test 8: Impact of Changing Risk-Free Rates ---');
-const metricsRf5 = riskAnalyticsService.getRiskMetrics(nav1Y, [], 0.05); // 5% Rf
-const metricsRf7 = riskAnalyticsService.getRiskMetrics(nav1Y, [], 0.07); // 7% Rf
+// Use a historical year (2008) so it doesn't trigger RBI historical table (2013-2026) but is in the past
+const nav3YPast = generateNavHistory(1150, 0.0004, 0.003, 2008);
+const metricsRf5 = riskAnalyticsService.getRiskMetrics(nav3YPast, [], 0.05); // 5% Rf
+const metricsRf7 = riskAnalyticsService.getRiskMetrics(nav3YPast, [], 0.07); // 7% Rf
 assert(metricsRf5.sharpeRatio > metricsRf7.sharpeRatio, 'Sharpe ratio decreases when risk-free rate increases (higher hurdle rate)');
 
 // 9. Zero Downside Deviation Edge Case
 console.log('\n--- Test 9: Zero Downside Deviation Edge Case ---');
-// Monotonically increasing NAV where every single daily return is higher than daily Rf
+// Monotonically increasing 3Y NAV where monthly returns are always higher than monthly Rf
 const navMonotonic = [];
-for (let i = 0; i < 30; i++) {
-  navMonotonic.push({ time: Date.now() - (30 - i) * 86400000, value: 100 + i * 2 }); // +2% daily gain
+let monoVal = 100;
+for (let i = 0; i < 37; i++) {
+  const year = 2023 + Math.floor(i / 12);
+  const month = i % 12;
+  const d = new Date(Date.UTC(year, month + 1, 0, 0, 0, 0));
+  monoVal *= 1.05;
+  navMonotonic.push({ time: d.getTime(), value: monoVal, dateStr: d.toISOString().split('T')[0] });
 }
-const metricsMonotonic = riskAnalyticsService.getRiskMetrics(navMonotonic, [], 0.0625);
-assert(metricsMonotonic.sortinoRatio === 99.9, 'Sortino ratio correctly returns 99.9 cap when downside deviation is zero');
+const metricsMonotonic = riskAnalyticsService.getRiskMetrics(navMonotonic, [], 0.06);
+assert(metricsMonotonic.status === 'CALCULATED', 'Monotonic series calculated successfully');
+assert(metricsMonotonic.sortinoRatio === null, 'Sortino ratio returns null when downside deviation is zero (per strict requirements)');
 
 // 10. Extreme Returns / Outliers
 console.log('\n--- Test 10: Extreme Returns / Outliers ---');
-const navOutlier = [...nav1Y];
-navOutlier[100] = { time: navOutlier[100].time, value: navOutlier[99].value * 3.0 }; // +200% spike
-const metricsOutlier = riskAnalyticsService.getRiskMetrics(navOutlier, [], 0.0625);
+const navOutlier = [...nav3Y];
+navOutlier[500] = { time: navOutlier[500].time, value: navOutlier[499].value * 3.0 }; // massive spike
+const metricsOutlier = riskAnalyticsService.getRiskMetrics(navOutlier, [], 0.06);
 assert(typeof metricsOutlier.volatility === 'number' && !isNaN(metricsOutlier.volatility), 'Volatility handles extreme return spikes cleanly');
 assert(typeof metricsOutlier.sharpeRatio === 'number' && !isNaN(metricsOutlier.sharpeRatio), 'Sharpe ratio handles extreme return spikes cleanly');
 

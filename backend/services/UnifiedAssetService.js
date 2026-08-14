@@ -109,7 +109,7 @@ class UnifiedAssetService {
         oneDayChangePct: calcMetrics.return1D ?? null,
         oneWeekChangePct: calcMetrics.return1W,
         oneMonthChangePct: calcMetrics.return1M,
-        threeMonthChangePct: calcMetrics.return6M,
+        threeMonthChangePct: calcMetrics.return3M,
         sixMonthChangePct: calcMetrics.return6M,
         oneYearChangePct,
         threeYearCagr: calcMetrics.return3Y,
@@ -129,14 +129,20 @@ class UnifiedAssetService {
 
         sharpeRatio: (riskMetrics && riskMetrics.sharpeRatio !== null) ? riskMetrics.sharpeRatio : calcMetrics.sharpeRatio,
         sortinoRatio: (riskMetrics && riskMetrics.sortinoRatio !== null) ? riskMetrics.sortinoRatio : calcMetrics.sortinoRatio,
+        launchYear: calcMetrics.launchYear ?? null,
+        inceptionYear: calcMetrics.inceptionYear ?? null,
+        launchDate: calcMetrics.launchDate ?? null,
+        launchSource: calcMetrics.launchSource ?? 'AMFI Historical NAV',
         aum,
+        aumAsOf: profile.aumAsOf ?? null,
+        aumSource: profile.aumSource ?? (aum ? 'Upvaly FinAPI Disclosure' : null),
         expenseRatio,
         navAvailable
       };
     }
   }
 
-  async getAssetDetail(type, id, region = 'india', range = '1yr') {
+  async getAssetDetail(type, id, region = 'india', range = 'all') {
     if (type === 'stock') {
       const detailRes = await yahooFinanceService.getQuoteDetail(id);
       const detail = detailRes.available ? detailRes.data : null;

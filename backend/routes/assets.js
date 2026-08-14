@@ -136,7 +136,7 @@ router.get('/:type/:id/detail', async (req, res) => {
     // Append Advanced Analysis for MFs
     if (type === 'mf') {
       try {
-        const advancedAnalysis = await fundAnalysisEngine.analyzeFund(detail.profile, detail.history, region);
+        const advancedAnalysis = await fundAnalysisEngine.analyzeFund(detail, detail.history, region);
         detail.advancedAnalysis = advancedAnalysis;
       } catch (e) {
         console.warn('Advanced analysis failed for', id, e.message);

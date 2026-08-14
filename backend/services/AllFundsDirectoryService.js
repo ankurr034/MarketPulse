@@ -9,10 +9,10 @@ class AllFundsDirectoryService {
   }
 
   async _loadActiveSchemes() {
-    let activeList = amfiImportService.getActiveSchemes();
+    let activeList = await amfiImportService.getActiveSchemes();
     if (!activeList || activeList.length === 0) {
       const result = await amfiImportService.runAtomicImport();
-      activeList = amfiImportService.getActiveSchemes();
+      activeList = await amfiImportService.getActiveSchemes();
     }
     return activeList;
   }
@@ -37,10 +37,17 @@ class AllFundsDirectoryService {
           sharpeRatio: holdingsRes.sharpeRatio ?? null,
           sortinoRatio: holdingsRes.sortinoRatio ?? null,
           aum: holdingsRes.aum ?? null,
+          aumAsOf: holdingsRes.aumAsOf ?? null,
+          aumSource: holdingsRes.aumSource ?? null,
+          aumReason: holdingsRes.aumReason ?? null,
           expenseRatio: holdingsRes.expenseRatio ?? null,
           high52: holdingsRes.high52 ?? null,
           low52: holdingsRes.low52 ?? null,
-          navAvailable: holdingsRes.nav !== null
+          navAvailable: holdingsRes.nav !== null,
+          launchYear: holdingsRes.launchYear ?? null,
+          inceptionYear: holdingsRes.inceptionYear ?? null,
+          launchDate: holdingsRes.launchDate ?? null,
+          launchSource: holdingsRes.launchSource ?? null
         };
       }
     } catch (e) {

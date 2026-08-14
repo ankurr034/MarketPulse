@@ -21,17 +21,35 @@ class FundAnalysisEngine {
     const benchmarkSymbol = region === 'india' ? '^NSEI' : '^GSPC';
     const benchmarkData = await benchmarkService.getBenchmarkReturns(benchmarkSymbol, 'max');
     const beta = financialMath.calculateBeta(returnsArray, benchmarkData.returns || []);
-    // Import canonical risk analytics service and macro data service
+    // Import canonical risk analytics service, macro data service, and cache service
     const { default: riskAnalyticsService } = await import('./RiskAnalyticsService.js');
     const { default: macroDataService } = await import('./MacroDataService.js');
+    const { default: mfapiCacheService } = await import('./MfapiCacheService.js');
+
     const rfObj = await macroDataService.getRiskFreeRate();
     const rfVal = (rfObj && typeof rfObj.value === 'number') ? rfObj.value : 0.0625;
 
-    const canonicalRisk = riskAnalyticsService.getRiskMetricsSinceInception(navHistoryArray, benchmarkData.returns || [], rfVal, fundProfile || {});
+    // Load full historical NAV sequence from database cache to ensure 3Y and 5Y calculations are complete
+    let fullNavs = navHistoryArray;
+    try {
+      const schemeCode = fundProfile.schemeCode || fundProfile.id;
+      if (schemeCode) {
+        const schemeData = await mfapiCacheService.getSchemeData(schemeCode);
+        if (schemeData && schemeData.data && Array.isArray(schemeData.data) && schemeData.data.length > 0) {
+          fullNavs = [...schemeData.data].reverse().map(d => ({ date: d.date, value: parseFloat(d.nav) }));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load full NAVs for advanced analysis, using parameters:', e.message);
+    }
+
+    const riskMetrics3Y = riskAnalyticsService.getRiskMetrics3YMonthly(fullNavs, benchmarkData.returns || [], rfVal, fundProfile || {});
+    const riskMetrics5Y = riskAnalyticsService.getRiskMetrics5YMonthly(fullNavs, benchmarkData.returns || [], rfVal, fundProfile || {});
+    const riskMetricsIncep = riskAnalyticsService.getRiskMetricsSinceInception(fullNavs, benchmarkData.returns || [], rfVal, fundProfile || {});
 
     const alpha = financialMath.calculateAlpha(cagrStats.threeYearCagr, benchmarkData.cagr || 12, rfVal * 100, beta);
-    const sharpe = canonicalRisk.sharpeRatio;
-    const sortino = canonicalRisk.sortinoRatio;
+    const sharpe = riskMetricsIncep.sharpeRatio;
+    const sortino = riskMetricsIncep.sortinoRatio;
     
     // 3. SIP Analysis (1Y, 3Y, 5Y)
     const sipAnalysis = {
@@ -77,7 +95,27 @@ class FundAnalysisEngine {
         sharpeRatio: typeof sharpe === 'number' ? sharpe.toFixed(2) : null,
         sortinoRatio: typeof sortino === 'number' ? sortino.toFixed(2) : null,
         standardDeviation: typeof stdDev === 'number' ? stdDev.toFixed(2) : null,
-        maxDrawdown: typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(2) : null
+        maxDrawdown: typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(2) : null,
+        timeframes: {
+          '3Y': {
+            sharpeRatio: riskMetrics3Y.sharpeRatio,
+            sortinoRatio: riskMetrics3Y.sortinoRatio,
+            status: riskMetrics3Y.status,
+            reason: riskMetrics3Y.reason
+          },
+          '5Y': {
+            sharpeRatio: riskMetrics5Y.sharpeRatio,
+            sortinoRatio: riskMetrics5Y.sortinoRatio,
+            status: riskMetrics5Y.status,
+            reason: riskMetrics5Y.reason
+          },
+          'All': {
+            sharpeRatio: riskMetricsIncep.sharpeRatio,
+            sortinoRatio: riskMetricsIncep.sortinoRatio,
+            status: riskMetricsIncep.status,
+            reason: riskMetricsIncep.reason
+          }
+        }
       },
       sipAnalysis,
       aiAnalysis,

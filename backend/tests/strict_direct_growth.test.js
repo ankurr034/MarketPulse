@@ -78,7 +78,7 @@ async function runTests() {
     assert(importResult.status === 'success', 'Atomic AMFI import must complete successfully');
     assert(importResult.totalActiveDirectGrowth > 1000, `Active Direct Growth count (${importResult.totalActiveDirectGrowth}) should be > 1000`);
     
-    const activeSchemes = amfiImportService.getActiveSchemes();
+    const activeSchemes = await amfiImportService.getActiveSchemes();
     const nonCompliantInActive = activeSchemes.filter(s => !isStrictDirectGrowth(s.schemeName));
     assert(nonCompliantInActive.length === 0, 'Active schemes cache must contain 0 non-compliant schemes');
 

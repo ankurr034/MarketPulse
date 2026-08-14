@@ -75,6 +75,21 @@ class MfapiCacheService {
       throw err;
     }
   }
+
+  clearFailedCache() {
+    try {
+      if (fs.existsSync(CACHE_DIR)) {
+        const files = fs.readdirSync(CACHE_DIR);
+        files.forEach(f => {
+          if (f.endsWith('.failed.json')) {
+            fs.unlinkSync(path.join(CACHE_DIR, f));
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to clear failed cache files:', e.message);
+    }
+  }
 }
 
 export default new MfapiCacheService();

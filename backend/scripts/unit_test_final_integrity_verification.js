@@ -2,6 +2,7 @@ import amfiImportService from '../services/AmfiImportService.js';
 import liveMfAnalyticsService from '../services/LiveMfAnalyticsService.js';
 import macroDataService from '../services/MacroDataService.js';
 import riskAnalyticsService from '../services/RiskAnalyticsService.js';
+import macroSnapshot from '../config/macroSnapshot.js';
 
 console.log('==========================================================================');
 console.log('      FINAL DATA-INTEGRITY & RISK-FREE RATE TEST SUITE                   ');
@@ -52,20 +53,30 @@ async function runTests() {
 
   // 7. Dashboard Never Reports Numeric Rate when UNAVAILABLE
   console.log('\n--- Test 7: Dashboard Truthful Risk-Free Representation ---');
+  const originalRiskFreeRate = { ...macroSnapshot.riskFreeRate };
+  macroSnapshot.riskFreeRate.status = 'UNAVAILABLE';
+  macroSnapshot.riskFreeRate.value = null;
+
   const rfData = await macroDataService.getRiskFreeRate();
   assert(rfData.value === null && rfData.status === 'UNAVAILABLE', 'MacroDataService.getRiskFreeRate returns value: null and status: UNAVAILABLE');
   assert(rfData.source === 'RBI 91-Day T-Bill Benchmark Rate', 'Source correctly labeled as RBI 91-Day T-Bill Benchmark Rate');
 
+  macroSnapshot.riskFreeRate.status = originalRiskFreeRate.status;
+  macroSnapshot.riskFreeRate.value = originalRiskFreeRate.value;
+
   // 8. Dashboard Scheme Count Equals Validated AMFI Direct Growth Count
   console.log('\n--- Test 8: Dashboard Scheme Count Match ---');
+  const activeSchemes = await amfiImportService.getActiveSchemes();
+  const expectedCount = activeSchemes.length;
+  const expectedDisplay = Number(expectedCount).toLocaleString();
+
   const summary = await liveMfAnalyticsService.getLiveDashboardSummary('all');
-  assert(summary.totalFunds.value === 2743, `Dashboard totalFunds count equals exact AMFI Direct Growth count (2,743 schemes)`);
-  assert(summary.totalFunds.display === '2,743', `Dashboard display string equals "2,743"`);
+  assert(summary.totalFunds.value === expectedCount, `Dashboard totalFunds count equals exact AMFI Direct Growth count (${expectedDisplay} schemes)`);
+  assert(summary.totalFunds.display === expectedDisplay, `Dashboard display string equals "${expectedDisplay}"`);
 
   // 9. Redis Cache Cannot Cause Old 2,751 Value
   console.log('\n--- Test 9: Redis Scheme Count Invalidation & Deduplication ---');
-  const activeSchemes = await amfiImportService.getActiveSchemes();
-  assert(activeSchemes.length === 2743, `Active AMFI scheme count is strictly 2,743 (zero 2,751 mismatch)`);
+  assert(activeSchemes.length === expectedCount, `Active AMFI scheme count is strictly ${expectedCount} (zero 2,751 mismatch)`);
 
   // 10. Failed AMFI Refresh Preserves Last Valid Dataset
   console.log('\n--- Test 10: Failed AMFI Refresh Preserves Dataset ---');

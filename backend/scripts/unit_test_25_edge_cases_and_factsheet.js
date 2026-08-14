@@ -138,9 +138,9 @@ assert(riskAnalyticsService.calculateSinceInceptionSharpeRatio(Array(10).fill(0.
 const zeroVolReturns = Array(36).fill(0.01);
 assert(riskAnalyticsService.calculateMonthlySharpeRatio(zeroVolReturns, 0.06) === null, 'Edge Case 14: Zero volatility returns null Sharpe');
 
-// Edge Case 15: Zero downside deviation (returns 99.9 cap)
+// Edge Case 15: Zero downside deviation (returns null)
 const posReturns = Array(36).fill(0.03);
-assert(riskAnalyticsService.calculateMonthlySortinoRatio(posReturns, 0.06) === 99.9, 'Edge Case 15: Zero downside deviation with positive excess return returns 99.9 cap');
+assert(riskAnalyticsService.calculateMonthlySortinoRatio(posReturns, 0.06) === null, 'Edge Case 15: Zero downside deviation with positive excess return returns null');
 
 // Edge Case 16 & 17: Positive vs Unavailable Risk-Free Rate
 assert(riskAnalyticsService.calculateMonthlySharpeRatio(indReturns, 0.06) !== null, 'Edge Case 16: Positive verified risk-free rate computes valid ratio');
@@ -163,7 +163,7 @@ assert(riskAnalyticsService.calculateDailySharpeRatio(dupeValReturns, 0.06) !== 
 
 // Edge Case 21 & 22: Stale cache invalidation & Calculation version
 const metricsRes = riskAnalyticsService.getRiskMetricsSinceInception(generateNavHistory(1200), [], 0.06);
-assert(metricsRes.riskAnalyticsVersion === 'v6_historical_rf_aligned_excess_stddev', 'Edge Cases 21-22: Output includes canonical version v6_historical_rf_aligned_excess_stddev');
+assert(metricsRes.riskAnalyticsVersion === 'v7_3y_monthly_exact_excess_stddev', 'Edge Cases 21-22: Output includes canonical version v7_3y_monthly_exact_excess_stddev');
 
 // Edge Cases 23, 24, 25: Direct-Growth vs Regular vs IDCW Scheme Identity Assertion
 const directGrowthMeta = { schemeName: 'Nippon India Small Cap Fund - Direct Plan Growth Plan - Growth Option', isDirect: true, isGrowth: true };
@@ -189,8 +189,8 @@ const fullRes = riskAnalyticsService.getRiskMetrics3YMonthly(fullNavHistory, [],
 assert(fullRes.status === 'CALCULATED', 'Full Pipeline: Status equals CALCULATED');
 assert(typeof fullRes.sharpeRatio === 'number', 'Full Pipeline: Sharpe ratio is valid number');
 assert(typeof fullRes.sortinoRatio === 'number', 'Full Pipeline: Sortino ratio is valid number');
-assert(fullRes.methodologyLabel.includes('Sharpe Ratio (Since Inception'), 'Full Pipeline: Methodology label correctly formatted');
-assert(fullRes.sourceLabel.includes('Calculated by MarketPulse from monthly NAV history'), 'Full Pipeline: Source label correctly formatted');
+assert(fullRes.methodologyLabel.includes('Sharpe Ratio (3-Year Monthly'), 'Full Pipeline: Methodology label correctly formatted');
+assert(fullRes.sourceLabel.includes('Calculated by MarketPulse from 36 monthly NAV returns'), 'Full Pipeline: Source label correctly formatted');
 
 // Helper for NAV history generation
 function generateNavHistory(days) {
