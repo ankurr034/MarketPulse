@@ -676,20 +676,22 @@ const FundDetailModal = ({ fund, onClose }) => {
                       </thead>
                       <tbody className="divide-y divide-slate-800/60">
                         {displayedHoldings.map((h, idx) => {
-                          const stockName = h.name || h.stock || h.securityName || 'Stock Position';
-                          const sectorName = h.sector || h.industry || 'General';
+                          const stockName = h.Symbol || h.stock || h.name || h.securityName || h.companyName || 'Stock Position';
+                          const sectorName = h.sector && h.sector.trim() ? h.sector : (h.industry || 'General');
 
                           // Format Weight (%)
                           let rawWeight = 0;
-                          if (typeof h.weightPct === 'number' && !isNaN(h.weightPct)) {
+                          if (typeof h.weightPct === 'number' && !isNaN(h.weightPct) && h.weightPct > 0) {
                             rawWeight = h.weightPct;
-                          } else if (h.allocation !== undefined && !isNaN(Number(h.allocation))) {
+                          } else if (h.allocation !== undefined && !isNaN(Number(h.allocation)) && Number(h.allocation) > 0) {
                             rawWeight = Number(h.allocation);
+                          } else if (h.weightage !== undefined && !isNaN(Number(h.weightage)) && Number(h.weightage) > 0) {
+                            rawWeight = Number(h.weightage);
                           } else if (h['Holding Percent'] !== undefined && !isNaN(Number(h['Holding Percent']))) {
                             const hp = Number(h['Holding Percent']);
-                            rawWeight = (hp <= 1.0 && hp > 0.05) ? hp * 100.0 : hp;
+                            rawWeight = (hp > 0 && hp <= 1.0) ? hp * 100.0 : hp;
                           }
-                          const weightDisplay = `${rawWeight.toFixed(2)}%`;
+                          const weightDisplay = rawWeight > 0 ? `${rawWeight.toFixed(2)}%` : '—';
 
                           // Format Value (₹ Cr)
                           let marketValDisplay = '—';
