@@ -6,6 +6,96 @@ import {
   Layers, PieChart, Sparkles, Target, Activity, TrendingUp, Award, Shield 
 } from 'lucide-react';
 
+// Star Hover Tooltip Component with explicit hover state & non-clipping position
+function StarHoverTooltip({ fund, isTop3, categorySharpeRange, categorySortinoRange }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  if (!isTop3) return null;
+
+  return (
+    <div 
+      className="relative inline-flex items-center shrink-0 cursor-pointer"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" title="Top 3 Ranked Fund" />
+      {isHovered && (
+        <div className="absolute left-6 top-0 flex flex-col gap-2.5 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl shadow-2xl text-xs w-[300px] z-50 pointer-events-none whitespace-normal">
+          {/* Top Message with Star Icon */}
+          <div className="flex items-start gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <Star size={14} className="text-amber-400 fill-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-snug font-medium text-slate-700 dark:text-slate-200">
+              This fund is stable &amp; has consistent growth / low downside risk compared to other stocks
+            </p>
+          </div>
+
+          {/* Sharpe Ratio Section */}
+          <div className="space-y-1">
+            <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+              Sharpe Ratio
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 dark:text-slate-400 font-medium">
+                Fund: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{fund.sharpeRatio != null ? Number(fund.sharpeRatio).toFixed(2) : '—'}</span>
+              </span>
+              <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                Range: {categorySharpeRange?.min != null && categorySharpeRange?.max != null
+                  ? `${categorySharpeRange.min.toFixed(2)} – ${categorySharpeRange.max.toFixed(2)}`
+                  : '—'}
+              </span>
+            </div>
+            {categorySharpeRange?.min != null && categorySharpeRange?.max != null && categorySharpeRange.max > categorySharpeRange.min && fund.sharpeRatio != null ? (
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden relative mt-1">
+                <div 
+                  className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, ((Number(fund.sharpeRatio) - categorySharpeRange.min) / (categorySharpeRange.max - categorySharpeRange.min)) * 100))}%`
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-100 dark:border-slate-800" />
+
+          {/* Sortino Ratio Section */}
+          <div className="space-y-1">
+            <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+              Sortino Ratio
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 dark:text-slate-400 font-medium">
+                Fund: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{fund.sortinoRatio != null ? Number(fund.sortinoRatio).toFixed(2) : '—'}</span>
+              </span>
+              <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                Range: {categorySortinoRange?.min != null && categorySortinoRange?.max != null
+                  ? `${categorySortinoRange.min.toFixed(2)} – ${categorySortinoRange.max.toFixed(2)}`
+                  : '—'}
+              </span>
+            </div>
+            {categorySortinoRange?.min != null && categorySortinoRange?.max != null && categorySortinoRange.max > categorySortinoRange.min && fund.sortinoRatio != null ? (
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden relative mt-1">
+                <div 
+                  className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, ((Number(fund.sortinoRatio) - categorySortinoRange.min) / (categorySortinoRange.max - categorySortinoRange.min)) * 100))}%`
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {/* Bottom Explanatory Text */}
+          <div className="pt-1 text-[10px] text-slate-400 dark:text-slate-500 font-mono border-t border-slate-100 dark:border-slate-800">
+            Range is based on the funds shown in this category.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * MfRankingTable
  * Full-width financial screener with 2-level Category Accordions matching reference design
@@ -214,10 +304,91 @@ export default function MfRankingTable({
     );
   };
 
+  // Helper to rank top 5 funds within a category per user requirements
+  const rankCategoryTop5 = (subFunds) => {
+    if (!Array.isArray(subFunds) || subFunds.length === 0) {
+      return { display5: [], fullList: [], sharpeRange: null, sortinoRange: null };
+    }
+
+    const list = [...subFunds];
+
+    const getInc = (f) => f.returns?.['All'] ?? f.sinceInceptionReturn ?? f.returns?.['5Y'] ?? f.returns?.['3Y'];
+    const getSharpe = (f) => f.sharpeRatio;
+    const getSortino = (f) => f.sortinoRatio;
+    const get1Y = (f) => f.returns?.['1Y'] ?? f.oneYrReturn;
+
+    const incVals = list.map(getInc).filter(v => v != null && !isNaN(v));
+    const sharpeVals = list.map(getSharpe).filter(v => v != null && !isNaN(v));
+    const sortinoVals = list.map(getSortino).filter(v => v != null && !isNaN(v));
+
+    const minInc = incVals.length > 0 ? Math.min(...incVals) : null;
+    const maxInc = incVals.length > 0 ? Math.max(...incVals) : null;
+
+    const minSharpe = sharpeVals.length > 0 ? Math.min(...sharpeVals) : null;
+    const maxSharpe = sharpeVals.length > 0 ? Math.max(...sharpeVals) : null;
+
+    const minSortino = sortinoVals.length > 0 ? Math.min(...sortinoVals) : null;
+    const maxSortino = sortinoVals.length > 0 ? Math.max(...sortinoVals) : null;
+
+    const minMaxNormalize = (val, min, max) => {
+      if (val == null || isNaN(val)) return null;
+      if (min === max || min == null || max == null) return 0.5;
+      return Math.max(0, Math.min(1, (val - min) / (max - min)));
+    };
+
+    // Rank Top 3 based on combined metric: Since-Inception CAGR + Sharpe + Sortino
+    const scored = list.map(fund => {
+      const normInc = minMaxNormalize(getInc(fund), minInc, maxInc);
+      const normSharpe = minMaxNormalize(getSharpe(fund), minSharpe, maxSharpe);
+      const normSortino = minMaxNormalize(getSortino(fund), minSortino, maxSortino);
+
+      const validNorms = [normInc, normSharpe, normSortino].filter(v => v != null);
+      const combinedScore = validNorms.length > 0
+        ? validNorms.reduce((a, b) => a + b, 0) / validNorms.length
+        : -Infinity;
+
+      return { fund, combinedScore };
+    });
+
+    scored.sort((a, b) => b.combinedScore - a.combinedScore);
+
+    const top3Items = scored.slice(0, 3);
+    const remainingItems = scored.slice(3);
+
+    // Rank 4 and 5: selected from remaining funds based on higher 1-Year Return
+    remainingItems.sort((a, b) => {
+      const valA = get1Y(a.fund) != null && !isNaN(get1Y(a.fund)) ? get1Y(a.fund) : -Infinity;
+      const valB = get1Y(b.fund) != null && !isNaN(get1Y(b.fund)) ? get1Y(b.fund) : -Infinity;
+      return valB - valA;
+    });
+
+    const next2Items = remainingItems.slice(0, 2);
+    const restItems = remainingItems.slice(2);
+
+    const display5 = [
+      ...top3Items.map((item, idx) => ({ ...item.fund, categoryRank: idx + 1, isTop3: true })),
+      ...next2Items.map((item, idx) => ({ ...item.fund, categoryRank: idx + 4, isTop3: false }))
+    ];
+
+    const fullList = [
+      ...display5,
+      ...restItems.map((item, idx) => ({ ...item.fund, categoryRank: idx + 6, isTop3: false }))
+    ];
+
+    // Range calculated specifically from the displayed category funds
+    const display5Sharpes = display5.map(getSharpe).filter(v => v != null && !isNaN(v));
+    const display5Sortinos = display5.map(getSortino).filter(v => v != null && !isNaN(v));
+
+    const sharpeRange = display5Sharpes.length > 0 ? { min: Math.min(...display5Sharpes), max: Math.max(...display5Sharpes) } : null;
+    const sortinoRange = display5Sortinos.length > 0 ? { min: Math.min(...display5Sortinos), max: Math.max(...display5Sortinos) } : null;
+
+    return { display5, fullList, sharpeRange, sortinoRange };
+  };
+
   // Render individual fund row
-  const renderFundRow = (fund, index, customRank = null) => {
+  const renderFundRow = (fund, index, customRank = null, categorySharpeRange = null, categorySortinoRange = null) => {
     const rankDisplay = customRank != null ? customRank : fund.calculatedRank;
-    const isTop3 = fund.isTop3 || (rankDisplay != null && rankDisplay <= 3);
+    const isTop3 = fund.isTop3 !== undefined ? fund.isTop3 : (customRank != null ? customRank <= 3 : (rankDisplay != null && rankDisplay <= 3));
     const navSparkline = Array.isArray(fund.navHistory) && fund.navHistory.length >= 5 ? fund.navHistory : null;
 
     return (
@@ -234,11 +405,14 @@ export default function MfRankingTable({
         )}
 
         {/* Fund Name Column */}
-        <td className="py-2.5 px-3 min-w-[240px] max-w-[340px] truncate align-middle">
-          <div className="flex items-center gap-1.5 truncate">
-            {isTop3 && (
-              <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" title={rankMode === 'aum' ? "Top 3 by AUM" : "Top 3 by Composite Rank"} />
-            )}
+        <td className="py-2.5 px-3 min-w-[240px] max-w-[340px] align-middle overflow-visible relative">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <StarHoverTooltip
+              fund={fund}
+              isTop3={isTop3}
+              categorySharpeRange={categorySharpeRange}
+              categorySortinoRange={categorySortinoRange}
+            />
             <span className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" title={fund.name}>
               {fund.name}
             </span>
@@ -421,8 +595,8 @@ export default function MfRankingTable({
                       const fullSubKey = `${parentKey}_${subKey}`;
                       const isSubCollapsed = collapsedSubCats[fullSubKey] !== false; // collapsed by default until clicked
                       const viewMode = categoryViewModes[fullSubKey] || 'top5';
-                      const sortedSubFunds = sortFundsList(subFunds);
-                      const displayFunds = viewMode === 'top5' ? sortedSubFunds.slice(0, 5) : sortedSubFunds;
+                      const { display5, fullList, sharpeRange, sortinoRange } = rankCategoryTop5(subFunds);
+                      const displayFunds = viewMode === 'top5' ? display5 : fullList;
 
                       return (
                         <React.Fragment key={fullSubKey}>
@@ -464,7 +638,7 @@ export default function MfRankingTable({
                           </tr>
 
                           {/* LEVEL 3: Individual Fund Rows (rendered when Subcategory is expanded) */}
-                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx))}
+                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.categoryRank, sharpeRange, sortinoRange))}
 
                           {/* View All / Show Top 5 Inline Button */}
                           {!isSubCollapsed && subFunds.length > 5 && (
