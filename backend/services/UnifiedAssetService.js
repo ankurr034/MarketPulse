@@ -33,6 +33,8 @@ class UnifiedAssetService {
         currentPrice_or_nav: q.ltp,
         currency: region === 'global' || !id.endsWith('.NS') ? 'USD' : 'INR',
         sector: q.sector || 'General',
+        changePercent: q.changePercent,
+        oneDayChangePct: q.changePercent,
         oneYearChangePct: q.changePercent
       };
       this.summaryCache.set(cacheKey, { data: result, timestamp: Date.now() });

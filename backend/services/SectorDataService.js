@@ -32,10 +32,11 @@ const INDIAN_SECTORS = [
       { symbol: 'HCLTECH.NS', name: 'HCL Tech' },
       { symbol: 'WIPRO.NS', name: 'Wipro' },
       { symbol: 'TECHM.NS', name: 'Tech Mahindra' },
-      { symbol: 'LTIM.NS', name: 'LTIMindtree' },
       { symbol: 'PERSISTENT.NS', name: 'Persistent Systems' },
       { symbol: 'COFORGE.NS', name: 'Coforge' },
-      { symbol: 'MPHASIS.NS', name: 'Mphasis' }
+      { symbol: 'MPHASIS.NS', name: 'Mphasis' },
+      { symbol: 'LTTS.NS', name: 'L&T Technology Services' },
+      { symbol: 'TATAELXSI.NS', name: 'Tata Elxsi' }
     ]
   },
   {
@@ -44,14 +45,16 @@ const INDIAN_SECTORS = [
     region: 'india',
     indexTicker: '^CNXAUTO',
     stocks: [
-      { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+      { symbol: 'TMCV.NS', name: 'Tata Motors (Commercial)' },
+      { symbol: 'TMPV.NS', name: 'Tata Motors Passenger Vehicles' },
       { symbol: 'M&M.NS', name: 'Mahindra & Mahindra' },
       { symbol: 'MARUTI.NS', name: 'Maruti Suzuki' },
       { symbol: 'BAJAJ-AUTO.NS', name: 'Bajaj Auto' },
       { symbol: 'EICHERMOT.NS', name: 'Eicher Motors' },
       { symbol: 'HEROMOTOCO.NS', name: 'Hero MotoCorp' },
       { symbol: 'ASHOKLEY.NS', name: 'Ashok Leyland' },
-      { symbol: 'BALKRISIND.NS', name: 'Balkrishna Industries' }
+      { symbol: 'BALKRISIND.NS', name: 'Balkrishna Industries' },
+      { symbol: 'TVSMOTOR.NS', name: 'TVS Motor Company' }
     ]
   },
   {
@@ -67,7 +70,9 @@ const INDIAN_SECTORS = [
       { symbol: 'APOLLOHOSP.NS', name: 'Apollo Hospitals' },
       { symbol: 'LUPIN.NS', name: 'Lupin' },
       { symbol: 'AUROPHARMA.NS', name: 'Aurobindo Pharma' },
-      { symbol: 'BIOCON.NS', name: 'Biocon' }
+      { symbol: 'BIOCON.NS', name: 'Biocon' },
+      { symbol: 'MANKIND.NS', name: 'Mankind Pharma' },
+      { symbol: 'ZYDUSLIFE.NS', name: 'Zydus Lifesciences' }
     ]
   },
   {
@@ -84,7 +89,8 @@ const INDIAN_SECTORS = [
       { symbol: 'DABUR.NS', name: 'Dabur India' },
       { symbol: 'MARICO.NS', name: 'Marico' },
       { symbol: 'COLPAL.NS', name: 'Colgate Palmolive' },
-      { symbol: 'TATACONSUM.NS', name: 'Tata Consumer' }
+      { symbol: 'TATACONSUM.NS', name: 'Tata Consumer' },
+      { symbol: 'VBL.NS', name: 'Varun Beverages' }
     ]
   },
   {
@@ -100,7 +106,8 @@ const INDIAN_SECTORS = [
       { symbol: 'VEDL.NS', name: 'Vedanta' },
       { symbol: 'NMDC.NS', name: 'NMDC' },
       { symbol: 'SAIL.NS', name: 'SAIL' },
-      { symbol: 'NATIONALUM.NS', name: 'National Aluminium' }
+      { symbol: 'NATIONALUM.NS', name: 'National Aluminium' },
+      { symbol: 'JINDALSTEL.NS', name: 'Jindal Steel & Power' }
     ]
   },
   {
@@ -116,7 +123,8 @@ const INDIAN_SECTORS = [
       { symbol: 'BPCL.NS', name: 'BPCL' },
       { symbol: 'IOC.NS', name: 'Indian Oil' },
       { symbol: 'ADANIGREEN.NS', name: 'Adani Green' },
-      { symbol: 'TATAPOWER.NS', name: 'Tata Power' }
+      { symbol: 'TATAPOWER.NS', name: 'Tata Power' },
+      { symbol: 'GAIL.NS', name: 'GAIL India' }
     ]
   },
   {
@@ -163,7 +171,9 @@ const INDIAN_SECTORS = [
       { symbol: 'SBILIFE.NS', name: 'SBI Life Insurance' },
       { symbol: 'HDFCLIFE.NS', name: 'HDFC Life' },
       { symbol: 'KOTAKBANK.NS', name: 'Kotak Mahindra Bank' },
-      { symbol: 'AXISBANK.NS', name: 'Axis Bank' }
+      { symbol: 'AXISBANK.NS', name: 'Axis Bank' },
+      { symbol: 'CHOLAFIN.NS', name: 'Cholamandalam Investment' },
+      { symbol: 'MUTHOOTFIN.NS', name: 'Muthoot Finance' }
     ]
   },
   {
@@ -173,11 +183,11 @@ const INDIAN_SECTORS = [
     indexTicker: '^CNXMEDIA',
     stocks: [
       { symbol: 'ZEEL.NS', name: 'Zee Entertainment' },
-      { symbol: 'PVR.NS', name: 'PVR Inox' },
+      { symbol: 'PVRINOX.NS', name: 'PVR Inox' },
       { symbol: 'SUNTV.NS', name: 'Sun TV Network' },
       { symbol: 'NETWORK18.NS', name: 'Network18' },
-      { symbol: 'TV18BRDCST.NS', name: 'TV18 Broadcast' },
-      { symbol: 'DISHTV.NS', name: 'Dish TV' }
+      { symbol: 'NDTV.NS', name: 'NDTV Ltd' },
+      { symbol: 'NAZARA.NS', name: 'Nazara Technologies' }
     ]
   },
   {
@@ -191,7 +201,8 @@ const INDIAN_SECTORS = [
       { symbol: 'ULTRACEMCO.NS', name: 'UltraTech Cement' },
       { symbol: 'GRASIM.NS', name: 'Grasim Industries' },
       { symbol: 'ADANIENT.NS', name: 'Adani Enterprises' },
-      { symbol: 'SIEMENS.NS', name: 'Siemens India' }
+      { symbol: 'SIEMENS.NS', name: 'Siemens India' },
+      { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel' }
     ]
   },
   {
@@ -206,7 +217,9 @@ const INDIAN_SECTORS = [
       { symbol: 'WHIRLPOOL.NS', name: 'Whirlpool India' },
       { symbol: 'BLUESTARCO.NS', name: 'Blue Star' },
       { symbol: 'CROMPTON.NS', name: 'Crompton Greaves' },
-      { symbol: 'BATAINDIA.NS', name: 'Bata India' }
+      { symbol: 'BATAINDIA.NS', name: 'Bata India' },
+      { symbol: 'DIXON.NS', name: 'Dixon Technologies' },
+      { symbol: 'KALYANKJIL.NS', name: 'Kalyan Jewellers' }
     ]
   },
   {
@@ -793,29 +806,37 @@ class SectorDataService {
     // Return enriched stock data, preserving sector stock metadata
     return sector.stocks.map(stock => {
       const quote = quoteMap.get(stock.symbol);
-      if (quote && quote.ltp > 0) {
-        return { ...stock, ...quote };
+      if (quote && typeof quote.ltp === 'number' && quote.ltp > 0) {
+        let changePercent = quote.changePercent;
+        if ((changePercent === undefined || changePercent === null || isNaN(changePercent)) && quote.previousClose > 0) {
+          changePercent = parseFloat((((quote.ltp - quote.previousClose) / quote.previousClose) * 100).toFixed(2));
+        }
+        return {
+          ...stock,
+          ...quote,
+          changePercent
+        };
       }
       
-      // Deterministic fallback for stock quote to guarantee data is ALWAYS displayed
-      const hash = (stock.symbol || stock.name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const mockPrice = parseFloat(((hash % 1800) + 145.50).toFixed(2));
-      const mockChangePct = parseFloat((((hash % 50) - 22) * 0.15).toFixed(2));
-      const mockChange = parseFloat(((mockPrice * mockChangePct) / 100).toFixed(2));
-
+      // If live quote is missing, return clean fallback with null values
       return {
         ...stock,
-        ltp: mockPrice,
-        change: mockChange,
-        changePercent: mockChangePct,
-        dayHigh: parseFloat((mockPrice * 1.025).toFixed(2)),
-        dayLow: parseFloat((mockPrice * 0.975).toFixed(2)),
-        volume: (hash * 4520) % 8500000 + 250000,
-        marketCap: (hash * 310) % 950000 + 12000,
-        pe: parseFloat(((hash % 28) + 14.2).toFixed(1)),
-        pb: parseFloat(((hash % 5) + 2.1).toFixed(1)),
-        high52: parseFloat((mockPrice * 1.30).toFixed(2)),
-        low52: parseFloat((mockPrice * 0.72).toFixed(2))
+        ltp: null,
+        open: null,
+        previousClose: null,
+        change: null,
+        changePercent: null,
+        dayHigh: null,
+        dayLow: null,
+        high52: null,
+        low52: null,
+        volume: null,
+        marketCap: null,
+        pe: null,
+        pb: null,
+        eps: null,
+        dividendYield: null,
+        vwap: null
       };
     });
   }
@@ -910,16 +931,16 @@ class SectorDataService {
       for (const sector of sectors) {
         try {
           const stocksWithQuotes = await this._fetchSectorQuotes(sector);
-          const validStocks = stocksWithQuotes;
+          const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
           // Compute aggregated metrics
-          const changePercents = validStocks.map(s => s.changePercent);
+          const changePercents = validStocks.map(s => s.changePercent).filter(v => typeof v === 'number' && !isNaN(v));
           const avgChangePercent = changePercents.length > 0
             ? parseFloat((changePercents.reduce((sum, v) => sum + v, 0) / changePercents.length).toFixed(2))
             : 0;
 
-          const advances = validStocks.filter(s => s.changePercent > 0).length;
-          const declines = validStocks.filter(s => s.changePercent < 0).length;
+          const advances = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent > 0).length;
+          const declines = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent < 0).length;
 
           const totalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
           const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
@@ -934,7 +955,7 @@ class SectorDataService {
           let dayLow = indexQuote ? indexQuote.dayLow : 0;
           
           // Use the true Index/ETF change percent if available, otherwise fallback to unweighted average
-          let sectorChangePercent = indexQuote && indexQuote.changePercent !== undefined 
+          let sectorChangePercent = (indexQuote && typeof indexQuote.changePercent === 'number' && !isNaN(indexQuote.changePercent))
             ? indexQuote.changePercent 
             : avgChangePercent;
           let indexPrice = indexQuote ? indexQuote.ltp : 0;
@@ -980,7 +1001,7 @@ class SectorDataService {
             dayHigh,
             dayLow,
             indexPrice,
-            stocks: validStocks
+            stocks: stocksWithQuotes
           });
         } catch (err) {
           console.error(`Error processing sector ${sector.id}:`, err.message);
@@ -1020,7 +1041,7 @@ class SectorDataService {
     const cacheKey = `sector_detail_${sectorId}_${timeframe}`;
     return this._getCachedOrFetch(cacheKey, async () => {
       const stocksWithQuotes = await this._fetchSectorQuotes(sector);
-      const validStocks = stocksWithQuotes;
+      const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
       // If timeframe is not 1D, compute historical change% for each stock
       const isHistorical = timeframe !== '1D';
@@ -1031,7 +1052,7 @@ class SectorDataService {
         );
         historicalResults.forEach((result, idx) => {
           if (result.status === 'fulfilled' && result.value) {
-            const stock = validStocks.find(s => s.symbol === stockTickers[idx]);
+            const stock = stocksWithQuotes.find(s => s.symbol === stockTickers[idx]);
             if (stock) {
               stock.changePercent = result.value.changePercent;
             }
@@ -1040,17 +1061,22 @@ class SectorDataService {
       }
 
       // Sort by changePercent descending
-      const sorted = [...validStocks].sort((a, b) => b.changePercent - a.changePercent);
-      const gainers = sorted.slice(0, 5);
-      const losers = [...validStocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 5);
+      const sorted = [...stocksWithQuotes].sort((a, b) => {
+        const aVal = (typeof a.changePercent === 'number' && !isNaN(a.changePercent)) ? a.changePercent : -99999;
+        const bVal = (typeof b.changePercent === 'number' && !isNaN(b.changePercent)) ? b.changePercent : -99999;
+        return bVal - aVal;
+      });
+      const validSorted = sorted.filter(s => typeof s.ltp === 'number' && s.ltp > 0 && typeof s.changePercent === 'number' && !isNaN(s.changePercent));
+      const gainers = validSorted.slice(0, 5);
+      const losers = [...validSorted].reverse().slice(0, 5);
 
-      const changePercents = validStocks.map(s => s.changePercent);
+      const changePercents = validStocks.map(s => s.changePercent).filter(v => typeof v === 'number' && !isNaN(v));
       const avgChangePercent = changePercents.length > 0
         ? parseFloat((changePercents.reduce((sum, v) => sum + v, 0) / changePercents.length).toFixed(2))
         : 0;
 
-      const advanceCount = validStocks.filter(s => s.changePercent > 0).length;
-      const declineCount = validStocks.filter(s => s.changePercent < 0).length;
+      const advanceCount = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent > 0).length;
+      const declineCount = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent < 0).length;
 
       // Fetch the index/etf quote to get the true change percent
       const indexTicker = sector.etfTicker || sector.indexTicker;
@@ -1066,7 +1092,7 @@ class SectorDataService {
           } else {
             const indexQuoteArrayRes = await yahooFinanceService.getQuotes([indexTicker]);
             const indexQuoteArray = indexQuoteArrayRes.available ? indexQuoteArrayRes.data : [];
-            if (indexQuoteArray && indexQuoteArray.length > 0 && indexQuoteArray[0].changePercent !== undefined) {
+            if (indexQuoteArray && indexQuoteArray.length > 0 && typeof indexQuoteArray[0].changePercent === 'number') {
               sectorChangePercent = indexQuoteArray[0].changePercent;
             }
           }
@@ -1119,11 +1145,11 @@ class SectorDataService {
       try {
         const allSymbols = this.getAllSymbols();
         const allQuotes = await this._batchFetchQuotes(allSymbols);
-        let validQuotes = allQuotes.filter(q => q && q.ltp > 0);
+        let validQuotes = allQuotes.filter(q => q && typeof q.ltp === 'number' && q.ltp > 0 && typeof q.changePercent === 'number' && !isNaN(q.changePercent));
 
         if (validQuotes.length === 0) {
           const simStocks = (await import('./SimulatorService.js')).default.getStocks();
-          validQuotes = simStocks.map(s => ({
+          validQuotes = simStocks.filter(s => s && typeof s.ltp === 'number' && s.ltp > 0).map(s => ({
             symbol: s.symbol,
             name: s.name,
             ltp: s.ltp,
@@ -1134,16 +1160,17 @@ class SectorDataService {
 
         const sortedByChange = [...validQuotes].sort((a, b) => b.changePercent - a.changePercent);
         const gainers = sortedByChange.slice(0, count);
-        const losers = sortedByChange.slice(-count).reverse();
+        const losers = [...sortedByChange].reverse().slice(0, count);
 
         return { gainers, losers };
       } catch (e) {
         console.warn('Top movers error, falling back to simulator:', e.message);
         const simStocks = (await import('./SimulatorService.js')).default.getStocks();
-        const sorted = [...simStocks].sort((a, b) => b.changePercent - a.changePercent);
+        const valid = simStocks.filter(s => s && typeof s.ltp === 'number' && s.ltp > 0);
+        const sorted = [...valid].sort((a, b) => b.changePercent - a.changePercent);
         return {
           gainers: sorted.slice(0, count),
-          losers: sorted.slice(-count).reverse()
+          losers: [...sorted].reverse().slice(0, count)
         };
       }
     });

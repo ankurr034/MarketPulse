@@ -3,33 +3,50 @@ import yahooFinanceService from './YahooFinanceService.js';
 // Core symbols config
 const CORE_SYMBOLS = [
   'RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 
-  'SBIN.NS', 'TATAMOTORS.NS', 'ITC.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 
+  'SBIN.NS', 'TMCV.NS', 'ITC.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 
   'DLF.NS', 'AAPL', 'MSFT', 'TSLA', 'NVDA',
-  '^NSEI', '^CNX100', 'JUNIORBEES.NS', '^NSEMDCP50', '^CNXSC', '^CRSLDX'
+  '^NSEI', '^BSESN', '^NSEBANK', '^CNX100', 'JUNIORBEES.NS', '^NSEMDCP50', '^CNXSC', '^CRSLDX'
 ];
 
+export const INDEX_TICKER_MAP = {
+  'NIFTY 50': '^NSEI',
+  'SENSEX': '^BSESN',
+  'BANK NIFTY': '^NSEBANK',
+  'NIFTY 100': '^CNX100',
+  'NIFTY NEXT 50': 'JUNIORBEES.NS',
+  'NIFTY MIDCAP 50': '^NSEMDCP50',
+  'NIFTY SMALLCAP 100': '^CNXSC',
+  'NIFTY 500': '^CRSLDX',
+  'FINNIFTY': '^CNXFIN',
+  'India VIX': '^INDIAVIX',
+  'S&P 500': '^GSPC',
+  'NASDAQ': '^IXIC',
+  'FTSE 100': '^FTSE',
+  'NIKKEI 225': '^N225'
+};
+
 const STOCKS_METADATA = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', sector: 'Energy', basePrice: 2450 },
-  { symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', sector: 'IT', basePrice: 3850 },
-  { symbol: 'INFY.NS', name: 'Infosys Ltd.', sector: 'IT', basePrice: 1420 },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', sector: 'Banking', basePrice: 1550 },
-  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', sector: 'Banking', basePrice: 1120 },
-  { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking', basePrice: 780 },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors Ltd.', sector: 'Auto', basePrice: 950 },
-  { symbol: 'ITC.NS', name: 'ITC Ltd.', sector: 'FMCG', basePrice: 430 },
-  { symbol: 'SUNPHARMA.NS', name: 'Sun Pharmaceutical Industries Ltd.', sector: 'Pharma', basePrice: 1580 },
-  { symbol: 'TATASTEEL.NS', name: 'Tata Steel Ltd.', sector: 'Metals', basePrice: 160 },
-  { symbol: 'DLF.NS', name: 'DLF Ltd.', sector: 'Realty', basePrice: 850 },
-  { symbol: 'AAPL', name: 'Apple Inc.', sector: 'IT', basePrice: 220 },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'IT', basePrice: 450 },
+  { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', sector: 'Energy', basePrice: 1322 },
+  { symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', sector: 'IT', basePrice: 2280 },
+  { symbol: 'INFY.NS', name: 'Infosys Ltd.', sector: 'IT', basePrice: 1115 },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', sector: 'Banking', basePrice: 723 },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', sector: 'Banking', basePrice: 1412 },
+  { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking', basePrice: 1053 },
+  { symbol: 'TMCV.NS', name: 'Tata Motors Ltd.', sector: 'Auto', basePrice: 471 },
+  { symbol: 'ITC.NS', name: 'ITC Ltd.', sector: 'FMCG', basePrice: 270 },
+  { symbol: 'SUNPHARMA.NS', name: 'Sun Pharmaceutical Industries Ltd.', sector: 'Pharma', basePrice: 1875 },
+  { symbol: 'TATASTEEL.NS', name: 'Tata Steel Ltd.', sector: 'Metals', basePrice: 185 },
+  { symbol: 'DLF.NS', name: 'DLF Ltd.', sector: 'Realty', basePrice: 665 },
+  { symbol: 'AAPL', name: 'Apple Inc.', sector: 'IT', basePrice: 305 },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'IT', basePrice: 480 },
   { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Auto', basePrice: 250 },
-  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 125 },
-  { symbol: '^NSEI', name: 'NIFTY 50', sector: 'Index', basePrice: 24250 },
-  { symbol: '^CNX100', name: 'NIFTY 100', sector: 'Index', basePrice: 25300 },
-  { symbol: 'JUNIORBEES.NS', name: 'NIFTY NEXT 50', sector: 'Index', basePrice: 720 },
-  { symbol: '^NSEMDCP50', name: 'NIFTY MIDCAP 50', sector: 'Index', basePrice: 14200 },
-  { symbol: '^CNXSC', name: 'NIFTY SMALLCAP 100', sector: 'Index', basePrice: 18500 },
-  { symbol: '^CRSLDX', name: 'NIFTY 500', sector: 'Index', basePrice: 22600 }
+  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 225 },
+  { symbol: '^NSEI', name: 'NIFTY 50', sector: 'Index', basePrice: 24154 },
+  { symbol: '^CNX100', name: 'NIFTY 100', sector: 'Index', basePrice: 25333 },
+  { symbol: 'JUNIORBEES.NS', name: 'NIFTY NEXT 50', sector: 'Index', basePrice: 805 },
+  { symbol: '^NSEMDCP50', name: 'NIFTY MIDCAP 50', sector: 'Index', basePrice: 18216 },
+  { symbol: '^CNXSC', name: 'NIFTY SMALLCAP 100', sector: 'Index', basePrice: 19808 },
+  { symbol: '^CRSLDX', name: 'NIFTY 500', sector: 'Index', basePrice: 23472 }
 ];
 
 const SECTORS_LIST = [
@@ -83,20 +100,20 @@ class SimulatorService {
 
   initializeIndices() {
     this.indices = {
-      'NIFTY 50': { price: 24250, change: 120, changePercent: 0.50, high: 24310, low: 24110 },
-      'SENSEX': { price: 79800, change: 410, changePercent: 0.52, high: 80020, low: 79350 },
-      'BANK NIFTY': { price: 52400, change: -110, changePercent: -0.21, high: 52650, low: 52180 },
-      'FINNIFTY': { price: 23650, change: -45, changePercent: -0.19, high: 23780, low: 23510 },
-      'MIDCAP': { price: 12850, change: 165, changePercent: 1.30, high: 12900, low: 12620 },
-      'SMALLCAP': { price: 16400, change: 245, changePercent: 1.52, high: 16450, low: 16100 },
-      'India VIX': { price: 13.80, change: -0.45, changePercent: -3.16, high: 14.30, low: 13.50 },
-      'S&P 500': { price: 5560, change: 25, changePercent: 0.45, high: 5575, low: 5530 },
-      'NASDAQ': { price: 18450, change: 110, changePercent: 0.60, high: 18500, low: 18320 },
-      'FTSE 100': { price: 8250, change: 15, changePercent: 0.18, high: 8280, low: 8220 },
-      'NIKKEI 225': { price: 41200, change: 350, changePercent: 0.86, high: 41350, low: 40950 },
-      'NIFTY 100': { price: 25300, change: 140, changePercent: 0.55, high: 25400, low: 25150 },
-      'NIFTY NEXT 50': { price: 72000, change: 800, changePercent: 1.12, high: 72200, low: 71000 },
-      'NIFTY 500': { price: 22600, change: 160, changePercent: 0.71, high: 22700, low: 22400 }
+      'NIFTY 50': { value: 24154.9, price: 24154.9, change: -132.8, changePercent: -0.55, high: 24310, low: 24110 },
+      'SENSEX': { value: 77235.46, price: 77235.46, change: -493.2, changePercent: -0.63, high: 77800, low: 77100 },
+      'BANK NIFTY': { value: 57262.4, price: 57262.4, change: -235.6, changePercent: -0.41, high: 57600, low: 57100 },
+      'FINNIFTY': { value: 28428.4, price: 28428.4, change: -141.0, changePercent: -0.49, high: 28553, low: 28404 },
+      'MIDCAP': { value: 18216.8, price: 18216.8, change: -62.3, changePercent: -0.34, high: 18403, low: 18150 },
+      'SMALLCAP': { value: 19808.85, price: 19808.85, change: -0.4, changePercent: -0.002, high: 19868, low: 19764 },
+      'India VIX': { value: 13.80, price: 13.80, change: -0.45, changePercent: -3.16, high: 14.30, low: 13.50 },
+      'S&P 500': { value: 5560, price: 5560, change: 25, changePercent: 0.45, high: 5575, low: 5530 },
+      'NASDAQ': { value: 18450, price: 18450, change: 110, changePercent: 0.60, high: 18500, low: 18320 },
+      'FTSE 100': { value: 8250, price: 8250, change: 15, changePercent: 0.18, high: 8280, low: 8220 },
+      'NIKKEI 225': { value: 41200, price: 41200, change: 350, changePercent: 0.86, high: 41350, low: 40950 },
+      'NIFTY 100': { value: 25333.65, price: 25333.65, change: -123.8, changePercent: -0.49, high: 25400, low: 25150 },
+      'NIFTY NEXT 50': { value: 80590, price: 80590, change: -236.4, changePercent: -0.29, high: 81804, low: 63234 },
+      'NIFTY 500': { value: 23472.4, price: 23472.4, change: -92.0, changePercent: -0.39, high: 24144, low: 20385 }
     };
   }
 
@@ -287,25 +304,34 @@ class SimulatorService {
     }
   }
 
-  // Poll Yahoo Finance for quote anchors every 10 seconds
+  // Poll Yahoo Finance for quote anchors every 15 seconds
   startYahooFinancePolling() {
     let isPolling = false;
     const pollQuotes = async () => {
       if (isPolling) return;
       isPolling = true;
       try {
-        const quotesRes = await yahooFinanceService.getQuotes();
+        const allSymbolsToFetch = [...new Set([...CORE_SYMBOLS, ...Object.values(INDEX_TICKER_MAP)])];
+        const quotesRes = await yahooFinanceService.getQuotes(allSymbolsToFetch);
         const quotes = quotesRes.available ? quotesRes.data : [];
         if (!quotes || quotes.length === 0) return;
 
+        const quoteMap = new Map();
+        quotes.forEach(q => quoteMap.set(q.symbol, q));
+
+        // Sync individual stock records
         quotes.forEach(q => {
           const local = this.stocks[q.symbol];
-          if (local) {
+          if (local && typeof q.ltp === 'number' && q.ltp > 0) {
             local.ltp = q.ltp;
+            local.open = q.open || local.open;
+            local.previousClose = q.previousClose || local.previousClose;
             local.change = q.change;
             local.changePercent = q.changePercent;
             local.dayHigh = q.dayHigh;
             local.dayLow = q.dayLow;
+            local.high52 = q.high52 || local.high52;
+            local.low52 = q.low52 || local.low52;
             local.marketCap = q.marketCap;
             local.pe = q.pe;
             local.eps = q.eps;
@@ -316,6 +342,32 @@ class SimulatorService {
             local.resistance = parseFloat((q.ltp * 1.035).toFixed(2));
           }
         });
+
+        // Sync authoritative index records
+        Object.entries(INDEX_TICKER_MAP).forEach(([key, ticker]) => {
+          const q = quoteMap.get(ticker);
+          if (q && typeof q.ltp === 'number' && q.ltp > 0) {
+            let multiplier = 1;
+            if (ticker === 'JUNIORBEES.NS') multiplier = 100;
+            const price = parseFloat((q.ltp * multiplier).toFixed(2));
+            const change = parseFloat(((q.change || 0) * multiplier).toFixed(2));
+            const changePercent = q.changePercent || 0;
+
+            this.indices[key] = {
+              value: price,
+              price: price,
+              change,
+              changePercent,
+              high: q.dayHigh ? parseFloat((q.dayHigh * multiplier).toFixed(2)) : price,
+              low: q.dayLow ? parseFloat((q.dayLow * multiplier).toFixed(2)) : price,
+              high52: q.high52 ? parseFloat((q.high52 * multiplier).toFixed(2)) : (this.indices[key]?.high52 || price),
+              low52: q.low52 ? parseFloat((q.low52 * multiplier).toFixed(2)) : (this.indices[key]?.low52 || price),
+              open: q.open ? parseFloat((q.open * multiplier).toFixed(2)) : price,
+              previousClose: q.previousClose ? parseFloat((q.previousClose * multiplier).toFixed(2)) : price,
+              timestamp: Date.now()
+            };
+          }
+        });
       } catch (err) {
         console.error('Yahoo Finance poll sync failure:', err.message);
       } finally {
@@ -324,7 +376,7 @@ class SimulatorService {
     };
 
     pollQuotes();
-    this.yahooInterval = setInterval(pollQuotes, 30000);
+    this.yahooInterval = setInterval(pollQuotes, 15000);
   }
 
   // Check if Indian market is currently open
