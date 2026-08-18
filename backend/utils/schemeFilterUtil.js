@@ -24,7 +24,8 @@ export function isStrictDirectGrowth(schemeName) {
     /\bmerged\b/,
     /\binactive\b/,
     /\binstitutional\b/,
-    /\binterval\b/
+    /\binterval\b/,
+    /\bstandard\b/
   ];
 
   for (const pattern of forbiddenPatterns) {
@@ -33,22 +34,137 @@ export function isStrictDirectGrowth(schemeName) {
     }
   }
 
-  // Check if scheme is an ETF, BeES, or Commodity Fund
-  const isEtfOrCommodity = /\b(etf|bees|gold|silver|commodity)\b/i.test(lower);
-  if (isEtfOrCommodity) {
-    // ETF/BeES funds are inherently direct trading options, pass if no forbidden terms
+  // Check if scheme is an ETF / BeES (Inherently Direct exchange-traded instruments)
+  const isEtf = /\b(etf|bees|exchange traded fund)\b/i.test(lower);
+  if (isEtf) {
     return true;
   }
 
-  // 2. Strict Positive Direct & Growth Requirements
+  // 2. Strict Positive Direct & Growth Requirements for all Mutual Fund Schemes
   const isDirect = lower.includes('direct') || lower.includes('-dir') || lower.includes('(dir)') || lower.includes(' dir ');
-  const isGrowth = lower.includes('growth') || lower.includes('-gr') || lower.includes('(gr)') || lower.includes(' gr ');
+  const isGrowth = lower.includes('growth') || lower.includes('-gr') || lower.includes('(gr)') || lower.includes(' gr ') || lower.includes('index fund') || lower.includes('index scheme');
 
   return isDirect && isGrowth;
 }
 
 /**
- * Sanitizes a fund record. If any optional or missing field is unavailable, defaults to null or 'Data Unavailable'.
+ * Canonical SEBI Registered AMC Resolver
+ * Reliably maps fund names or raw provider strings to official AMC names.
+ */
+export function resolveAmcName(fundHouseOrName) {
+  if (!fundHouseOrName || typeof fundHouseOrName !== 'string') return 'Other Mutual Fund';
+  const str = fundHouseOrName.trim();
+  const lower = str.toLowerCase();
+
+  if (/\bbank of india\b|\bboi\b/i.test(lower)) return 'Bank of India Mutual Fund';
+  if (/\bbandhan\b|\bidfc\b/i.test(lower)) return 'Bandhan Mutual Fund';
+  if (/\bhdfc\b/i.test(lower)) return 'HDFC Mutual Fund';
+  if (/\bicici\b|\bprudential\b/i.test(lower)) return 'ICICI Prudential Mutual Fund';
+  if (/\bsbi\b|\bstate bank\b/i.test(lower)) return 'SBI Mutual Fund';
+  if (/\bnippon\b|\breliance\b/i.test(lower)) return 'Nippon India Mutual Fund';
+  if (/\bparag parikh\b|\bppfas\b/i.test(lower)) return 'PPFAS Mutual Fund';
+  if (/\bquant\b/i.test(lower)) return 'Quant Mutual Fund';
+  if (/\bkotak\b/i.test(lower)) return 'Kotak Mahindra Mutual Fund';
+  if (/\baxis\b/i.test(lower)) return 'Axis Mutual Fund';
+  if (/\btata\b/i.test(lower)) return 'Tata Mutual Fund';
+  if (/\bmirae\b/i.test(lower)) return 'Mirae Asset Mutual Fund';
+  if (/\baditya birla\b|\babsl\b|\bbirla sun life\b/i.test(lower)) return 'Aditya Birla Sun Life Mutual Fund';
+  if (/\bmotilal\b|\boswal\b/i.test(lower)) return 'Motilal Oswal Mutual Fund';
+  if (/\buti\b/i.test(lower)) return 'UTI Mutual Fund';
+  if (/\bdsp\b/i.test(lower)) return 'DSP Mutual Fund';
+  if (/\bfranklin\b|\btempleton\b/i.test(lower)) return 'Franklin Templeton Mutual Fund';
+  if (/\bcanara\b|\brobeco\b/i.test(lower)) return 'Canara Robeco Mutual Fund';
+  if (/\bhsbc\b/i.test(lower)) return 'HSBC Mutual Fund';
+  if (/\bedelweiss\b/i.test(lower)) return 'Edelweiss Mutual Fund';
+  if (/\binvesco\b/i.test(lower)) return 'Invesco Mutual Fund';
+  if (/\bsundaram\b/i.test(lower)) return 'Sundaram Mutual Fund';
+  if (/\bpgim\b/i.test(lower)) return 'PGIM India Mutual Fund';
+  if (/\bunion\b/i.test(lower)) return 'Union Mutual Fund';
+  if (/\bbaroda\b|\bbnp\b/i.test(lower)) return 'Baroda BNP Paribas Mutual Fund';
+  if (/\bmahindra\b|\bmanulife\b/i.test(lower)) return 'Mahindra Manulife Mutual Fund';
+  if (/\bwhiteoak\b/i.test(lower)) return 'WhiteOak Capital Mutual Fund';
+  if (/\bnavi\b/i.test(lower)) return 'Navi Mutual Fund';
+  if (/\bgroww\b/i.test(lower)) return 'Groww Mutual Fund';
+  if (/\bzerodha\b/i.test(lower)) return 'Zerodha Mutual Fund';
+  if (/\bjm\b|\bjm financial\b/i.test(lower)) return 'JM Financial Mutual Fund';
+  if (/\blic\b/i.test(lower)) return 'LIC Mutual Fund';
+  if (/\bquantum\b/i.test(lower)) return 'Quantum Mutual Fund';
+  if (/\btaurus\b/i.test(lower)) return 'Taurus Mutual Fund';
+  if (/\bshriram\b/i.test(lower)) return 'Shriram Mutual Fund';
+  if (/\btrust\b|\btrustmf\b/i.test(lower)) return 'Trust Mutual Fund';
+  if (/\biti\b/i.test(lower)) return 'ITI Mutual Fund';
+  if (/\bsamco\b/i.test(lower)) return 'Samco Mutual Fund';
+  if (/\bhelios\b/i.test(lower)) return 'Helios Mutual Fund';
+  if (/\bbajaj\b|\bfinserv\b/i.test(lower)) return 'Bajaj Finserv Mutual Fund';
+  if (/\b360 one\b|\biifl\b/i.test(lower)) return '360 ONE Mutual Fund';
+  if (/\bjio\b|\bblackrock\b/i.test(lower)) return 'JioBlackRock Mutual Fund';
+  if (/\bcapitalmind\b/i.test(lower)) return 'Capitalmind Mutual Fund';
+  if (/\bunifi\b/i.test(lower)) return 'Unifi Mutual Fund';
+  if (/\bchoice\b/i.test(lower)) return 'Choice Mutual Fund';
+  if (/\babakkus\b/i.test(lower)) return 'Abakkus Mutual Fund';
+  if (/\bnj\b/i.test(lower)) return 'NJ Mutual Fund';
+
+  if (str.toLowerCase().includes('mutual fund')) return str;
+  return `${str} Mutual Fund`;
+}
+
+/**
+ * Resolves Plan (Direct vs Regular) and Option (Growth vs IDCW vs Bonus) from scheme name
+ */
+export function resolvePlanAndOption(schemeName) {
+  if (!schemeName || typeof schemeName !== 'string') {
+    return { plan: 'Direct', option: 'Growth' };
+  }
+  const lower = schemeName.toLowerCase();
+
+  let plan = 'Direct';
+  if (/\bregular\b|\breg\b/i.test(lower) && !/\bdirect\b/i.test(lower)) {
+    plan = 'Regular';
+  } else if (/\bdirect\b|\b-dir\b|\b\(dir\)\b|\bdir\b/i.test(lower)) {
+    plan = 'Direct';
+  }
+
+  let option = 'Growth';
+  if (/\bidcw\b|\bdividend\b|\bdiv\b|\bpayout\b|\breinvestment\b|\breinvest\b/i.test(lower)) {
+    option = 'IDCW';
+  } else if (/\bbonus\b/i.test(lower)) {
+    option = 'Bonus';
+  } else if (/\bgrowth\b|\b-gr\b|\b\(gr\)\b|\bgr\b/i.test(lower)) {
+    option = 'Growth';
+  }
+
+  return { plan, option };
+}
+
+/**
+ * Builds a 5-tuple canonical identity for a mutual fund scheme
+ */
+export function buildCanonicalIdentity(schemeCode, schemeName, amc, isin, customPlan, customOption) {
+  const code = String(schemeCode || '').trim();
+  const name = String(schemeName || '').trim();
+  const resolvedAmc = resolveAmcName(amc || name);
+  const { plan: parsedPlan, option: parsedOption } = resolvePlanAndOption(name);
+  const plan = customPlan || parsedPlan;
+  const option = customOption || parsedOption;
+  const cleanIsin = isin ? String(isin).trim() : null;
+
+  return {
+    schemeCode: code,
+    schemeName: name,
+    amc: resolvedAmc,
+    fundHouse: resolvedAmc,
+    family: resolvedAmc,
+    isin: cleanIsin,
+    isinGrowth: cleanIsin,
+    plan,
+    planType: plan,
+    option,
+    canonicalKey: `${code}_${cleanIsin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`
+  };
+}
+
+/**
+ * Sanitizes a fund record. Attaches canonical scheme identity metadata.
  * Never estimates or fabricates missing values.
  */
 export function sanitizeFundRecord(rawRecord) {
@@ -59,21 +175,34 @@ export function sanitizeFundRecord(rawRecord) {
 
   if (!schemeCode || !schemeName) return null;
 
+  const rawAmc = rawRecord.amc || rawRecord.fundHouse || rawRecord.family || null;
+  const resolvedAmc = resolveAmcName(rawAmc || schemeName);
+  const { plan, option } = resolvePlanAndOption(schemeName);
+  const isin = rawRecord.isinGrowth || rawRecord.isin || rawRecord.isinReinvest || null;
+  const canonicalKey = `${schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
+
   return {
     schemeCode,
     schemeName,
-    amc: rawRecord.amc || rawRecord.fundHouse || rawRecord.family || 'Data Unavailable',
+    amc: resolvedAmc,
+    fundHouse: resolvedAmc,
+    family: resolvedAmc,
+    plan,
+    planType: plan,
+    option,
+    canonicalKey,
     category: rawRecord.category || 'Data Unavailable',
     subCategory: rawRecord.subCategory || 'Data Unavailable',
     nav: typeof rawRecord.nav === 'number' && !isNaN(rawRecord.nav) ? rawRecord.nav : null,
     navDate: rawRecord.navDate || rawRecord.date || 'Data Unavailable',
-    aum: typeof rawRecord.aum === 'number' && !isNaN(rawRecord.aum) ? rawRecord.aum : null,
+    aum: (typeof rawRecord.aum === 'number' && !isNaN(rawRecord.aum) && rawRecord.aum > 0) ? rawRecord.aum : null,
+    aumCr: (typeof rawRecord.aum === 'number' && !isNaN(rawRecord.aum) && rawRecord.aum > 0) ? rawRecord.aum : null,
     expenseRatio: typeof rawRecord.expenseRatio === 'number' && !isNaN(rawRecord.expenseRatio) ? rawRecord.expenseRatio : null,
     fundManager: rawRecord.fundManager || 'Data Unavailable',
     benchmark: rawRecord.benchmark || 'Data Unavailable',
     riskometer: rawRecord.riskometer || 'Data Unavailable',
     launchDate: rawRecord.launchDate || 'Data Unavailable',
-    isinGrowth: rawRecord.isinGrowth || null,
+    isinGrowth: rawRecord.isinGrowth || isin,
     isinReinvest: rawRecord.isinReinvest || null,
     lastUpdated: rawRecord.lastUpdated || new Date().toISOString()
   };

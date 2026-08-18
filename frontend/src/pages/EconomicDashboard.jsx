@@ -3,6 +3,8 @@ import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart3, HelpCircle, TrendingUp, Globe, Sparkles } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const EconomicDashboard = ({ socket }) => {
   const [metrics, setMetrics] = useState({});
   const [selectedKey, setSelectedKey] = useState('gdp');
@@ -10,7 +12,7 @@ export const EconomicDashboard = ({ socket }) => {
 
   const fetchEconomics = async () => {
     try {
-      const res = await axios.get('/api/market/economic');
+      const res = await axios.get(`${API_BASE}/market/economic`);
       setMetrics(res.data);
     } catch (err) {
       console.error('Error fetching economics:', err);

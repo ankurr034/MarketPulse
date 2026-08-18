@@ -1286,7 +1286,7 @@ export const IndianMfSectorAnalysis = () => {
         isSIP: !name.toLowerCase().includes('etf')
       };
     });
-  }, [flatFunds, EXTRA_CATEGORY_SCHEMES, extraCategorySchemes]);
+  }, [flatFunds, EXTRA_CATEGORY_SCHEMES, extraCategorySchemes, allDirectSchemes]);
 
   // Calculate deterministic rankings for enriched funds
   const rankedFunds = useMemo(() => {

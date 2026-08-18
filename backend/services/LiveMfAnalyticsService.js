@@ -149,7 +149,7 @@ class LiveMfAnalyticsService {
       sharpeRatio: null, sortinoRatio: null 
     };
 
-    if (!navData || navData.length < 2) {
+    if (!navData || navData.length < 1) {
       return emptyMetrics;
     }
 
@@ -166,10 +166,9 @@ class LiveMfAnalyticsService {
     };
 
     // Auto-detect and normalize sort order: ensure newest observation is at navData[0]
-    if (parseDateTemp(navData[0]).getTime() < parseDateTemp(navData[navData.length - 1]).getTime()) {
+    if (navData.length >= 2 && parseDateTemp(navData[0]).getTime() < parseDateTemp(navData[navData.length - 1]).getTime()) {
       navData = [...navData].reverse();
     }
-
 
     const getNavVal = (item) => {
       if (!item) return 0;
@@ -180,6 +179,30 @@ class LiveMfAnalyticsService {
     const todayNav = getNavVal(navData[0]);
     if (todayNav <= 0) {
       return emptyMetrics;
+    }
+
+    // Extract launch date and launch year independently of return calculation eligibility
+    const oldestNavItem = navData && navData.length > 0 ? navData[navData.length - 1] : null;
+    let launchDate = oldestNavItem ? (oldestNavItem.date || null) : null;
+    let launchYear = null;
+    if (oldestNavItem) {
+      if (oldestNavItem.date) {
+        const match = String(oldestNavItem.date).match(/\b(19|20)\d{2}\b/);
+        if (match) launchYear = parseInt(match[0], 10);
+      }
+      if (!launchYear && oldestNavItem.time) {
+        const y = new Date(oldestNavItem.time).getFullYear();
+        if (y >= 1990 && y <= 2030) launchYear = y;
+      }
+    }
+
+    if (navData.length < 2) {
+      return {
+        ...emptyMetrics,
+        launchDate,
+        launchYear,
+        inceptionYear: launchYear
+      };
     }
 
     // Parse dates to calculate calendar day offsets
@@ -332,20 +355,6 @@ class LiveMfAnalyticsService {
       '5Y': return5Y,
       'All': returnAll
     };
-
-    const oldestNavItem = navData && navData.length > 0 ? navData[navData.length - 1] : null;
-    let launchDate = oldestNavItem ? (oldestNavItem.date || null) : null;
-    let launchYear = null;
-    if (oldestNavItem) {
-      if (oldestNavItem.date) {
-        const match = String(oldestNavItem.date).match(/\b(19|20)\d{2}\b/);
-        if (match) launchYear = parseInt(match[0], 10);
-      }
-      if (!launchYear && oldestNavItem.time) {
-        const y = new Date(oldestNavItem.time).getFullYear();
-        if (y >= 1990 && y <= 2030) launchYear = y;
-      }
-    }
 
     return { 
       return1D, return1W, return1M, return3M, return6M, return1Y, return3Y, return5Y, returnAll,

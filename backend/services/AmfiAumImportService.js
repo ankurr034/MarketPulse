@@ -110,20 +110,32 @@ class AmfiAumImportService {
       }
     }
 
-    // Level 3: Normalized Identity Match
-    const targetNormName = (targetScheme.schemeName || targetScheme.name || '')
-      .toLowerCase()
-      .replace(/direct\s+plan/g, '')
-      .replace(/direct/g, '')
-      .replace(/growth\s+option/g, '')
-      .replace(/growth/g, '')
+    // Level 3: Strict Normalized Identity Match (Exact Plan + Exact Option required)
+    const targetRaw = (targetScheme.schemeName || targetScheme.name || '').toLowerCase();
+    const targetIsDirect = targetRaw.includes('direct');
+    const isEtfOrBees = targetRaw.includes('etf') || targetRaw.includes('bees');
+    const targetIsGrowth = targetRaw.includes('growth') || isEtfOrBees;
+
+    const targetNormName = targetRaw
       .replace(/[^a-z0-9]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    const matches = aumRecords.filter(r => r.normalizedSchemeName === targetNormName);
+    const matches = aumRecords.filter(r => {
+      const rRaw = (r.originalSchemeName || r.rawSchemeName || '').toLowerCase();
+      const rIsDirect = rRaw.includes('direct');
+      const rIsEtf = rRaw.includes('etf') || rRaw.includes('bees');
+      const rIsGrowth = rRaw.includes('growth') || rIsEtf;
+
+      // Never mix Direct with Regular, or Growth with IDCW/Dividend
+      if (targetIsDirect !== rIsDirect || targetIsGrowth !== rIsGrowth) return false;
+
+      const rNorm = rRaw.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      return rNorm === targetNormName;
+    });
+
     if (matches.length === 1) {
-      return { record: matches[0], method: 'LEVEL_3_NORMALIZED_IDENTITY_EXACT', confidence: 0.95 };
+      return { record: matches[0], method: 'LEVEL_3_EXACT_IDENTITY_MATCH', confidence: 0.95 };
     } else if (matches.length > 1) {
       return { record: null, method: 'REJECTED_AMBIGUOUS_MATCH', confidence: 0.0 };
     }

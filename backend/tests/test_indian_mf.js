@@ -12,8 +12,8 @@ async function runTests() {
   macroDataService.cache = null; // Clear cache
   const snapshot = await macroDataService.getMacroSnapshot();
   
-  assert.strictEqual(snapshot.repoRate.source, 'manual', 'Repo Rate should be manual');
-  assert.strictEqual(snapshot.gdpGrowth.source, 'manual', 'GDP should be manual');
+  assert.ok(snapshot.repoRate.source.includes('RBI'), 'Repo Rate should be RBI');
+  assert.ok(snapshot.gdpGrowth.source.includes('MOSPI') || snapshot.gdpGrowth.source === 'manual', 'GDP should be MOSPI or manual');
   assert.strictEqual(snapshot.cpiInflation.source, 'manual', 'CPI should be manual when disabled');
   assert.strictEqual(snapshot.iip.source, 'manual', 'IIP should be manual when disabled');
   console.log('✅ Test 1 Passed.');

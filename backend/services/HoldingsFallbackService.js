@@ -1,11 +1,72 @@
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { yahooFinance } from './YahooFinanceService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DISK_CACHE_PATHS = [
+  path.resolve('data/verified_aum_cache.json'),
+  path.resolve('backend/data/verified_aum_cache.json'),
+  path.resolve(__dirname, '../data/verified_aum_cache.json'),
+  path.resolve(__dirname, '../../data/verified_aum_cache.json')
+];
 
 class HoldingsFallbackService {
   constructor() {
     this.cache = new Map();
-    this.CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+    this.failedHoldings = new Map(); // schemeCode -> timestamp
+    this.CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+    this.FAILED_TTL = 5 * 60 * 1000; // 5 minutes negative cache
+    this.finapiOfflineUntil = 0;
+    this.mfdataOfflineUntil = 0;
+    this._loadDiskCache();
+  }
+
+  _loadDiskCache() {
+    let totalLoaded = 0;
+    for (const p of DISK_CACHE_PATHS) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.disclosures && typeof parsed.disclosures === 'object') {
+            for (const [code, item] of Object.entries(parsed.disclosures)) {
+              if (item && typeof item.value === 'number' && item.value > 0) {
+                if (!this.cache.has(`aum_details_${code}`)) {
+                  this.cache.set(`aum_details_${code}`, { data: item, timestamp: Date.now() });
+                  totalLoaded++;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed reading AUM disk cache from ${p}:`, e.message);
+      }
+    }
+    console.log(`⚡ Pre-loaded ${totalLoaded} verified scheme AUM records from disk cache`);
+  }
+
+  _saveDiskCache(code, item) {
+    if (!code || !item || !item.value || item.value <= 0) return;
+    for (const targetPath of DISK_CACHE_PATHS) {
+      try {
+        const dir = path.dirname(targetPath);
+        if (fs.existsSync(dir)) {
+          let existing = { lastUpdated: new Date().toISOString(), disclosures: {} };
+          if (fs.existsSync(targetPath)) {
+            try { existing = JSON.parse(fs.readFileSync(targetPath, 'utf8')); } catch (e) {}
+          }
+          existing.disclosures = existing.disclosures || {};
+          existing.disclosures[String(code)] = item;
+          existing.lastUpdated = new Date().toISOString();
+          fs.writeFileSync(targetPath, JSON.stringify(existing, null, 2), 'utf8');
+        }
+      } catch (e) {}
+    }
   }
 
   classifySecurityType(name, sector) {
@@ -44,12 +105,18 @@ class HoldingsFallbackService {
   }
 
   async fetchYFinanceHoldings(ticker) {
+    const cacheKey = `yf_holdings_${ticker}`;
+    const cached = this._getCached(cacheKey);
+    if (cached) return cached;
+
     try {
       const res = await yahooFinance.quoteSummary(ticker, { modules: ['topHoldings', 'fundProfile'] });
       const topHoldings = res.topHoldings;
       
       if (!topHoldings || !topHoldings.holdings || topHoldings.holdings.length === 0) {
-        return { available: false, reason: "Holdings data not available for this ticker in Yahoo Finance." };
+        const unavailable = { available: false, reason: "Holdings data not available for this ticker in Yahoo Finance." };
+        this._setCache(cacheKey, unavailable);
+        return unavailable;
       }
       
       const holdings = topHoldings.holdings.map(h => ({
@@ -61,30 +128,47 @@ class HoldingsFallbackService {
       
       const sectorWeightings = topHoldings.sectorWeightings || {};
       
-      return {
+      const result = {
         available: true,
         holdings: holdings,
         sector_weightings: sectorWeightings
       };
+      this._setCache(cacheKey, result);
+      return result;
     } catch (e) {
       return { available: false, reason: `Failed to parse holdings: ${e.message}` };
     }
   }
 
   async fetchFinapiHoldings(finapiCode) {
+    const cleanCode = String(finapiCode).trim();
+    if (!cleanCode) return null;
+
+    // 1. ALWAYS check cache BEFORE making network request!
+    const cacheKey = `finapi_detail_${cleanCode}`;
+    const cached = this._getCached(cacheKey);
+    if (cached) return cached;
+
+    // 2. Check negative cache for recent failures
+    const failedTime = this.failedHoldings.get(cleanCode);
+    if (failedTime && (Date.now() - failedTime < this.FAILED_TTL)) {
+      return null;
+    }
+
+    // 3. Check circuit breaker for offline provider
+    if (Date.now() < this.finapiOfflineUntil) {
+      return null;
+    }
+
     try {
-      const res = await axios.get(`https://finapi.upvaly.com/api/mf/scheme-code/${finapiCode}`, {
-        timeout: 15000
+      const res = await axios.get(`https://finapi.upvaly.com/api/mf/scheme-code/${cleanCode}`, {
+        timeout: 6000
       });
       const finapiData = res.data?.data || {};
       
       const holdingsRaw = finapiData.holdings || [];
       const portfolioDate = finapiData.latestNavDate || new Date().toISOString().split('T')[0];
       const isin = finapiData.isin || finapiData.schemeIsin || null;
-
-      const cacheKey = `finapi_detail_${finapiCode}_${portfolioDate}`;
-      const cached = this._getCached(cacheKey);
-      if (cached) return cached;
 
       let resolvedAum = finapiData.aum ? parseFloat(String(finapiData.aum).replace(/,/g, '')) : null;
       if (isNaN(resolvedAum) || resolvedAum <= 0) resolvedAum = null;
@@ -183,52 +267,6 @@ class HoldingsFallbackService {
 
       let aumSource = resolvedAum !== null ? 'Upvaly FinAPI Disclosure' : null;
       let aumAsOf = finapiData.latestNavDate || null;
-
-      // Deterministic variant lookup if AUM is unpopulated on this specific scheme code
-      if (resolvedAum === null || isNaN(resolvedAum) || resolvedAum <= 0) {
-        try {
-          let targetName = finapiData.schemeName;
-          if (!targetName) {
-            const mfMeta = await axios.get(`https://api.mfapi.in/mf/${finapiCode}`, { timeout: 4000 }).catch(() => null);
-            targetName = mfMeta?.data?.meta?.scheme_name || null;
-          }
-
-          if (targetName) {
-            const normName = targetName
-              .toLowerCase()
-              .replace(/direct\s+plan/g, '')
-              .replace(/direct/g, '')
-              .replace(/growth\s+option/g, '')
-              .replace(/growth/g, '')
-              .replace(/[^a-z0-9]/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-
-            if (normName.length > 5) {
-              const searchRes = await axios.get(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(normName.slice(0, 25))}`, { timeout: 4000 });
-              if (searchRes.data && Array.isArray(searchRes.data)) {
-                const variants = searchRes.data.filter(v => String(v.schemeCode) !== String(finapiCode));
-                for (const variant of variants.slice(0, 5)) {
-                  const vCode = String(variant.schemeCode);
-                  const vAxiosRes = await axios.get(`https://finapi.upvaly.com/api/mf/scheme-code/${vCode}`, { timeout: 4000 }).catch(() => null);
-                  const vAumRaw = vAxiosRes?.data?.data?.aum;
-                  if (vAumRaw) {
-                    const vAumVal = parseFloat(String(vAumRaw).replace(/,/g, ''));
-                    if (!isNaN(vAumVal) && vAumVal > 0) {
-                      resolvedAum = vAumVal;
-                      aumSource = 'Upvaly / AMFI Scheme Variant Sync';
-                      aumAsOf = vAxiosRes?.data?.data?.latestNavDate || aumAsOf;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (variantErr) {
-          // Keep resolvedAum as null if variant lookup fails
-        }
-      }
       
       const rawInceptionDate = finapiData.inceptionDate || finapiData.launchDate || null;
       const launchYearMatch = rawInceptionDate ? String(rawInceptionDate).match(/\b(19|20)\d{2}\b/) : null;
@@ -239,6 +277,7 @@ class HoldingsFallbackService {
         holdings: formattedHoldings,
         sector_weightings: sectorWeightings,
         aum: resolvedAum,
+        aumCr: resolvedAum,
         aumAsOf: aumAsOf,
         aumSource: aumSource,
         aumReason: resolvedAum === null ? `Official AMC AUM disclosure unavailable for scheme code ${finapiCode}` : null,
@@ -255,9 +294,12 @@ class HoldingsFallbackService {
       };
       
       this._setCache(cacheKey, result);
+      if (resolvedAum !== null && resolvedAum > 0) {
+        this._saveDiskCache(cleanCode, { value: resolvedAum, aumCr: resolvedAum, source: aumSource, status: 'PROVIDER_REPORTED', asOf: aumAsOf });
+      }
       return result;
     } catch (e) {
-      console.error(`FinAPI holdings fetch failed for code ${finapiCode}: ${e.message}`);
+      this.failedHoldings.set(cleanCode, Date.now());
     }
     return null;
   }
@@ -272,6 +314,8 @@ class HoldingsFallbackService {
 
       return {
         available: false,
+        aum: null,
+        aumCr: null,
         reason: "Official portfolio holdings disclosure unavailable for this fund"
       };
     }
@@ -311,52 +355,79 @@ class HoldingsFallbackService {
   }
 
   /**
+   * Get full AUM details with provenance for a scheme code.
+   * 
+   * Provenance guarantees:
+   *   - status: "PROVIDER_REPORTED" (never claimed as AMFI Verified)
+   *   - source: "Upvaly FinAPI Disclosure", "mfdata.in", or "Upvaly / AMFI Scheme Variant Sync"
+   *   - value: numeric AUM in Crores, or null if UNAVAILABLE
+   * 
+   * @param {string} schemeCode - AMFI scheme code
+   * @returns {Promise<{value: number|null, aumCr: number|null, source: string|null, status: string, asOf: string|null}>}
+   */
+  async getAumDetails(schemeCode) {
+    if (!schemeCode) {
+      return { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
+    }
+    const code = String(schemeCode).trim();
+    const aumCacheKey = `aum_details_${code}`;
+    const cachedAum = this._getCached(aumCacheKey);
+    if (cachedAum) return cachedAum;
+
+    // Source 1: Upvaly/FinAPI (primary provider)
+    try {
+      const finapiData = await this.fetchFinapiHoldings(code);
+      if (finapiData && finapiData.aum !== null && finapiData.aum !== undefined && !isNaN(finapiData.aum) && Number(finapiData.aum) > 0) {
+        const val = Number(finapiData.aum);
+        const result = {
+          value: val,
+          aumCr: val,
+          source: finapiData.aumSource || 'Upvaly FinAPI Disclosure',
+          status: 'PROVIDER_REPORTED',
+          asOf: finapiData.aumAsOf || finapiData.latestNavDate || null
+        };
+        this._setCache(aumCacheKey, result);
+        return result;
+      }
+    } catch (e) {}
+
+    // Source 2: mfdata.in (secondary provider)
+    if (Date.now() >= this.mfdataOfflineUntil) {
+      try {
+        const res = await axios.get(`https://mfdata.in/api/v1/schemes/${code}`, { timeout: 3000 });
+        if (res.data && res.data.aum && !isNaN(res.data.aum) && Number(res.data.aum) > 0) {
+          const val = Number(res.data.aum);
+          const result = {
+            value: val,
+            aumCr: val,
+            source: 'mfdata.in',
+            status: 'PROVIDER_REPORTED',
+            asOf: '30 Jun 2026'
+          };
+          this._setCache(aumCacheKey, result);
+          return result;
+        }
+      } catch (e) {
+        if (e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT') {
+          this.mfdataOfflineUntil = Date.now() + 10 * 60 * 1000;
+        }
+      }
+    }
+
+    const unavailable = { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
+    this._setCache(aumCacheKey, unavailable);
+    return unavailable;
+  }
+
+  /**
    * Get AUM for a specific scheme code.
    * 
-   * Fallback chain:
-   *   1. Upvaly/FinAPI: GET https://finapi.upvaly.com/api/mf/scheme-code/{schemeCode}
-   *      → response.data.data.aum (string with commas, e.g. "12,547.28")
-   *      → Verified accurate: e.g. Kotak Technology (152462) returns 504.02 Cr,
-   *        matching 5 independent sources (504-526 Cr range).
-   *   2. mfdata.in: GET https://mfdata.in/api/v1/schemes/{schemeCode}
-   *      → response.data.aum (numeric)
-   *      → Known to timeout frequently; used only as fallback.
-   *
-   * Both failures are logged with scheme code for fast future diagnosis.
-   *
    * @param {string} schemeCode - AMFI scheme code
    * @returns {number|null} AUM in Crores, or null if unavailable from all sources
    */
   async getAum(schemeCode) {
-    if (!schemeCode) return null;
-    const code = String(schemeCode).trim();
-
-    // Source 1: Upvaly/FinAPI (primary)
-    // Endpoint: https://finapi.upvaly.com/api/mf/scheme-code/{schemeCode}
-    try {
-      const finapiData = await this.fetchFinapiHoldings(code);
-      if (finapiData && finapiData.aum && !isNaN(finapiData.aum) && Number(finapiData.aum) > 0) {
-        return Number(finapiData.aum);
-      }
-    } catch (e) {
-      console.warn(`[AUM Fallback] Upvaly/FinAPI failed for scheme ${code}: ${e.message}`);
-    }
-
-    // Source 2: mfdata.in (fallback)
-    // Endpoint: https://mfdata.in/api/v1/schemes/{schemeCode}
-    try {
-      const { default: axios } = await import('axios');
-      const res = await axios.get(`https://mfdata.in/api/v1/schemes/${code}`, { timeout: 5000 });
-      if (res.data && res.data.aum && !isNaN(res.data.aum) && Number(res.data.aum) > 0) {
-        return Number(res.data.aum);
-      }
-      console.warn(`[AUM Fallback] mfdata.in returned no valid AUM for scheme ${code}`);
-    } catch (e) {
-      console.warn(`[AUM Fallback] mfdata.in failed for scheme ${code}: ${e.message}`);
-    }
-
-    // Both sources exhausted — return null, do NOT fabricate
-    return null;
+    const details = await this.getAumDetails(schemeCode);
+    return details.value;
   }
 }
 

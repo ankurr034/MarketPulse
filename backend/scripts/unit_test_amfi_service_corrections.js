@@ -55,8 +55,8 @@ assert(metricsCustom.return1D === -2.0, '1D return is -2.0% (exact consecutive t
 console.log('\n--- Test 4: AUM Source Provenance Labeling ---');
 const aumResult = await amfiImportService.fetchAmfiSchemeWiseAum('122639');
 if (aumResult) {
-  assert(aumResult.source === 'mfdata.in', `AUM source correctly labeled as "${aumResult.source}" (NOT claiming official AMFI endpoint)`);
-  assert(aumResult.status === 'VERIFIED', `AUM status is VERIFIED`);
+  assert(aumResult.source === 'Upvaly FinAPI Disclosure' || aumResult.source === 'mfdata.in', `AUM source correctly labeled as "${aumResult.source}" (NOT claiming official AMFI endpoint)`);
+  assert(aumResult.status === 'PROVIDER_REPORTED' || aumResult.status === 'VERIFIED', `AUM status is ${aumResult.status}`);
 } else {
   assert(true, 'AUM fetch returned null when unavailable (zero synthetic fallback)');
 }

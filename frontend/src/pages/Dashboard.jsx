@@ -7,6 +7,8 @@ import MarketBreadthWidget from '../components/MarketBreadthWidget.jsx';
 import { setActiveSector, setActiveSymbol } from '../store/slices/marketSlice.js';
 import { formatPrice } from '../utils/currencyFormatter.js';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 // Sparkline Mock Points for aesthetic
 const generateSparkData = (isPositive) => {
   const points = [];
@@ -35,11 +37,11 @@ export const Dashboard = ({ setActiveTab }) => {
   const fetchData = async () => {
     try {
       const [secRes, moversRes, breadthRes, newsRes, statusRes] = await Promise.all([
-        axios.get('/api/sectors'),
-        axios.get('/api/market/top-performers'),
-        axios.get('/api/market/breadth'),
-        axios.get('/api/news'),
-        axios.get('/api/market/status')
+        axios.get(`${API_BASE}/sectors`),
+        axios.get(`${API_BASE}/market/top-performers`),
+        axios.get(`${API_BASE}/market/breadth`),
+        axios.get(`${API_BASE}/news`),
+        axios.get(`${API_BASE}/market/status`)
       ]);
 
       setSectors(secRes.data);

@@ -2,21 +2,34 @@ import { createClient } from 'redis';
 
 class RedisCacheService {
   constructor() {
-    this.client = createClient({
-      url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
-    });
-    
     this.memoryFallback = new Map();
     this.isRedisConnected = false;
+    this.hasLoggedError = false;
+
+    this.client = createClient({
+      url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+      socket: {
+        reconnectStrategy: (retries) => {
+          if (retries > 2) {
+            return false; // Stop reconnecting, rely on memory fallback
+          }
+          return Math.min(retries * 200, 1000);
+        }
+      }
+    });
 
     this.client.on('error', (err) => {
-      console.warn('Redis connection error, falling back to in-memory cache.', err.message);
+      if (!this.hasLoggedError) {
+        console.warn('Redis connection unavailable, falling back to in-memory cache.');
+        this.hasLoggedError = true;
+      }
       this.isRedisConnected = false;
     });
 
     this.client.on('connect', () => {
       console.log('Connected to Redis');
       this.isRedisConnected = true;
+      this.hasLoggedError = false;
     });
 
     this.connect();

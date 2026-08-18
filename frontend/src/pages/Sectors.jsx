@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowUpRight, ArrowDownRight, LayoutGrid, BarChart3, Trendin
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { setActiveSector, setActiveSymbol } from '../store/slices/marketSlice.js';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const Sectors = ({ setActiveTab }) => {
   const dispatch = useDispatch();
   const { activeSector } = useSelector(state => state.market);
@@ -19,7 +21,7 @@ export const Sectors = ({ setActiveTab }) => {
   // Fetch all sectors
   const fetchSectors = async () => {
     try {
-      const res = await axios.get('/api/sectors');
+      const res = await axios.get(`${API_BASE}/sectors`);
       setSectors(res.data);
     } catch (err) {
       console.error('Error fetching sectors:', err);
@@ -30,7 +32,7 @@ export const Sectors = ({ setActiveTab }) => {
   const fetchSectorDetail = async (secName) => {
     setDetailLoading(true);
     try {
-      const res = await axios.get(`/api/sectors/${secName}`);
+      const res = await axios.get(`${API_BASE}/sectors/${secName}`);
       setSectorDetail(res.data);
       
       // Generate some chart data for the sector

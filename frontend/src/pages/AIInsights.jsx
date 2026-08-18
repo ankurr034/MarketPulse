@@ -4,6 +4,8 @@ import { Sparkles, TrendingUp, TrendingDown, ShieldAlert, Zap, Flame, BarChart3,
 import { useDispatch } from 'react-redux';
 import { setActiveSymbol } from '../store/slices/marketSlice.js';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const AIInsights = ({ setActiveTab }) => {
   const dispatch = useDispatch();
   const [insights, setInsights] = useState(null);
@@ -12,7 +14,7 @@ export const AIInsights = ({ setActiveTab }) => {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/ai/insights');
+      const res = await axios.get(`${API_BASE}/ai/insights`);
       setInsights(res.data);
     } catch (err) {
       console.error('Error fetching AI insights:', err);

@@ -4,6 +4,8 @@ import axios from 'axios';
 import { Eye, EyeOff, BarChart2 } from 'lucide-react';
 import TimeframeSelector from './TimeframeSelector';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const TradingViewChart = ({ symbol, socket }) => {
   const [chartInterval, setChartInterval] = useState('1y'); // default to 1y
   const [candles, setCandles] = useState([]);
@@ -43,7 +45,7 @@ export const TradingViewChart = ({ symbol, socket }) => {
   useEffect(() => {
     const fetchCandles = async () => {
       try {
-        const res = await axios.get(`/api/stocks/${encodeURIComponent(symbol)}/chart?interval=${encodeURIComponent(chartInterval)}`);
+        const res = await axios.get(`${API_BASE}/stocks/${encodeURIComponent(symbol)}/chart?interval=${encodeURIComponent(chartInterval)}`);
         if (res.headers['x-earliest-date']) {
           setEarliestDate(Number(res.headers['x-earliest-date']));
         }

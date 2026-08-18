@@ -5,14 +5,13 @@ async function runTests() {
   console.log('Running test_all_funds_directory.js...');
 
   // Mock the internal data fetch
-  allFundsDirectoryService.cache = [
-    { schemeCode: 1, schemeName: 'HDFC Mid-Cap Opportunities Fund' },
-    { schemeCode: 2, schemeName: 'SBI Small Cap Fund' },
-    { schemeCode: 3, schemeName: 'Axis Bluechip Fund' },
-    { schemeCode: 4, schemeName: 'Parag Parikh Flexi Cap Fund' },
-    { schemeCode: 5, schemeName: 'HDFC Small Cap Fund' }
+  allFundsDirectoryService._loadActiveSchemes = async () => [
+    { schemeCode: '1', schemeName: 'HDFC Mid-Cap Opportunities Fund Direct Growth', amc: 'HDFC Mutual Fund', category: 'Equity: Mid Cap' },
+    { schemeCode: '2', schemeName: 'SBI Small Cap Fund Direct Growth', amc: 'SBI Mutual Fund', category: 'Equity: Small Cap' },
+    { schemeCode: '3', schemeName: 'Axis Bluechip Fund Direct Growth', amc: 'Axis Mutual Fund', category: 'Equity: Large Cap' },
+    { schemeCode: '4', schemeName: 'Parag Parikh Flexi Cap Fund Direct Growth', amc: 'PPFAS Mutual Fund', category: 'Equity: Flexi Cap' },
+    { schemeCode: '5', schemeName: 'HDFC Small Cap Fund Direct Growth', amc: 'HDFC Mutual Fund', category: 'Equity: Small Cap' }
   ];
-  allFundsDirectoryService.cacheTimestamp = Date.now();
 
   try {
     // 1. Pagination math test
@@ -34,7 +33,7 @@ async function runTests() {
     // 2. Server-side filtering
     const searchRes = await allFundsDirectoryService.getAllSchemes(1, 10, { searchTerm: 'HDFC' });
     assert.strictEqual(searchRes.totalCount, 2, 'Should find 2 HDFC funds');
-    assert.strictEqual(searchRes.schemes[0].name, 'HDFC Mid-Cap Opportunities Fund');
+    assert.strictEqual(searchRes.schemes[0].name, 'HDFC Mid-Cap Opportunities Fund Direct Growth');
 
     const amcRes = await allFundsDirectoryService.getAllSchemes(1, 10, { amc: 'SBI' });
     assert.strictEqual(amcRes.totalCount, 1, 'Should find 1 SBI fund');

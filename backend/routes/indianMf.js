@@ -8,7 +8,7 @@ import amfiImportService from '../services/AmfiImportService.js';
 import mfapiCacheService from '../services/MfapiCacheService.js';
 import holdingsFallbackService from '../services/HoldingsFallbackService.js';
 import unifiedAssetService from '../services/UnifiedAssetService.js';
-import { isStrictDirectGrowth } from '../utils/schemeFilterUtil.js';
+import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
 
 const router = express.Router();
 
@@ -163,9 +163,11 @@ const EXTRA_SCHEMES_REGISTRY = [
   { id: '122639', name: 'Parag Parikh Flexi Cap Fund Direct Growth', family: 'PPFAS Mutual Fund', sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
   { id: '133839', name: 'PGIM India Flexi Cap Fund Direct Growth', family: 'PGIM India Mutual Fund', sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
   { id: '120843', name: 'Quant Flexi Cap Fund Direct Growth', family: 'Quant Mutual Fund', sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
+  { id: '151379', name: 'ITI Flexi Cap Fund Direct Growth', family: 'ITI Mutual Fund', sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
+  { id: '143793', name: 'Navi Flexi Cap Fund Direct Growth', family: 'Navi Mutual Fund', sectorName: 'Flexi Cap Equity', specifiedType: 'equity', specifiedSub: 'flexicap' },
 
   { id: '120828', name: 'Quant Small Cap Fund Direct Growth', family: 'Quant Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
-  { id: '118777', name: 'Nippon India Small Cap Fund Direct Growth', family: 'Nippon India Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
+  { id: '118778', name: 'Nippon India Small Cap Fund Direct Growth', family: 'Nippon India Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
   { id: '125497', name: 'SBI Small Cap Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
   { id: '125354', name: 'Axis Small Cap Fund Direct Growth', family: 'Axis Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
   { id: '147946', name: 'Bandhan Small Cap Fund Direct Growth', family: 'Bandhan Mutual Fund', sectorName: 'Small Cap Equity', specifiedType: 'equity', specifiedSub: 'smallcap' },
@@ -202,31 +204,29 @@ const EXTRA_SCHEMES_REGISTRY = [
 
   { id: '120594', name: 'ICICI Prudential Technology Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Sectoral Technology', specifiedType: 'equity', specifiedSub: 'sectoral' },
   { id: '135800', name: 'Tata Digital India Fund Direct Growth', family: 'Tata Mutual Fund', sectorName: 'Sectoral Technology', specifiedType: 'equity', specifiedSub: 'sectoral' },
-  { id: '118758', name: 'Nippon India Pharma Fund Direct Growth', family: 'Nippon India Mutual Fund', sectorName: 'Sectoral Healthcare', specifiedType: 'equity', specifiedSub: 'sectoral' },
+  { id: '118759', name: 'Nippon India Pharma Fund Direct Growth', family: 'Nippon India Mutual Fund', sectorName: 'Sectoral Healthcare', specifiedType: 'equity', specifiedSub: 'sectoral' },
   { id: '133859', name: 'SBI Banking & Financial Services Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Sectoral Banking', specifiedType: 'equity', specifiedSub: 'sectoral' },
 
   { id: '120834', name: 'Quant Focused Fund Direct Growth', family: 'Quant Mutual Fund', sectorName: 'Focused Equity', specifiedType: 'equity', specifiedSub: 'focused' },
 
   // Contra Equity
-  { id: '119605', name: 'SBI Contra Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Contra Equity', specifiedType: 'equity', specifiedSub: 'contra' },
-  { id: '152584', name: 'Kotak Contra Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Contra Equity', specifiedType: 'equity', specifiedSub: 'contra' },
+  { id: '119835', name: 'SBI Contra Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Contra Equity', specifiedType: 'equity', specifiedSub: 'contra' },
+  { id: '119769', name: 'Kotak Contra Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Contra Equity', specifiedType: 'equity', specifiedSub: 'contra' },
 
   // Large & Mid Cap Equity
-  { id: '119597', name: 'SBI Large & Midcap Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
+  { id: '119721', name: 'SBI Large & Midcap Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
   { id: '118968', name: 'HDFC Large and Mid Cap Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
   { id: '119777', name: 'Kotak Equity Opportunities Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
-  { id: '120588', name: 'ICICI Prudential Large & Mid Cap Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
+  { id: '120596', name: 'ICICI Prudential Large & Mid Cap Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
 
   // Value Equity
   { id: '120323', name: 'ICICI Prudential Value Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Value Equity', specifiedType: 'equity', specifiedSub: 'value' },
-  { id: '119604', name: 'SBI Value Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Value Equity', specifiedType: 'equity', specifiedSub: 'value' },
-  { id: '148405', name: 'Bandhan Value Fund Direct Growth', family: 'Bandhan Mutual Fund', sectorName: 'Value Equity', specifiedType: 'equity', specifiedSub: 'value' },
+  { id: '118481', name: 'Bandhan Value Fund Direct Growth', family: 'Bandhan Mutual Fund', sectorName: 'Value Equity', specifiedType: 'equity', specifiedSub: 'value' },
 
   { id: '149800', name: 'Motilal Oswal Nifty 200 Momentum 30 Index Fund Direct Growth', family: 'Motilal Oswal Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
   { id: '148703', name: 'UTI Nifty200 Momentum 30 Index Fund Direct Growth', family: 'UTI Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
   { id: '150452', name: 'ICICI Prudential Nifty200 Momentum 30 Index Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
   { id: '150657', name: 'HDFC Nifty200 Momentum 30 Index Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
-  { id: '149801', name: 'Nippon India Nifty 200 Momentum 30 ETF', family: 'Nippon India Mutual Fund', sectorName: 'Nifty 200 Momentum 30 ETF', specifiedType: 'etf', specifiedSub: 'momentum30' },
   { id: '151781', name: 'Kotak Nifty 200 Momentum 30 Index Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
   { id: '150738', name: 'Tata Nifty200 Momentum 30 Index Fund Direct Growth', family: 'Tata Mutual Fund', sectorName: 'Nifty 200 Momentum 30', specifiedType: 'index', specifiedSub: 'momentum30' },
 
@@ -236,43 +236,80 @@ const EXTRA_SCHEMES_REGISTRY = [
   { id: '150737', name: 'HDFC Silver ETF', family: 'HDFC Mutual Fund', sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
 
   // Debt Funds
-  { id: '120598', name: 'ICICI Prudential Gilt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
+  { id: '120590', name: 'ICICI Prudential Gilt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
 
   // Nifty Bank & Banking Schemes
   { id: '140087', name: 'Nippon India ETF Nifty Bank BeES', family: 'Nippon India Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '134013', name: 'SBI Nifty Bank ETF', family: 'SBI Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '149858', name: 'ICICI Prudential Nifty Bank Index Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '135853', name: 'HDFC Nifty Bank Index Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
-  { id: '120252', name: 'Kotak Banking & PSU Debt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' },
+  { id: '123693', name: 'Kotak Banking & PSU Debt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' },
   { id: '120438', name: 'Axis Banking & PSU Debt Fund Direct Growth', family: 'Axis Mutual Fund', sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' }
 ].filter(s => isStrictDirectGrowth(s.name));
 
+let allDirectSchemesCache = null;
+let allDirectSchemesCacheTime = 0;
+const DIRECT_SCHEMES_TTL = 15 * 60 * 1000; // 15 minutes
+
 router.get('/all-direct-schemes', async (req, res) => {
   try {
+    if (allDirectSchemesCache && (Date.now() - allDirectSchemesCacheTime < DIRECT_SCHEMES_TTL)) {
+      return res.json(allDirectSchemesCache);
+    }
+
     const activeList = await amfiImportService.getActiveSchemes() || [];
-    const formatted = activeList.map(s => ({
-      id: String(s.schemeCode),
-      schemeCode: String(s.schemeCode),
-      name: s.schemeName,
-      schemeName: s.schemeName,
-      category: s.category || 'Other',
-      nav: s.nav,
-      navDate: s.date,
-      aum: s.aum ?? null,
-      oneWeekChangePct: s.oneWeekChangePct ?? null,
-      oneMonthChangePct: s.oneMonthChangePct ?? null,
-      threeMonthChangePct: s.threeMonthChangePct ?? null,
-      sixMonthChangePct: s.sixMonthChangePct ?? null,
-      oneYearChangePct: s.oneYearChangePct ?? null,
-      threeYearCagr: s.threeYearCagr ?? null,
-      fiveYearCagr: s.fiveYearCagr ?? null,
-      inceptionCagr: s.inceptionCagr ?? null,
-      returns: s.returns ?? null,
-      sharpeRatio: s.sharpeRatio ?? null,
-      sortinoRatio: s.sortinoRatio ?? null
-    }));
+    const formatted = activeList.map(s => {
+      const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
+      const cleanAum = (s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null;
+      const resolvedAmc = s.amc || s.fundHouse || s.family || resolveAmcName(s.schemeName);
+      const { plan, option } = resolvePlanAndOption(s.schemeName);
+      const isin = s.isinGrowth || s.isin || null;
+      const canonicalKey = `${s.schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
+
+      return {
+        id: String(s.schemeCode),
+        schemeCode: String(s.schemeCode),
+        name: s.schemeName,
+        schemeName: s.schemeName,
+        amc: resolvedAmc,
+        fundHouse: resolvedAmc,
+        family: resolvedAmc,
+        plan,
+        planType: plan,
+        option,
+        isin,
+        isinGrowth: isin,
+        canonicalKey,
+        category: s.category || 'Other',
+        nav: s.nav,
+        navDate: s.date,
+        aum: cleanAum,
+        aumCr: cleanAum,
+        aumProvenance: s.aumProvenance || { value: cleanAum, aumCr: cleanAum, source: cleanAum ? 'Upvaly FinAPI Disclosure' : null, status: cleanAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE' },
+        oneWeekChangePct: s.oneWeekChangePct ?? null,
+        oneMonthChangePct: s.oneMonthChangePct ?? null,
+        threeMonthChangePct: s.threeMonthChangePct ?? null,
+        sixMonthChangePct: s.sixMonthChangePct ?? null,
+        oneYearChangePct: s.oneYearChangePct ?? null,
+        threeYearCagr: s.threeYearCagr ?? null,
+        fiveYearCagr: s.fiveYearCagr ?? null,
+        inceptionCagr: s.inceptionCagr ?? null,
+        returns: s.returns ?? null,
+        sharpeRatio: s.sharpeRatio ?? null,
+        sortinoRatio: s.sortinoRatio ?? null,
+        launchDate: s.launchDate ?? null,
+        launchYear: launchYearVal,
+        inceptionYear: launchYearVal
+      };
+    });
     // Sort by AUM descending (largest funds first); null AUM goes to bottom
     formatted.sort((a, b) => (Number(b.aum) || 0) - (Number(a.aum) || 0));
+    
+    if (formatted.length > 0) {
+      allDirectSchemesCache = formatted;
+      allDirectSchemesCacheTime = Date.now();
+    }
+    
     res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch active direct schemes', details: err.message });
@@ -289,33 +326,47 @@ router.get('/extra-schemes', async (req, res) => {
       return res.json(extraSchemesCache);
     }
 
-    const timeframe = req.query.timeframe || '1y';
-    const chunkSize = 2;
+    const chunkSize = 10;
     const enriched = [];
 
     for (let i = 0; i < EXTRA_SCHEMES_REGISTRY.length; i += chunkSize) {
       const chunk = EXTRA_SCHEMES_REGISTRY.slice(i, i + chunkSize);
       const results = await Promise.all(chunk.map(async s => {
         const assetSummary = await unifiedAssetService.getAssetSummary('mf', s.id, 'india');
+        const cleanAum = (assetSummary?.aum !== null && assetSummary?.aum !== undefined && !isNaN(assetSummary?.aum) && Number(assetSummary?.aum) > 0) ? Number(assetSummary.aum) : null;
+        
+        // Canonical scheme identity: authoritative name and AMC from assetSummary strictly prevail
+        const resolvedName = assetSummary?.schemeName || assetSummary?.name || s.name;
+        const resolvedAmc = assetSummary?.amc || assetSummary?.family || resolveAmcName(s.family || resolvedName);
+
         return {
           id: s.id,
           schemeCode: s.id,
-          name: s.name,
-          family: s.family,
-          category: s.sectorName,
-          sectorName: s.sectorName,
+          name: resolvedName,
+          schemeName: resolvedName,
+          amc: resolvedAmc,
+          fundHouse: resolvedAmc,
+          family: resolvedAmc,
+          category: s.sectorName || assetSummary?.sector || 'Mutual Funds',
+          sectorName: s.sectorName || assetSummary?.sector || 'Mutual Funds',
           specifiedType: s.specifiedType,
           specifiedSub: s.specifiedSub,
           type: 'mf',
           currency: 'INR',
           region: 'india',
-          ...assetSummary
+          ...assetSummary,
+          id: s.id,
+          schemeCode: s.id,
+          name: resolvedName,
+          schemeName: resolvedName,
+          amc: resolvedAmc,
+          family: resolvedAmc,
+          fundHouse: resolvedAmc,
+          aum: cleanAum,
+          aumCr: cleanAum
         };
       }));
       enriched.push(...results);
-      if (i + chunkSize < EXTRA_SCHEMES_REGISTRY.length) {
-        await new Promise(r => setTimeout(r, 300));
-      }
     }
 
     // Sort by AUM descending (largest funds first); null AUM goes to bottom

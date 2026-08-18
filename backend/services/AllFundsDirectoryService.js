@@ -1,7 +1,7 @@
 import amfiImportService from './AmfiImportService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
 import aiRankingEngineService from './AiRankingEngineService.js';
-import { isStrictDirectGrowth } from '../utils/schemeFilterUtil.js';
+import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
 
 class AllFundsDirectoryService {
   constructor() {
@@ -35,8 +35,8 @@ class AllFundsDirectoryService {
           returns: holdingsRes.returns ?? null,
           cumulativeReturn: holdingsRes.cumulativeReturn ?? null,
           sharpeRatio: holdingsRes.sharpeRatio ?? null,
-          sortinoRatio: holdingsRes.sortinoRatio ?? null,
-          aum: holdingsRes.aum ?? null,
+          aum: (holdingsRes.aum !== null && holdingsRes.aum !== undefined && !isNaN(holdingsRes.aum) && Number(holdingsRes.aum) > 0) ? Number(holdingsRes.aum) : null,
+          aumCr: (holdingsRes.aum !== null && holdingsRes.aum !== undefined && !isNaN(holdingsRes.aum) && Number(holdingsRes.aum) > 0) ? Number(holdingsRes.aum) : null,
           aumAsOf: holdingsRes.aumAsOf ?? null,
           aumSource: holdingsRes.aumSource ?? null,
           aumReason: holdingsRes.aumReason ?? null,
@@ -111,30 +111,73 @@ class AllFundsDirectoryService {
     
     const slice = filtered.slice(startIndex, endIndex);
 
-    const chunkSize = 4;
-    const rawSchemes = [];
-    for (let i = 0; i < slice.length; i += chunkSize) {
-      const chunk = slice.slice(i, i + chunkSize);
-      const results = await Promise.all(chunk.map(async s => {
-        const navData = await this._getNavAndChange(s.schemeCode, filters.timeframe || '1y');
-        return {
-          id: String(s.schemeCode),
-          schemeCode: String(s.schemeCode),
-          name: s.schemeName,
-          schemeName: s.schemeName,
-          category: s.category || 'Other',
-          type: 'mf',
-          currency: 'INR',
-          region: 'india',
-          family: s.amc || s.schemeName.split(' ')[0], 
-          ...navData
-        };
-      }));
-      rawSchemes.push(...results);
-      if (i + chunkSize < slice.length) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-    }
+    // Fast mapping from precomputed scheme objects (O(1) memory lookup)
+    const rawSchemes = slice.map(s => {
+      const returns = s.returns || {};
+      const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
+      const cleanAum = (s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null;
+      const resolvedAmc = s.amc || s.fundHouse || s.family || resolveAmcName(s.schemeName);
+      const { plan, option } = resolvePlanAndOption(s.schemeName);
+      const isin = s.isinGrowth || s.isin || null;
+      const canonicalKey = `${s.schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
+
+      return {
+        id: String(s.schemeCode),
+        schemeCode: String(s.schemeCode),
+        name: s.schemeName,
+        schemeName: s.schemeName,
+        amc: resolvedAmc,
+        fundHouse: resolvedAmc,
+        family: resolvedAmc,
+        plan,
+        planType: plan,
+        option,
+        isin,
+        isinGrowth: isin,
+        canonicalKey,
+        category: s.category || 'Other',
+        type: 'mf',
+        currency: 'INR',
+        region: 'india',
+        currentPrice_or_nav: s.nav ?? null,
+        nav: s.nav ?? null,
+        oneWeekChangePct: s.oneWeekChangePct ?? returns['1W'] ?? null,
+        oneMonthChangePct: s.oneMonthChangePct ?? returns['1M'] ?? null,
+        threeMonthChangePct: s.threeMonthChangePct ?? returns['3M'] ?? null,
+        sixMonthChangePct: s.sixMonthChangePct ?? returns['6M'] ?? null,
+        oneYearChangePct: s.oneYearChangePct ?? returns['1Y'] ?? null,
+        threeYearCagr: s.threeYearCagr ?? returns['3Y'] ?? null,
+        fiveYearCagr: s.fiveYearCagr ?? returns['5Y'] ?? null,
+        inceptionCagr: s.inceptionCagr ?? returns['All'] ?? null,
+        returns: s.returns || {
+          '1D': s.oneDayChangePct ?? null,
+          '1W': s.oneWeekChangePct ?? null,
+          '1M': s.oneMonthChangePct ?? null,
+          '3M': s.threeMonthChangePct ?? null,
+          '6M': s.sixMonthChangePct ?? null,
+          '1Y': s.oneYearChangePct ?? null,
+          '3Y': s.threeYearCagr ?? null,
+          '5Y': s.fiveYearCagr ?? null,
+          'All': s.inceptionCagr ?? null
+        },
+        cumulativeReturn: s.oneYearChangePct ?? returns['1Y'] ?? null,
+        sharpeRatio: s.sharpeRatio ?? null,
+        sortinoRatio: s.sortinoRatio ?? null,
+        aum: cleanAum,
+        aumCr: cleanAum,
+        aumAsOf: s.aumProvenance?.asOf || s.aumAsOf || null,
+        aumSource: s.aumProvenance?.source || s.aumSource || (cleanAum ? 'Upvaly FinAPI Disclosure' : null),
+        aumReason: cleanAum ? null : 'AUM disclosure unavailable',
+        expenseRatio: s.expenseRatio ?? null,
+        high52: s.high52 ?? null,
+        low52: s.low52 ?? null,
+        navAvailable: s.nav !== null && s.nav !== undefined,
+        launchYear: launchYearVal,
+        inceptionYear: launchYearVal,
+        launchDate: s.launchDate ?? null,
+        launchSource: s.launchDate ? 'mfapi.in NAV History' : null
+      };
+    });
 
     // Sort schemes if requested by user (1Y Return, AUM, Sharpe, Sortino, NAV)
     const sortBy = filters.sortBy || '1Y';

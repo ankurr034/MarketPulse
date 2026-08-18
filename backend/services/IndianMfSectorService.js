@@ -6,6 +6,9 @@ import amfiImportService from './AmfiImportService.js';
 class IndianMfSectorService {
   constructor() {
     this.schemeCountCache = new Map();
+    this.sectorsCache = null;
+    this.sectorsCacheTime = 0;
+    this.SECTORS_CACHE_TTL = 15 * 60 * 1000; // 15 mins
   }
 
   async _getSchemeCount(sectorName) {
@@ -30,8 +33,11 @@ class IndianMfSectorService {
     return null; // Return null if unverified — NEVER fabricate a fallback number!
   }
 
-
   async getAllSectorsWithFunds() {
+    if (this.sectorsCache && (Date.now() - this.sectorsCacheTime < this.SECTORS_CACHE_TTL)) {
+      return this.sectorsCache;
+    }
+
     // Only process the original 6 sectors for now as per constraints
     const sectorsToProcess = ['Technology', 'Financials', 'Healthcare', 'Infrastructure', 'Energy', 'Consumption'];
 
@@ -47,13 +53,25 @@ class IndianMfSectorService {
           if (summary) {
             return {
               ...summary,
-              family: fund.family // preserve family from basket
+              id: String(fund.id),
+              schemeCode: String(fund.id),
+              name: summary.schemeName || summary.name || fund.name,
+              schemeName: summary.schemeName || summary.name || fund.name,
+              amc: summary.amc || summary.family || fund.family,
+              family: summary.family || summary.amc || fund.family,
+              fundHouse: summary.fundHouse || summary.amc || fund.family,
+              aum: (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0) ? Number(summary.aum) : null,
+              aumCr: (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0) ? Number(summary.aum) : null
             };
           } else {
             return {
-              id: fund.id,
+              id: String(fund.id),
+              schemeCode: String(fund.id),
               name: fund.name,
+              schemeName: fund.name,
               family: fund.family,
+              amc: fund.family,
+              fundHouse: fund.family,
               currency: fund.currency,
               currentPrice_or_nav: null,
               oneYearChangePct: null,
@@ -63,9 +81,13 @@ class IndianMfSectorService {
         } catch (err) {
           console.error(`Error fetching summary for fund ${fund.id}:`, err.message);
           return {
-            id: fund.id,
+            id: String(fund.id),
+            schemeCode: String(fund.id),
             name: fund.name,
+            schemeName: fund.name,
             family: fund.family,
+            amc: fund.family,
+            fundHouse: fund.family,
             currency: fund.currency,
             currentPrice_or_nav: null,
             oneYearChangePct: null,
@@ -89,7 +111,12 @@ class IndianMfSectorService {
       };
     }));
 
-    return results.filter(r => r !== null);
+    const filtered = results.filter(r => r !== null);
+    if (filtered.length > 0) {
+      this.sectorsCache = filtered;
+      this.sectorsCacheTime = Date.now();
+    }
+    return filtered;
   }
 
   async getAllFundsFlat() {

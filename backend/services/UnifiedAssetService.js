@@ -3,16 +3,30 @@ import unifiedMfService from './UnifiedMfService.js';
 import riskAnalyticsService from './RiskAnalyticsService.js';
 import liveMfAnalyticsService from './LiveMfAnalyticsService.js';
 import sectorBasket from '../config/sectorBasket.js';
+import macroDataService from './MacroDataService.js';
+import holdingsFallbackService from './HoldingsFallbackService.js';
+import { resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
 import axios from 'axios';
 
 class UnifiedAssetService {
+  constructor() {
+    this.summaryCache = new Map();
+    this.CACHE_TTL = 15 * 60 * 1000; // 15 mins
+  }
+
   async getAssetSummary(type, id, region = 'india') {
+    const cacheKey = `summary_${type}_${id}_${region}`;
+    const cached = this.summaryCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+      return cached.data;
+    }
+
     if (type === 'stock') {
       const quotesRes = await yahooFinanceService.getQuotes([id]);
       const quotes = quotesRes.available ? quotesRes.data : [];
       if (!quotes || quotes.length === 0) return null;
       const q = quotes[0];
-      return {
+      const result = {
         type: 'stock',
         id: q.symbol,
         name: q.name,
@@ -21,6 +35,8 @@ class UnifiedAssetService {
         sector: q.sector || 'General',
         oneYearChangePct: q.changePercent
       };
+      this.summaryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
     } else {
       // Mutual Fund / ETF
       const navHistoryRes = await unifiedMfService.getFundNavHistory(id, region, 'all');
@@ -33,6 +49,8 @@ class UnifiedAssetService {
           schemeCode: id,
           schemeName: meta?.scheme_name || id,
           category: meta?.scheme_category || 'Mutual Funds',
+          fundHouse: meta?.fund_house || null,
+          isinGrowth: meta?.isin_growth || null,
           currency: 'INR'
         };
       } else {
@@ -45,7 +63,6 @@ class UnifiedAssetService {
       
       // Calculate full timeframe metrics from NAV history if available
       let calcMetrics = { return1W: null, return1M: null, return3M: null, return6M: null, return1Y: null, return3Y: null, return5Y: null, returnAll: null, sharpeRatio: null, sortinoRatio: null };
-      const { default: macroDataService } = await import('./MacroDataService.js');
       const rfData = await macroDataService.getRiskFreeRate();
       const rfVal = (rfData && typeof rfData.value === 'number') ? rfData.value : null;
 
@@ -71,38 +88,53 @@ class UnifiedAssetService {
         }
       }
 
-      const finalName = (profile.schemeName && profile.schemeName !== 'Unknown Fund' && profile.schemeName !== id) ? profile.schemeName : curatedName;
+      const authoritativeSchemeName = (profile.schemeName && profile.schemeName !== 'Unknown Fund' && profile.schemeName !== id) ? profile.schemeName : curatedName;
+      const resolvedAmc = resolveAmcName(meta?.fund_house || profile.fundHouse || authoritativeSchemeName);
+      const { plan, option } = resolvePlanAndOption(authoritativeSchemeName);
+      const isin = meta?.isin_growth || profile.isinGrowth || null;
+      const canonicalKey = `${id}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
 
       const currentPrice_or_nav = latestNav !== null ? latestNav : (profile.nav || null);
       const navAvailable = currentPrice_or_nav !== null;
 
       let aum = null;
+      let aumProvenance = { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
       let expenseRatio = null;
       if (region === 'india' && id && /^\d+$/.test(String(id))) {
         try {
-          const { default: holdingsFallbackService } = await import('./HoldingsFallbackService.js');
+          const aumDetails = await holdingsFallbackService.getAumDetails(String(id));
+          if (aumDetails && aumDetails.value !== null && aumDetails.value !== undefined && !isNaN(aumDetails.value) && Number(aumDetails.value) > 0) {
+            aum = Number(aumDetails.value);
+            aumProvenance = aumDetails;
+          } else {
+            aum = null;
+            aumProvenance = aumDetails || { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
+          }
+
           const finapiData = await holdingsFallbackService.fetchFinapiHoldings(String(id));
           if (finapiData && finapiData.available) {
-            aum = finapiData.aum ?? null;
             expenseRatio = finapiData.expenseRatio ?? null;
-          }
-          // If fetchFinapiHoldings didn't return AUM (rate limit, timeout, etc.),
-          // fall back to the dedicated getAum() method with its own fallback chain
-          if (aum === null || aum === undefined || aum <= 0) {
-            const fallbackAum = await holdingsFallbackService.getAum(String(id));
-            if (fallbackAum && !isNaN(fallbackAum) && fallbackAum > 0) {
-              aum = fallbackAum;
-            }
           }
         } catch (e) {
           console.warn(`FinAPI AUM fetch warning for ${id}:`, e.message);
         }
       }
 
-      return {
+      const result = {
         type: 'mf',
         id: profile.schemeCode || id,
-        name: finalName,
+        schemeCode: profile.schemeCode || id,
+        name: authoritativeSchemeName,
+        schemeName: authoritativeSchemeName,
+        amc: resolvedAmc,
+        fundHouse: resolvedAmc,
+        family: resolvedAmc,
+        plan,
+        planType: plan,
+        option,
+        isin,
+        isinGrowth: isin,
+        canonicalKey,
         currentPrice_or_nav,
         currency: profile.currency || 'INR',
         sector: profile.category || 'Mutual Funds',
@@ -132,13 +164,23 @@ class UnifiedAssetService {
         launchYear: calcMetrics.launchYear ?? null,
         inceptionYear: calcMetrics.inceptionYear ?? null,
         launchDate: calcMetrics.launchDate ?? null,
-        launchSource: calcMetrics.launchSource ?? 'AMFI Historical NAV',
         aum,
-        aumAsOf: profile.aumAsOf ?? null,
-        aumSource: profile.aumSource ?? (aum ? 'Upvaly FinAPI Disclosure' : null),
+        aumCr: aum,
+        aumAsOf: aumProvenance?.asOf || null,
+        aumSource: aumProvenance?.source || (aum ? 'Upvaly FinAPI Disclosure' : null),
+        aumStatus: aumProvenance?.status || (aum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE'),
+        aumProvenance: aumProvenance || {
+          value: aum,
+          aumCr: aum,
+          source: aum ? 'Upvaly FinAPI Disclosure' : null,
+          status: aum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE',
+          asOf: null
+        },
         expenseRatio,
         navAvailable
       };
+      this.summaryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
     }
   }
 

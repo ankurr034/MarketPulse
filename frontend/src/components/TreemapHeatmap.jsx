@@ -66,6 +66,8 @@ const CustomTreemapNode = ({ x, y, width, height, index, name, changePercent, pr
   );
 };
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const TreemapHeatmap = ({ setActiveTab }) => {
   const dispatch = useDispatch();
   const [data, setData] = useState([]);
@@ -74,7 +76,7 @@ export const TreemapHeatmap = ({ setActiveTab }) => {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get('/api/market/heatmap');
+      const res = await axios.get(`${API_BASE}/market/heatmap`);
       setData(res.data);
       
       // Extract sectors

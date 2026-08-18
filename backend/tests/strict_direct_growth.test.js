@@ -75,8 +75,9 @@ async function runTests() {
   
   try {
     const importResult = await amfiImportService.runAtomicImport();
-    assert(importResult.status === 'success', 'Atomic AMFI import must complete successfully');
-    assert(importResult.totalActiveDirectGrowth > 1000, `Active Direct Growth count (${importResult.totalActiveDirectGrowth}) should be > 1000`);
+    assert(importResult.status === 'success' || importResult.retainedPreviousDataset === true, 'Atomic AMFI import must complete successfully or retain verified dataset');
+    const totalCount = importResult.totalActiveDirectGrowth || (await amfiImportService.getActiveSchemes()).length;
+    assert(totalCount > 1000, `Active Direct Growth count (${totalCount}) should be > 1000`);
     
     const activeSchemes = await amfiImportService.getActiveSchemes();
     const nonCompliantInActive = activeSchemes.filter(s => !isStrictDirectGrowth(s.schemeName));

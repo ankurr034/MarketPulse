@@ -6,6 +6,8 @@ import { TradingViewChart } from '../components/TradingViewChart.jsx';
 import { navigateBack } from '../store/slices/marketSlice.js';
 import { formatPrice, formatMarketCap } from '../utils/currencyFormatter';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const StockDetails = ({ socket }) => {
   const dispatch = useDispatch();
   const { activeSymbol } = useSelector(state => state.market);
@@ -25,7 +27,7 @@ export const StockDetails = ({ socket }) => {
     if (!activeSymbol) return;
     try {
       setLoading(true);
-      const res = await axios.get(`/api/stocks/${encodeURIComponent(activeSymbol)}`);
+      const res = await axios.get(`${API_BASE}/stocks/${encodeURIComponent(activeSymbol)}`);
       setStockMeta(res.data);
     } catch (err) {
       console.error('Error fetching stock details:', err);
