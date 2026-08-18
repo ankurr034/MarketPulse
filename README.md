@@ -65,7 +65,8 @@ A modern, responsive market analysis dashboard showing sector-wise performance f
 
 ```bash
 # Clone the repo
-cd API_WORK
+cd MarketPulse
+
 
 # Install backend dependencies
 cd backend
@@ -132,7 +133,7 @@ Compatible alternatives: Alpha Vantage, Twelve Data, Finnhub, IEX Cloud.
 ## 📁 Project Structure
 
 ```
-API_WORK/
+MarketPulse/
 ├── backend/
 │   ├── server.js              # Express + Socket.io entry
 │   ├── routes/
