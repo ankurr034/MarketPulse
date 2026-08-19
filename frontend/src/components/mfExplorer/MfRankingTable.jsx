@@ -109,8 +109,9 @@ export default function MfRankingTable({
   onTimeframeChange,
   onSelectFund
 }) {
-  const [sortField, setSortField] = useState(null);
-  const [sortOrder, setSortOrder] = useState(null); // 'desc' | 'asc' | null (3-click cycle)
+  // Multi-column sorting state: array of up to 2 active sort criteria [{ field, order }]
+  // sortCriteria[0] = Primary Sort Factor, sortCriteria[1] = Secondary Sort Factor
+  const [sortCriteria, setSortCriteria] = useState([]);
 
   // Accordion collapsed states (Parent & Subcategory)
   const [collapsedParentCats, setCollapsedParentCats] = useState({});
@@ -167,21 +168,38 @@ export default function MfRankingTable({
     return <Layers size={14} className="text-blue-500 opacity-80" />;
   };
 
-  // 3-Click Sort Cycle: 1st Click = desc, 2nd Click = asc, 3rd Click = default/null
+  // Multi-Sort 3-Click Cycle Handler:
+  // 1st click = DESC (or ASC for name), 2nd click = ASC, 3rd click = Remove from multi-sort
+  // Supports up to 2 active columns (Primary & Secondary). Selecting a 3rd column shifts out the oldest.
   const handleSort = (field) => {
-    if (sortField === field) {
-      if (sortOrder === 'desc') {
-        setSortOrder('asc');
-      } else if (sortOrder === 'asc') {
-        setSortField(null);
-        setSortOrder(null);
+    setSortCriteria(prev => {
+      const existingIndex = prev.findIndex(c => c.field === field);
+      const defaultOrder = field === 'name' ? 'asc' : 'desc';
+
+      if (existingIndex !== -1) {
+        const currentOrder = prev[existingIndex].order;
+        if (currentOrder === 'desc') {
+          const next = [...prev];
+          next[existingIndex] = { field, order: 'asc' };
+          return next;
+        } else if (currentOrder === 'asc') {
+          // 3rd click: remove from active sort criteria
+          return prev.filter((_, idx) => idx !== existingIndex);
+        } else {
+          const next = [...prev];
+          next[existingIndex] = { field, order: defaultOrder };
+          return next;
+        }
       } else {
-        setSortOrder('desc');
+        const newEntry = { field, order: defaultOrder };
+        if (prev.length < 2) {
+          return [...prev, newEntry];
+        } else {
+          // Max 2 columns: replace oldest (first), keep 2nd as primary, new entry as secondary
+          return [prev[1], newEntry];
+        }
       }
-    } else {
-      setSortField(field);
-      setSortOrder(field === 'name' ? 'asc' : 'desc');
-    }
+    });
   };
 
   // Helper formatting methods
@@ -286,25 +304,37 @@ export default function MfRankingTable({
     return null;
   };
 
-  // Sort funds array helper (preserves original order on default/3rd click; nulls last on both asc and desc)
+  // Two-Factor Multi-Column Sort Helper:
+  // Evaluates Primary sort criterion first, then breaks ties using Secondary criterion.
+  // Preserves exact original order when sortCriteria is empty; places nulls last on both desc & asc.
   const sortFundsList = (list) => {
     if (!list || list.length === 0) return [];
-    if (!sortField || !sortOrder) return list;
+    if (!sortCriteria || sortCriteria.length === 0) return list;
 
     const copy = [...list];
 
     copy.sort((a, b) => {
-      const aVal = getFieldValue(a, sortField);
-      const bVal = getFieldValue(b, sortField);
+      for (let i = 0; i < sortCriteria.length; i++) {
+        const { field, order } = sortCriteria[i];
+        const aVal = getFieldValue(a, field);
+        const bVal = getFieldValue(b, field);
 
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1; // nulls last
-      if (bVal == null) return -1; // nulls last
+        if (aVal == null && bVal == null) continue;
+        if (aVal == null) return 1; // nulls last
+        if (bVal == null) return -1; // nulls last
 
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        let diff = 0;
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          diff = order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        } else {
+          diff = order === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+
+        if (diff !== 0) {
+          return diff;
+        }
       }
-      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      return 0;
     });
 
     return copy;
@@ -352,12 +382,17 @@ export default function MfRankingTable({
     const sorted = sortFundsList(allRankedFunds);
     const start = (currentPage - 1) * pageSize;
     return sorted.slice(start, start + pageSize);
-  }, [allRankedFunds, sortField, sortOrder, currentPage, pageSize]);
+  }, [allRankedFunds, sortCriteria, currentPage, pageSize]);
 
   const totalPages = Math.ceil(allRankedFunds.length / pageSize) || 1;
 
   const renderSortHeader = (label, field, alignment = 'text-right') => {
-    const isSorted = sortField === field && sortOrder !== null;
+    const sortIndex = sortCriteria.findIndex(c => c.field === field);
+    const isSorted = sortIndex !== -1;
+    const activeCriterion = isSorted ? sortCriteria[sortIndex] : null;
+    const isMultiSort = sortCriteria.length > 1;
+    const sortPriority = sortIndex + 1; // 1 for primary, 2 for secondary
+
     return (
       <th
         onClick={() => handleSort(field)}
@@ -368,7 +403,18 @@ export default function MfRankingTable({
         <div className={`flex items-center gap-1 ${alignment === 'text-right' ? 'justify-end' : alignment === 'text-center' ? 'justify-center' : 'justify-start'}`}>
           <span>{label}</span>
           {isSorted ? (
-            sortOrder === 'asc' ? <ArrowUp size={11} className="text-blue-600 dark:text-blue-400" /> : <ArrowDown size={11} className="text-blue-600 dark:text-blue-400" />
+            <div className="inline-flex items-center gap-0.5">
+              {activeCriterion.order === 'asc' ? (
+                <ArrowUp size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              ) : (
+                <ArrowDown size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              )}
+              {isMultiSort && (
+                <span className="text-[9px] font-mono font-black text-blue-600 dark:text-blue-400 leading-none">
+                  {sortPriority}
+                </span>
+              )}
+            </div>
           ) : (
             <ArrowUpDown size={10} className="text-slate-400 opacity-50" />
           )}

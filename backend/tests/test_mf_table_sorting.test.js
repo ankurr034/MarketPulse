@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-console.log('🧪 Running Comprehensive MF Table Column Sorting Unit Test Suite...\n');
+console.log('🧪 Running Comprehensive Multi-Column / Two-Factor Fund Sorting Unit Test Suite...\n');
 
 let passedTests = 0;
 let failedTests = 0;
@@ -75,180 +75,193 @@ const getFieldValue = (fund, field) => {
   return null;
 };
 
-const sortFundsList = (list, sortField, sortOrder) => {
+const sortFundsList = (list, sortCriteria) => {
   if (!list || list.length === 0) return [];
-  if (!sortField || !sortOrder) return list;
+  if (!sortCriteria || sortCriteria.length === 0) return list;
 
   const copy = [...list];
   copy.sort((a, b) => {
-    const aVal = getFieldValue(a, sortField);
-    const bVal = getFieldValue(b, sortField);
+    for (let i = 0; i < sortCriteria.length; i++) {
+      const { field, order } = sortCriteria[i];
+      const aVal = getFieldValue(a, field);
+      const bVal = getFieldValue(b, field);
 
-    if (aVal == null && bVal == null) return 0;
-    if (aVal == null) return 1; // nulls last
-    if (bVal == null) return -1; // nulls last
+      if (aVal == null && bVal == null) continue;
+      if (aVal == null) return 1; // nulls last
+      if (bVal == null) return -1; // nulls last
 
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      let diff = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        diff = order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        diff = order === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      if (diff !== 0) {
+        return diff;
+      }
     }
-    return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    return 0;
   });
   return copy;
 };
 
-// 3-click state transition simulation
-function createSortState() {
-  let sortField = null;
-  let sortOrder = null;
+// 2-Factor Multi-Sort State Manager Simulation
+function createMultiSortState() {
+  let sortCriteria = [];
 
   return {
     click: (field) => {
-      if (sortField === field) {
-        if (sortOrder === 'desc') {
-          sortOrder = 'asc';
-        } else if (sortOrder === 'asc') {
-          sortField = null;
-          sortOrder = null;
+      const existingIndex = sortCriteria.findIndex(c => c.field === field);
+      const defaultOrder = field === 'name' ? 'asc' : 'desc';
+
+      if (existingIndex !== -1) {
+        const currentOrder = sortCriteria[existingIndex].order;
+        if (currentOrder === 'desc') {
+          const next = [...sortCriteria];
+          next[existingIndex] = { field, order: 'asc' };
+          sortCriteria = next;
+        } else if (currentOrder === 'asc') {
+          sortCriteria = sortCriteria.filter((_, idx) => idx !== existingIndex);
         } else {
-          sortOrder = 'desc';
+          const next = [...sortCriteria];
+          next[existingIndex] = { field, order: defaultOrder };
+          sortCriteria = next;
         }
       } else {
-        sortField = field;
-        sortOrder = field === 'name' ? 'asc' : 'desc';
+        const newEntry = { field, order: defaultOrder };
+        if (sortCriteria.length < 2) {
+          sortCriteria = [...sortCriteria, newEntry];
+        } else {
+          // Max 2: replace oldest, keep 2nd as primary, new as secondary
+          sortCriteria = [sortCriteria[1], newEntry];
+        }
       }
-      return { sortField, sortOrder };
+      return sortCriteria;
     },
-    getState: () => ({ sortField, sortOrder })
+    getState: () => sortCriteria
   };
 }
 
-console.log('--- Test Group 1: Three-Click Sorting State Cycle ---');
+console.log('--- Test Group 1: Two-Factor Multi-Sort State Transitions & Limits ---');
 
-it('Initial state is null / un-sorted (default ordering preserved)', () => {
-  const sorter = createSortState();
-  assert.deepStrictEqual(sorter.getState(), { sortField: null, sortOrder: null });
+it('Initial state is empty array (0 active sort criteria)', () => {
+  const sorter = createMultiSortState();
+  assert.deepStrictEqual(sorter.getState(), []);
 });
 
-it('First click on AUM sets sortField=aum, sortOrder=desc', () => {
-  const sorter = createSortState();
+it('Clicking AUM activates AUM desc as Primary (1 active filter)', () => {
+  const sorter = createMultiSortState();
   const state = sorter.click('aum');
-  assert.deepStrictEqual(state, { sortField: 'aum', sortOrder: 'desc' });
+  assert.deepStrictEqual(state, [{ field: 'aum', order: 'desc' }]);
 });
 
-it('Second click on AUM reverses sortOrder to asc', () => {
-  const sorter = createSortState();
+it('Clicking 5Y CAGR adds it as Secondary (2 active filters)', () => {
+  const sorter = createMultiSortState();
   sorter.click('aum');
-  const state = sorter.click('aum');
-  assert.deepStrictEqual(state, { sortField: 'aum', sortOrder: 'asc' });
+  const state = sorter.click('return_5Y');
+  assert.deepStrictEqual(state, [
+    { field: 'aum', order: 'desc' },
+    { field: 'return_5Y', order: 'desc' }
+  ]);
 });
 
-it('Third click on AUM resets sortField=null, sortOrder=null (exact default order restored)', () => {
-  const sorter = createSortState();
+it('Clicking 5Y CAGR again toggles its direction to asc in place', () => {
+  const sorter = createMultiSortState();
   sorter.click('aum');
-  sorter.click('aum');
-  const state = sorter.click('aum');
-  assert.deepStrictEqual(state, { sortField: null, sortOrder: null });
+  sorter.click('return_5Y');
+  const state = sorter.click('return_5Y');
+  assert.deepStrictEqual(state, [
+    { field: 'aum', order: 'desc' },
+    { field: 'return_5Y', order: 'asc' }
+  ]);
 });
 
-it('Fourth click on AUM restarts cycle with desc', () => {
-  const sorter = createSortState();
+it('Clicking 5Y CAGR 3rd time removes it, leaving AUM desc as sole primary', () => {
+  const sorter = createMultiSortState();
   sorter.click('aum');
-  sorter.click('aum');
-  sorter.click('aum');
-  const state = sorter.click('aum');
-  assert.deepStrictEqual(state, { sortField: 'aum', sortOrder: 'desc' });
+  sorter.click('return_5Y');
+  sorter.click('return_5Y');
+  const state = sorter.click('return_5Y');
+  assert.deepStrictEqual(state, [{ field: 'aum', order: 'desc' }]);
 });
 
-it('Switching columns resets cycle to first click (desc for numeric)', () => {
-  const sorter = createSortState();
-  sorter.click('aum'); // 1st click desc
-  sorter.click('aum'); // 2nd click asc
-  const state = sorter.click('return_1Y'); // switch to 1Y
-  assert.deepStrictEqual(state, { sortField: 'return_1Y', sortOrder: 'desc' });
+it('Clicking 3rd column shifts out oldest (MAX 2 FILTER RULE)', () => {
+  const sorter = createMultiSortState();
+  sorter.click('aum'); // Primary = AUM
+  sorter.click('return_5Y'); // Secondary = 5Y
+  const state = sorter.click('sharpeRatio'); // Click Sharpe
+  assert.deepStrictEqual(state, [
+    { field: 'return_5Y', order: 'desc' },
+    { field: 'sharpeRatio', order: 'desc' }
+  ]);
+  assert.strictEqual(state.length, 2);
 });
 
-console.log('\n--- Test Group 2: Numeric Sorting vs String Comparison ---');
+console.log('\n--- Test Group 2: Two-Factor Primary & Tie-Breaking Sorting Execution ---');
 
-const sampleFunds = [
-  { schemeCode: '1', name: 'Fund A', aum: 8000, nav: 45.2, returns: { '1W': 1.2, '1M': 3.5, '3M': 7.1, '6M': 12.0, '1Y': 18.5, '3Y': 14.5, '5Y': 16.2, 'All': 18.2 }, sharpeRatio: 0.89, sortinoRatio: 1.37 },
-  { schemeCode: '2', name: 'Fund B', aum: 2000, nav: 120.5, returns: { '1W': -0.5, '1M': 1.2, '3M': 4.2, '6M': 8.5, '1Y': 12.0, '3Y': 11.2, '5Y': 13.0, 'All': 15.0 }, sharpeRatio: 0.63, sortinoRatio: 0.94 },
-  { schemeCode: '3', name: 'Fund C', aum: 12000, nav: 15.8, returns: { '1W': 2.1, '1M': 4.8, '3M': 9.0, '6M': 15.2, '1Y': 24.5, '3Y': 19.1, '5Y': 21.0, 'All': 22.5 }, sharpeRatio: 1.12, sortinoRatio: 1.85 },
-  { schemeCode: '4', name: 'Fund D', aum: 500, nav: 250.0, returns: { '1W': 0.1, '1M': 0.8, '3M': 2.1, '6M': 5.0, '1Y': 8.5, '3Y': 9.0, '5Y': 10.5, 'All': 12.0 }, sharpeRatio: 0.45, sortinoRatio: 0.65 },
-  { schemeCode: '5', name: 'Fund E', aum: 5000, nav: 88.0, returns: { '1W': 0.8, '1M': 2.5, '3M': 5.5, '6M': 10.1, '1Y': 16.0, '3Y': 13.8, '5Y': 15.0, 'All': 16.5 }, sharpeRatio: 0.75, sortinoRatio: 1.15 },
-  { schemeCode: '6', name: 'Fund F (Unavailable)', aum: null, nav: null, returns: {}, sharpeRatio: null, sortinoRatio: null }
+const testFunds = [
+  { schemeCode: 'A', name: 'Fund A', aum: 10000, returns: { '1Y': 18.0, '3Y': 14.0, '5Y': 15.0, 'All': 18.0 }, sharpeRatio: 0.85, sortinoRatio: 1.30 },
+  { schemeCode: 'B', name: 'Fund B', aum: 10000, returns: { '1Y': 22.0, '3Y': 16.0, '5Y': 20.0, 'All': 22.0 }, sharpeRatio: 1.10, sortinoRatio: 1.70 },
+  { schemeCode: 'C', name: 'Fund C', aum: 8000,  returns: { '1Y': 25.0, '3Y': 19.0, '5Y': 25.0, 'All': 24.0 }, sharpeRatio: 1.25, sortinoRatio: 2.10 },
+  { schemeCode: 'D', name: 'Fund D', aum: 5000,  returns: { '1Y': 10.0, '3Y': 11.0, '5Y': 12.0, 'All': 14.0 }, sharpeRatio: 0.60, sortinoRatio: 0.90 },
+  { schemeCode: 'E', name: 'Fund E', aum: 5000,  returns: { '1Y': 15.0, '3Y': 13.0, '5Y': 16.0, 'All': 16.0 }, sharpeRatio: 0.90, sortinoRatio: 1.40 },
+  { schemeCode: 'F', name: 'Fund F (Null AUM & 5Y)', aum: null, returns: {}, sharpeRatio: null, sortinoRatio: null }
 ];
 
-it('AUM Descending sorts: C(12k) -> A(8k) -> E(5k) -> B(2k) -> D(500) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'aum', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['3', '1', '5', '2', '4', '6']);
+it('AUM ↓ + 5Y CAGR ↓ : Fund B (10k/20%) -> Fund A (10k/15%) -> Fund C (8k/25%) -> Fund E (5k/16%) -> Fund D (5k/12%) -> Fund F', () => {
+  const criteria = [{ field: 'aum', order: 'desc' }, { field: 'return_5Y', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['B', 'A', 'C', 'E', 'D', 'F']);
 });
 
-it('AUM Ascending sorts: D(500) -> B(2k) -> E(5k) -> A(8k) -> C(12k) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'aum', 'asc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['4', '2', '5', '1', '3', '6']);
+it('AUM ↓ + 5Y CAGR ↑ : Fund A (10k/15%) -> Fund B (10k/20%) -> Fund C (8k/25%) -> Fund D (5k/12%) -> Fund E (5k/16%) -> Fund F', () => {
+  const criteria = [{ field: 'aum', order: 'desc' }, { field: 'return_5Y', order: 'asc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['A', 'B', 'C', 'D', 'E', 'F']);
 });
 
-it('Default (null/null) returns original exact order: A -> B -> C -> D -> E -> F', () => {
-  const sorted = sortFundsList(sampleFunds, null, null);
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['1', '2', '3', '4', '5', '6']);
+it('AUM ↑ + 5Y CAGR ↓ : Fund E (5k/16%) -> Fund D (5k/12%) -> Fund C (8k/25%) -> Fund B (10k/20%) -> Fund A (10k/15%) -> Fund F', () => {
+  const criteria = [{ field: 'aum', order: 'asc' }, { field: 'return_5Y', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['E', 'D', 'C', 'B', 'A', 'F']);
 });
 
-it('NAV Descending sorts: D(250) -> B(120.5) -> E(88) -> A(45.2) -> C(15.8) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'nav', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['4', '2', '5', '1', '3', '6']);
+it('AUM ↑ + 5Y CAGR ↑ : Fund D (5k/12%) -> Fund E (5k/16%) -> Fund C (8k/25%) -> Fund A (10k/15%) -> Fund B (10k/20%) -> Fund F', () => {
+  const criteria = [{ field: 'aum', order: 'asc' }, { field: 'return_5Y', order: 'asc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['D', 'E', 'C', 'A', 'B', 'F']);
 });
 
-it('1Y Return Descending sorts: C(24.5%) -> A(18.5%) -> E(16.0%) -> B(12.0%) -> D(8.5%) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'return_1Y', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['3', '1', '5', '2', '4', '6']);
+it('5Y CAGR ↓ + SHARPE ↓ : C(25%) -> B(20%) -> E(16%) -> A(15%) -> D(12%) -> F(null)', () => {
+  const criteria = [{ field: 'return_5Y', order: 'desc' }, { field: 'sharpeRatio', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['C', 'B', 'E', 'A', 'D', 'F']);
 });
 
-it('3Y CAGR Descending sorts: C(19.1%) -> A(14.5%) -> E(13.8%) -> B(11.2%) -> D(9.0%) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'return_3Y', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['3', '1', '5', '2', '4', '6']);
+it('5Y CAGR ↓ + SORTINO ↓ : C(25%/2.1) -> B(20%/1.7) -> E(16%/1.4) -> A(15%/1.3) -> D(12%/0.9) -> F', () => {
+  const criteria = [{ field: 'return_5Y', order: 'desc' }, { field: 'sortinoRatio', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['C', 'B', 'E', 'A', 'D', 'F']);
 });
 
-it('Inception CAGR Descending sorts: C(22.5%) -> A(18.2%) -> E(16.5%) -> B(15.0%) -> D(12.0%) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'return_All', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['3', '1', '5', '2', '4', '6']);
+it('AUM ↓ + INCEP. CAGR ↓ : B(10k/22%) -> A(10k/18%) -> C(8k/24%) -> E(5k/16%) -> D(5k/14%) -> F', () => {
+  const criteria = [{ field: 'aum', order: 'desc' }, { field: 'return_All', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['B', 'A', 'C', 'E', 'D', 'F']);
 });
 
-it('Sharpe Ratio Descending sorts: C(1.12) -> A(0.89) -> E(0.75) -> B(0.63) -> D(0.45) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'sharpeRatio', 'desc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['3', '1', '5', '2', '4', '6']);
+it('1Y % ↓ + 5Y CAGR ↓ : C(25%) -> B(22%) -> A(18%) -> E(15%) -> D(10%) -> F', () => {
+  const criteria = [{ field: 'return_1Y', order: 'desc' }, { field: 'return_5Y', order: 'desc' }];
+  const sorted = sortFundsList(testFunds, criteria);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['C', 'B', 'A', 'E', 'D', 'F']);
 });
 
-it('Sortino Ratio Ascending sorts: D(0.65) -> B(0.94) -> E(1.15) -> A(1.37) -> C(1.85) -> F(null last)', () => {
-  const sorted = sortFundsList(sampleFunds, 'sortinoRatio', 'asc');
-  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['4', '2', '5', '1', '3', '6']);
-});
+console.log('\n--- Test Group 3: Default Order Restoration ---');
 
-console.log('\n--- Test Group 3: Null & Unavailable Values Always Placed Last ---');
-
-it('Nulls placed last on descending sort', () => {
-  const listWithNulls = [
-    { schemeCode: '1', aum: null },
-    { schemeCode: '2', aum: 500 },
-    { schemeCode: '3', aum: null },
-    { schemeCode: '4', aum: 1000 }
-  ];
-  const sorted = sortFundsList(listWithNulls, 'aum', 'desc');
-  assert.strictEqual(sorted[0].schemeCode, '4'); // 1000
-  assert.strictEqual(sorted[1].schemeCode, '2'); // 500
-  assert.ok(sorted[2].aum === null && sorted[3].aum === null);
-});
-
-it('Nulls placed last on ascending sort', () => {
-  const listWithNulls = [
-    { schemeCode: '1', aum: null },
-    { schemeCode: '2', aum: 500 },
-    { schemeCode: '3', aum: null },
-    { schemeCode: '4', aum: 1000 }
-  ];
-  const sorted = sortFundsList(listWithNulls, 'aum', 'asc');
-  assert.strictEqual(sorted[0].schemeCode, '2'); // 500
-  assert.strictEqual(sorted[1].schemeCode, '4'); // 1000
-  assert.ok(sorted[2].aum === null && sorted[3].aum === null);
+it('Empty sortCriteria returns exact original default order: A -> B -> C -> D -> E -> F', () => {
+  const sorted = sortFundsList(testFunds, []);
+  assert.deepStrictEqual(sorted.map(f => f.schemeCode), ['A', 'B', 'C', 'D', 'E', 'F']);
 });
 
 console.log('\n====================================================');
