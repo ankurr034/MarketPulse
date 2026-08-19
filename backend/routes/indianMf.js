@@ -113,8 +113,16 @@ router.get('/sectors/flat', async (req, res) => {
     const flatFunds = [];
     for (const sector of sectors) {
       for (const fund of sector.topFunds) {
+        const code = String(fund.schemeCode || fund.id);
+        const cachedAum = holdingsFallbackService._getCached(`aum_details_${code}`);
+        const cleanAum = (fund.aum !== null && fund.aum !== undefined && !isNaN(fund.aum) && Number(fund.aum) > 0)
+          ? Number(fund.aum)
+          : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null);
+
         flatFunds.push({
           ...fund,
+          aum: cleanAum,
+          aumCr: cleanAum,
           sectorName: sector.sectorName,
           sectorId: sector.sectorId
         });
@@ -341,7 +349,10 @@ router.get('/extra-schemes', async (req, res) => {
       const chunk = EXTRA_SCHEMES_REGISTRY.slice(i, i + chunkSize);
       const results = await Promise.all(chunk.map(async s => {
         const assetSummary = await unifiedAssetService.getAssetSummary('mf', s.id, 'india');
-        const cleanAum = (assetSummary?.aum !== null && assetSummary?.aum !== undefined && !isNaN(assetSummary?.aum) && Number(assetSummary?.aum) > 0) ? Number(assetSummary.aum) : null;
+        const cachedAum = holdingsFallbackService._getCached(`aum_details_${s.id}`);
+        const cleanAum = (assetSummary?.aum !== null && assetSummary?.aum !== undefined && !isNaN(assetSummary?.aum) && Number(assetSummary?.aum) > 0)
+          ? Number(assetSummary.aum)
+          : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null);
         
         // Canonical scheme identity: authoritative name and AMC from assetSummary strictly prevail
         const resolvedName = assetSummary?.schemeName || assetSummary?.name || s.name;

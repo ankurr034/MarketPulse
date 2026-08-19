@@ -1193,17 +1193,44 @@ export const IndianMfSectorAnalysis = () => {
 
   // Process and enrich real funds with consistent dynamic stats
   const enrichedFunds = useMemo(() => {
-    // Deduplicate flatFunds, extraCategorySchemes, and allDirectSchemes strictly by unique scheme ID
-    const combined = [];
-    const seenIds = new Set();
+    // Deduplicate and merge allDirectSchemes, flatFunds, and extraCategorySchemes
+    // Prioritizing allDirectSchemes for authoritative scheme data and verified AUM
+    const seenMap = new Map();
 
-    [...flatFunds, ...EXTRA_CATEGORY_SCHEMES, ...extraCategorySchemes, ...allDirectSchemes].forEach(fund => {
+    // 1. Process allDirectSchemes first (authoritative base universe with verified AUM)
+    (allDirectSchemes || []).forEach(fund => {
       const fundId = String(fund.schemeCode || fund.id || '').trim();
-      if (fundId && !seenIds.has(fundId)) {
-        seenIds.add(fundId);
-        combined.push(fund);
+      if (fundId) {
+        seenMap.set(fundId, { ...fund });
       }
     });
+
+    // 2. Merge flatFunds, extraCategorySchemes, and EXTRA_CATEGORY_SCHEMES non-destructively
+    [...(flatFunds || []), ...EXTRA_CATEGORY_SCHEMES, ...(extraCategorySchemes || [])].forEach(fund => {
+      const fundId = String(fund.schemeCode || fund.id || '').trim();
+      if (!fundId) return;
+
+      if (seenMap.has(fundId)) {
+        const existing = seenMap.get(fundId);
+        const resolvedAum = (existing.aum !== null && existing.aum !== undefined && Number(existing.aum) > 0)
+          ? existing.aum
+          : ((fund.aum !== null && fund.aum !== undefined && Number(fund.aum) > 0) ? fund.aum : null);
+        const resolvedAumCr = (existing.aumCr !== null && existing.aumCr !== undefined && Number(existing.aumCr) > 0)
+          ? existing.aumCr
+          : ((fund.aumCr !== null && fund.aumCr !== undefined && Number(fund.aumCr) > 0) ? fund.aumCr : null);
+
+        seenMap.set(fundId, {
+          ...fund,
+          ...existing,
+          aum: resolvedAum,
+          aumCr: resolvedAumCr
+        });
+      } else {
+        seenMap.set(fundId, { ...fund });
+      }
+    });
+
+    const combined = Array.from(seenMap.values());
 
 
     return combined.map(fund => {
