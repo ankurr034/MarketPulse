@@ -109,8 +109,8 @@ export default function MfRankingTable({
   onTimeframeChange,
   onSelectFund
 }) {
-  const [sortField, setSortField] = useState('aum');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortField, setSortField] = useState(null);
+  const [sortOrder, setSortOrder] = useState(null); // 'desc' | 'asc' | null (3-click cycle)
 
   // Accordion collapsed states (Parent & Subcategory)
   const [collapsedParentCats, setCollapsedParentCats] = useState({});
@@ -167,9 +167,17 @@ export default function MfRankingTable({
     return <Layers size={14} className="text-blue-500 opacity-80" />;
   };
 
+  // 3-Click Sort Cycle: 1st Click = desc, 2nd Click = asc, 3rd Click = default/null
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      if (sortOrder === 'desc') {
+        setSortOrder('asc');
+      } else if (sortOrder === 'asc') {
+        setSortField(null);
+        setSortOrder(null);
+      } else {
+        setSortOrder('desc');
+      }
     } else {
       setSortField(field);
       setSortOrder(field === 'name' ? 'asc' : 'desc');
@@ -206,29 +214,94 @@ export default function MfRankingTable({
     return <span className="font-mono text-xs text-slate-700 dark:text-slate-300 font-medium">{Number(val).toFixed(2)}</span>;
   };
 
-  // Sort funds array helper
+  // Helper to extract clean numeric or string value for sorting
+  const getFieldValue = (fund, field) => {
+    if (!fund) return null;
+
+    if (field === 'aum') {
+      const val = fund.aum != null ? Number(fund.aum) : null;
+      return val != null && !isNaN(val) && val > 0 ? val : null;
+    }
+
+    if (field === 'nav') {
+      const val = fund.nav != null ? Number(fund.nav) : null;
+      return val != null && !isNaN(val) && val > 0 ? val : null;
+    }
+
+    if (field === 'return_1W') {
+      const val = fund.returns?.['1W'] ?? fund.oneWeekChangePct;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_1M') {
+      const val = fund.returns?.['1M'] ?? fund.oneMonthChangePct;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_3M') {
+      const val = fund.returns?.['3M'] ?? fund.threeMonthChangePct;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_6M') {
+      const val = fund.returns?.['6M'] ?? fund.sixMonthChangePct;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_1Y') {
+      const val = fund.returns?.['1Y'] ?? fund.oneYearChangePct ?? fund.oneYrReturn;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_3Y') {
+      const val = fund.returns?.['3Y'] ?? fund.threeYearCagr;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_5Y') {
+      const val = fund.returns?.['5Y'] ?? fund.fiveYearCagr;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'return_All') {
+      const val = fund.returns?.['All'] ?? fund.inceptionCagr ?? fund.sinceInceptionReturn;
+      return val != null && !isNaN(val) ? Number(val) : null;
+    }
+
+    if (field === 'sharpeRatio') {
+      const val = fund.sharpeRatio != null ? Number(fund.sharpeRatio) : null;
+      return val != null && !isNaN(val) ? val : null;
+    }
+
+    if (field === 'sortinoRatio') {
+      const val = fund.sortinoRatio != null ? Number(fund.sortinoRatio) : null;
+      return val != null && !isNaN(val) ? val : null;
+    }
+
+    if (field === 'name') {
+      const n = fund.name || fund.schemeName;
+      return n ? String(n).trim() : null;
+    }
+
+    return null;
+  };
+
+  // Sort funds array helper (preserves original order on default/3rd click; nulls last on both asc and desc)
   const sortFundsList = (list) => {
     if (!list || list.length === 0) return [];
+    if (!sortField || !sortOrder) return list;
+
     const copy = [...list];
 
     copy.sort((a, b) => {
-      let aVal = a[sortField];
-      let bVal = b[sortField];
-
-      if (sortField === 'aum') {
-        aVal = a.aum != null ? Number(a.aum) : null;
-        bVal = b.aum != null ? Number(b.aum) : null;
-      } else if (sortField.startsWith('return_')) {
-        const tf = sortField.replace('return_', '');
-        aVal = a.returns?.[tf];
-        bVal = b.returns?.[tf];
-      }
+      const aVal = getFieldValue(a, sortField);
+      const bVal = getFieldValue(b, sortField);
 
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1; // nulls last
-      if (bVal == null) return -1;
+      if (bVal == null) return -1; // nulls last
 
-      if (typeof aVal === 'string') {
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
         return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
@@ -284,7 +357,7 @@ export default function MfRankingTable({
   const totalPages = Math.ceil(allRankedFunds.length / pageSize) || 1;
 
   const renderSortHeader = (label, field, alignment = 'text-right') => {
-    const isSorted = sortField === field;
+    const isSorted = sortField === field && sortOrder !== null;
     return (
       <th
         onClick={() => handleSort(field)}
@@ -596,7 +669,8 @@ export default function MfRankingTable({
                       const isSubCollapsed = collapsedSubCats[fullSubKey] !== false; // collapsed by default until clicked
                       const viewMode = categoryViewModes[fullSubKey] || 'top5';
                       const { display5, fullList, sharpeRange, sortinoRange } = rankCategoryTop5(subFunds);
-                      const displayFunds = viewMode === 'top5' ? display5 : fullList;
+                      const baseFunds = viewMode === 'top5' ? display5 : fullList;
+                      const displayFunds = sortFundsList(baseFunds);
 
                       return (
                         <React.Fragment key={fullSubKey}>
