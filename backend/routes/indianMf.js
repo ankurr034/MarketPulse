@@ -8,7 +8,7 @@ import amfiImportService from '../services/AmfiImportService.js';
 import mfapiCacheService from '../services/MfapiCacheService.js';
 import holdingsFallbackService from '../services/HoldingsFallbackService.js';
 import unifiedAssetService from '../services/UnifiedAssetService.js';
-import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
+import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity, resolveSchemeClassification } from '../utils/schemeFilterUtil.js';
 
 const router = express.Router();
 
@@ -232,8 +232,8 @@ const EXTRA_SCHEMES_REGISTRY = [
 
   // Commodities
   { id: '118663', name: 'Nippon India Gold Savings Fund Direct Growth', family: 'Nippon India Mutual Fund', sectorName: 'Commodity Gold', specifiedType: 'commodities', specifiedSub: 'gold' },
-  { id: '149775', name: 'ICICI Prudential Silver ETF', family: 'ICICI Prudential Mutual Fund', sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
-  { id: '150737', name: 'HDFC Silver ETF', family: 'HDFC Mutual Fund', sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
+  { id: '149775', name: 'ICICI Prudential Silver ETF FOF Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
+  { id: '150737', name: 'HDFC Silver ETF Fund of Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Commodity Silver', specifiedType: 'commodities', specifiedSub: 'silver' },
 
   // Debt Funds
   { id: '120590', name: 'ICICI Prudential Gilt Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Debt Gilt / Govt Bond', specifiedType: 'debt', specifiedSub: 'gilt' },
@@ -265,6 +265,7 @@ router.get('/all-direct-schemes', async (req, res) => {
       const { plan, option } = resolvePlanAndOption(s.schemeName);
       const isin = s.isinGrowth || s.isin || null;
       const canonicalKey = `${s.schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
+      const classification = resolveSchemeClassification(s.schemeName, s.category);
 
       return {
         id: String(s.schemeCode),
@@ -281,6 +282,13 @@ router.get('/all-direct-schemes', async (req, res) => {
         isinGrowth: isin,
         canonicalKey,
         category: s.category || 'Other',
+        ...(classification ? {
+          specifiedType: classification.specifiedType || classification.type,
+          specifiedSub: classification.specifiedSub || classification.subType,
+          type: classification.type,
+          subType: classification.subType,
+          parentCategory: classification.parentCategory
+        } : {}),
         nav: s.nav,
         navDate: s.date,
         aum: cleanAum,

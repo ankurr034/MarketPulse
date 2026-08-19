@@ -312,10 +312,15 @@ class HoldingsFallbackService {
         return directResult;
       }
 
+      const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
+      const aumVal = (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0) ? Number(cachedAum.value) : null;
+
       return {
         available: false,
-        aum: null,
-        aumCr: null,
+        aum: aumVal,
+        aumCr: aumVal,
+        aumAsOf: cachedAum?.asOf || null,
+        aumSource: cachedAum?.source || null,
         reason: "Official portfolio holdings disclosure unavailable for this fund"
       };
     }

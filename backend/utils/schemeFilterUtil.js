@@ -164,6 +164,39 @@ export function buildCanonicalIdentity(schemeCode, schemeName, amc, isin, custom
 }
 
 /**
+ * Authoritative Commodity Classification Resolver
+ * Isolates and enriches ONLY Commodity schemes (Gold, Silver, Metals, Mining)
+ * while preserving all other categories untouched.
+ */
+export function resolveCommodityClassification(schemeName, rawCategory = '') {
+  const n = (schemeName || '').toLowerCase();
+  const c = (rawCategory || '').toLowerCase();
+
+  // Exclude Overseas / Global funds
+  if (c.includes('fof overseas') || c.includes('overseas') || n.includes('overseas') || n.includes('world') || n.includes('global agri')) {
+    return null;
+  }
+
+  // Commodities (Gold, Silver, Gold Mining, Metals, Precious Metals, Commodity FoFs, Commodity ETFs)
+  const isCommodity = n.includes('gold') || n.includes('silver') || n.includes('commodity') || n.includes('precious') || n.includes('metal') || c.includes('gold') || c.includes('silver') || c.includes('commodity');
+  
+  if (isCommodity) {
+    let sub = 'other_commodities';
+    if (n.includes('goldmine') || n.includes('mining') || n.includes('mine')) sub = 'gold_mining';
+    else if (n.includes('metal') || n.includes('copper')) sub = 'other_metals';
+    else if (n.includes('silver')) sub = 'silver';
+    else if (n.includes('gold')) sub = 'gold';
+    return { specifiedType: 'commodities', specifiedSub: sub, type: 'commodities', subType: sub, parentCategory: 'COMMODITIES' };
+  }
+
+  return null;
+}
+
+export function resolveSchemeClassification(schemeName, rawCategory = '') {
+  return resolveCommodityClassification(schemeName, rawCategory);
+}
+
+/**
  * Sanitizes a fund record. Attaches canonical scheme identity metadata.
  * Never estimates or fabricates missing values.
  */

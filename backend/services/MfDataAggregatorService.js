@@ -127,20 +127,33 @@ class MfDataAggregatorService {
 
     try {
       finapiRes = await holdingsFallbackService.fetchFinapiHoldings(schemeCode);
-      if (finapiRes && finapiRes.available) {
-        holdings = finapiRes.holdings || [];
-        sectorBreakdown = finapiRes.sector_weightings || {};
-        holdingsAvailable = holdings.length > 0;
-        if (holdingsAvailable) holdingsReason = null;
-        aum = finapiRes.aum ?? null;
-        expenseRatio = finapiRes.expenseRatio ?? null;
-        high52 = finapiRes.high52 ?? null;
-        low52 = finapiRes.low52 ?? null;
-        pe = finapiRes.pe ?? null;
-        pb = finapiRes.pb ?? null;
+      if (finapiRes) {
+        if (finapiRes.available) {
+          holdings = finapiRes.holdings || [];
+          sectorBreakdown = finapiRes.sector_weightings || {};
+          holdingsAvailable = holdings.length > 0;
+          if (holdingsAvailable) holdingsReason = null;
+          expenseRatio = finapiRes.expenseRatio ?? null;
+          high52 = finapiRes.high52 ?? null;
+          low52 = finapiRes.low52 ?? null;
+          pe = finapiRes.pe ?? null;
+          pb = finapiRes.pb ?? null;
+        }
+        if (finapiRes.aum !== null && finapiRes.aum !== undefined && !isNaN(finapiRes.aum) && Number(finapiRes.aum) > 0) {
+          aum = Number(finapiRes.aum);
+        }
       }
     } catch (finErr) {
       console.warn(`FinAPI fetch warning for scheme ${schemeCode}:`, finErr.message);
+    }
+
+    if (aum === null) {
+      try {
+        const aumDetails = await holdingsFallbackService.getAumDetails(schemeCode);
+        if (aumDetails && aumDetails.value !== null && aumDetails.value !== undefined && !isNaN(aumDetails.value) && Number(aumDetails.value) > 0) {
+          aum = Number(aumDetails.value);
+        }
+      } catch (aumErr) {}
     }
 
     let benchmark = 'Nifty 50 TRI';

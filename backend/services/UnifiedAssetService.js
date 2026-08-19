@@ -246,6 +246,8 @@ class UnifiedAssetService {
         }
       }
 
+      const resolvedAum = profile?.aum !== null && profile?.aum !== undefined && !isNaN(profile.aum) && Number(profile.aum) > 0 ? Number(profile.aum) : null;
+
       return {
         ...profile,
         name,
@@ -254,6 +256,9 @@ class UnifiedAssetService {
         nav,
         currentPrice_or_nav: nav,
         oneYearChangePct,
+        aum: resolvedAum,
+        aumCr: resolvedAum,
+        aumProvenance: profile?.aumProvenance || { value: resolvedAum, aumCr: resolvedAum, source: resolvedAum ? 'Upvaly FinAPI Disclosure' : null, status: resolvedAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE' },
         type: 'mf',
         history: navHistory,
         peers
