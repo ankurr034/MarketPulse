@@ -129,11 +129,11 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
       {/* 6-Card Horizontal Desktop Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
         
-        {/* CARD 1: TOTAL MF AUM */}
+        {/* CARD 1: TOTAL INDUSTRY MF AUM */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-xs transition-all">
           <div className="flex items-start justify-between">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              TOTAL MF AUM
+              TOTAL INDUSTRY MF AUM
             </span>
             <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Wallet size={16} />
@@ -143,7 +143,7 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
             <div className="text-xl font-extrabold font-mono text-slate-900 dark:text-white tracking-tight">
               {industryAumDisplay}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Industry AUM</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Industry AUM (All Plans)</div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
             {liveSummary?.industryAum?.change ? (
@@ -151,7 +151,7 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
                 ▲ {liveSummary.industryAum.change}
               </span>
             ) : (
-              <span>Source: AMFI</span>
+              <span>Source: SEBI / AMFI</span>
             )}
             <span>As of {industryAumDate}</span>
           </div>

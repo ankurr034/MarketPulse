@@ -1096,6 +1096,11 @@ export const IndianMfSectorAnalysis = () => {
     const cat = (categoryStr || '').toLowerCase();
     const name = (nameStr || '').toLowerCase();
 
+    // Balanced Advantage / Dynamic Asset Allocation -> Hybrid Balanced Advantage
+    if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage') || cat.includes('dynamic asset')) {
+      return ['hybrid', 'balanced_adv'];
+    }
+
     if (cat.includes('equity scheme - large cap') || cat.includes('equity schemes - large cap')) return ['equity', 'large_cap'];
     if (cat.includes('large & mid cap')) return ['equity', 'large_mid_cap'];
     if (cat.includes('mid cap') && !cat.includes('large')) return ['equity', 'mid_cap'];
@@ -1180,11 +1185,21 @@ export const IndianMfSectorAnalysis = () => {
   };
 
   const getFundType = (name, categoryStr = '', specifiedType = '') => {
+    const nameLower = (name || '').toLowerCase();
+    const catLower = (categoryStr || '').toLowerCase();
+    if (nameLower.includes('balanced advantage') || nameLower.includes('baf') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset')) {
+      return 'hybrid';
+    }
     if (specifiedType) return specifiedType;
     return getClassification(categoryStr, name)[0];
   };
 
   const getFundSubType = (name, categoryStr = '', specifiedSub = '') => {
+    const nameLower = (name || '').toLowerCase();
+    const catLower = (categoryStr || '').toLowerCase();
+    if (nameLower.includes('balanced advantage') || nameLower.includes('baf') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset')) {
+      return 'balanced_adv';
+    }
     if (specifiedSub) return specifiedSub;
     return getClassification(categoryStr, name)[1];
   };
@@ -1222,6 +1237,9 @@ export const IndianMfSectorAnalysis = () => {
         seenMap.set(fundId, {
           ...fund,
           ...existing,
+          specifiedType: fund.specifiedType || existing.specifiedType,
+          specifiedSub: fund.specifiedSub || existing.specifiedSub,
+          sectorName: fund.sectorName || existing.sectorName,
           aum: resolvedAum,
           aumCr: resolvedAumCr
         });
@@ -1351,8 +1369,16 @@ export const IndianMfSectorAnalysis = () => {
 
     if (activeMarketFilter !== 'all') {
       funds = funds.filter(f => {
-        if (activeMarketFilter === 'elss') return f.subType === 'elss' || (f.name || '').toLowerCase().includes('elss') || (f.name || '').toLowerCase().includes('tax saver');
-        if (activeMarketFilter === 'sectors') return f.type === 'sectoral' || f.subType === 'sectoral' || (f.category || '').toLowerCase().includes('sector');
+        const nameLower = (f.name || '').toLowerCase();
+        const catLower = (f.category || '').toLowerCase();
+        if (activeMarketFilter === 'elss') return f.subType === 'elss' || nameLower.includes('elss') || nameLower.includes('tax saver');
+        if (activeMarketFilter === 'sectors' || activeMarketFilter === 'sectoral_thematic') return f.type === 'sectoral' || f.type === 'sectoral_thematic' || f.subType === 'sectoral' || catLower.includes('sector');
+        if (activeMarketFilter === 'hybrid') return f.type === 'hybrid' || nameLower.includes('hybrid') || nameLower.includes('balanced advantage') || nameLower.includes('baf') || nameLower.includes('dynamic asset') || nameLower.includes('arbitrage') || catLower.includes('hybrid') || catLower.includes('balanced advantage');
+        if (activeMarketFilter === 'debt') return f.type === 'debt' || catLower.includes('debt') || catLower.includes('income') || catLower.includes('gilt') || catLower.includes('liquid');
+        if (activeMarketFilter === 'equity') return f.type === 'equity' && !nameLower.includes('balanced advantage') && !nameLower.includes('baf') && !catLower.includes('balanced advantage') && !catLower.includes('dynamic asset');
+        if (activeMarketFilter === 'index') return f.type === 'index' || f.type === 'etf' || catLower.includes('index') || catLower.includes('etf');
+        if (activeMarketFilter === 'commodities') return f.type === 'commodities' || catLower.includes('gold') || catLower.includes('silver');
+        if (activeMarketFilter === 'global') return f.type === 'global' || catLower.includes('global') || catLower.includes('international') || catLower.includes('overseas');
         return f.type === activeMarketFilter;
       });
     }
@@ -1360,21 +1386,38 @@ export const IndianMfSectorAnalysis = () => {
     if (selectedSubCategory && selectedSubCategory !== 'all') {
       funds = funds.filter(f => {
         const nameLower = (f.name || '').toLowerCase();
+        const catLower = (f.category || '').toLowerCase();
         const sub = selectedSubCategory;
         if (f.subType === sub) return true;
+        if (sub === 'balanced' || sub === 'balanced_adv') return f.subType === 'balanced_adv' || f.subType === 'balanced' || nameLower.includes('balanced advantage') || nameLower.includes('baf') || nameLower.includes('dynamic asset') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset');
+        if (sub === 'aggressive') return f.subType === 'aggressive' || nameLower.includes('aggressive') || catLower.includes('aggressive');
+        if (sub === 'arbitrage') return f.subType === 'arbitrage' || nameLower.includes('arbitrage') || catLower.includes('arbitrage');
+        if (sub === 'multiasset' || sub === 'multi_asset') return f.subType === 'multi_asset' || f.subType === 'multiasset' || nameLower.includes('multi asset') || catLower.includes('multi asset');
+        if (sub === 'cpse_etf') return nameLower.includes('cpse');
+        if (sub === 'nifty_it_etf') return nameLower.includes('nifty it') || nameLower.includes('it etf');
         if (sub === 'small_cap' || sub === 'smallcap') return nameLower.includes('small cap') || nameLower.includes('smallcap');
         if (sub === 'mid_cap' || sub === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
         if (sub === 'large_cap' || sub === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
+        if (sub === 'large_mid_cap' || sub === 'largemidcap') return nameLower.includes('large & mid') || nameLower.includes('large and mid');
         if (sub === 'flexi_cap' || sub === 'flexicap') return nameLower.includes('flexi cap') || nameLower.includes('flexicap');
         if (sub === 'multi_cap' || sub === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
         if (sub === 'elss' || sub === 'large_elss' || sub === 'flexi_elss') return nameLower.includes('elss') || nameLower.includes('tax saver');
+        if (sub === 'corporate') return f.subType === 'corporate_bond' || nameLower.includes('corporate bond') || catLower.includes('corporate bond');
+        if (sub === 'banking') return f.subType === 'banking_psu' || nameLower.includes('banking & psu') || nameLower.includes('psu debt');
+        if (sub === 'gilt') return f.subType === 'gilt' || f.subType === 'gilt_10y' || nameLower.includes('gilt');
+        if (sub === 'short') return f.subType === 'short_duration' || nameLower.includes('short duration') || nameLower.includes('short term');
         if (sub === 'sp500') return nameLower.includes('s&p 500') || nameLower.includes('sp 500');
         if (sub === 'nasdaq') return nameLower.includes('nasdaq');
         if (sub === 'russell') return nameLower.includes('russell');
         if (sub === 'ai_tech') return nameLower.includes('tech') || nameLower.includes('ai') || nameLower.includes('semiconductor') || nameLower.includes('innovation');
         if (sub === 'liquid') return nameLower.includes('liquid');
-        if (sub === 'gold') return nameLower.includes('gold');
-        if (sub === 'silver') return nameLower.includes('silver');
+        if (sub === 'gold' || sub === 'gold_etf') return nameLower.includes('gold');
+        if (sub === 'silver' || sub === 'silver_etf') return nameLower.includes('silver');
+        if (sub === 'us_tech') return nameLower.includes('us ') || nameLower.includes('nasdaq') || nameLower.includes('tech');
+        if (sub === 'global_etf') return nameLower.includes('global') || nameLower.includes('world') || nameLower.includes('nasdaq');
+        if (sub === 'nifty50') return nameLower.includes('nifty 50') || nameLower.includes('nifty50');
+        if (sub === 'niftybank') return nameLower.includes('nifty bank') || nameLower.includes('bank index') || nameLower.includes('bank bees');
+        if (sub === 'sensex') return nameLower.includes('sensex');
         return false;
       });
     }
@@ -1422,7 +1465,7 @@ export const IndianMfSectorAnalysis = () => {
       }
 
       if (marketFilter === 'hybrid') {
-        if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage')) return 'Balanced Advantage Fund';
+        if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage') || cat.includes('dynamic asset') || name.includes('dynamic asset') || name.includes('balanced')) return 'Balanced Advantage Fund';
         if (name.includes('multi asset') || cat.includes('multi asset')) return 'Multi Asset Allocation Fund';
         if (name.includes('aggressive') || cat.includes('aggressive hybrid')) return 'Aggressive Hybrid Fund';
         if (name.includes('arbitrage') || cat.includes('arbitrage')) return 'Arbitrage Fund';
@@ -1486,7 +1529,7 @@ export const IndianMfSectorAnalysis = () => {
         parentKey = 'DEBT';
       } else if (tStr === 'index' || catStr.includes('index') || nameStr.includes('index') || nameStr.includes('etf') || nameStr.includes('nifty') || nameStr.includes('sensex') || nameStr.includes('bees')) {
         parentKey = 'INDEX';
-      } else if (tStr === 'hybrid' || catStr.includes('hybrid') || catStr.includes('balanced') || catStr.includes('arbitrage') || nameStr.includes('hybrid') || nameStr.includes('arbitrage') || nameStr.includes('equity savings')) {
+      } else if (tStr === 'hybrid' || catStr.includes('hybrid') || catStr.includes('balanced') || catStr.includes('arbitrage') || catStr.includes('dynamic asset') || nameStr.includes('hybrid') || nameStr.includes('balanced advantage') || nameStr.includes('baf') || nameStr.includes('dynamic asset') || nameStr.includes('arbitrage') || nameStr.includes('equity savings') || nameStr.includes('multi asset')) {
         parentKey = 'HYBRID';
       } else if (tStr === 'global' || catStr.includes('global') || catStr.includes('international') || catStr.includes('overseas') || nameStr.includes('international') || nameStr.includes('us equity') || nameStr.includes('nasdaq') || nameStr.includes('s&p') || nameStr.includes('gift')) {
         parentKey = 'GLOBAL';
@@ -1574,8 +1617,19 @@ export const IndianMfSectorAnalysis = () => {
       sortedSubKeys.forEach(subKey => {
         const sub = parent.subcategories[subKey];
 
-        // Sort funds inside subcategory by individual AUM DESC
-        sub.funds.sort((fa, fb) => (Number(fb.aum) || 0) - (Number(fa.aum) || 0));
+        // Sort funds inside subcategory by rankMode (Performance Composite or individual AUM DESC)
+        if (rankMode === 'performance') {
+          sub.funds.sort((fa, fb) => {
+            const aVal = fa.compositeScore != null ? Number(fa.compositeScore) : null;
+            const bVal = fb.compositeScore != null ? Number(fb.compositeScore) : null;
+            if (aVal == null && bVal == null) return (Number(fb.aum) || 0) - (Number(fa.aum) || 0);
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+            return bVal - aVal;
+          });
+        } else {
+          sub.funds.sort((fa, fb) => (Number(fb.aum) || 0) - (Number(fa.aum) || 0));
+        }
 
         ['1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', 'All'].forEach(tf => {
           const validFunds = sub.funds.filter(f => f.returns?.[tf] != null && !isNaN(f.returns[tf]));
@@ -1619,7 +1673,7 @@ export const IndianMfSectorAnalysis = () => {
       });
 
       return sortedTree;
-  }, [filteredDashboardFunds, activeMarketFilter, isAllFundsMode]);
+  }, [filteredDashboardFunds, activeMarketFilter, isAllFundsMode, rankMode]);
 
   const fundCountsBySub = useMemo(() => {
     const counts = { all: filteredDashboardFunds.length };
@@ -1658,11 +1712,11 @@ export const IndianMfSectorAnalysis = () => {
   const mostInvestedAMCs = useMemo(() => {
     const amcMap = {};
     enrichedFunds.forEach(fund => {
-      const amcName = fund.family || fund.name.split(' ')[0] || 'Other Mutual Fund';
+      const amcName = fund.family || fund.amc || (fund.name ? fund.name.split(' ')[0] : 'Other Mutual Fund');
       if (!amcMap[amcName]) {
         amcMap[amcName] = { name: amcName, aum: 0, count: 0 };
       }
-      amcMap[amcName].aum += fund.aum;
+      amcMap[amcName].aum += (Number(fund.aum) || 0);
       amcMap[amcName].count += 1;
     });
 
@@ -1671,7 +1725,7 @@ export const IndianMfSectorAnalysis = () => {
     return Object.values(amcMap)
       .map(item => ({
         name: item.name,
-        aumStr: item.aum != null ? (item.aum / 10).toFixed(1) + ' Cr' : '0 Cr',
+        aumStr: item.aum != null ? (item.aum >= 100000 ? (item.aum / 100000).toFixed(2) + ' Lakh Cr' : item.aum.toLocaleString('en-IN', { maximumFractionDigits: 0 }) + ' Cr') : '0 Cr',
         share: totalAUM > 0 ? ((item.aum / totalAUM) * 100).toFixed(2) + '%' : '0.00%'
       }))
       .sort((a, b) => parseFloat(b.share) - parseFloat(a.share));
@@ -1681,34 +1735,20 @@ export const IndianMfSectorAnalysis = () => {
   const statsBanner = useMemo(() => {
     const activeFunds = filteredDashboardFunds.length > 0 ? filteredDashboardFunds : enrichedFunds;
     const totalCount = activeFunds.length;
-    let rawAUM = activeFunds.reduce((sum, f) => sum + (f.aum || 0), 0);
-    
-    // Scale AUM to represent the actual Indian MF industry size as of mid-2026 (Total AUM ~₹82.22 Lakh Cr)
-    let targetIndustryAUM = 8222480; // In Crores (~82.22 Lakh Cr)
-    if (selectedCategory === 'equity') targetIndustryAUM = 4450000;
-    else if (selectedCategory === 'debt') targetIndustryAUM = 1620000;
-    else if (selectedCategory === 'hybrid') targetIndustryAUM = 850000;
-    else if (selectedCategory === 'etf') targetIndustryAUM = 1120000;
-    else if (selectedCategory === 'index') targetIndustryAUM = 580000;
-    else if (selectedCategory !== 'all') targetIndustryAUM = 182000; // Others (NPS, GIFT, FOF, Commodities)
-    
-    const categoryEnriched = enrichedFunds.filter(f => selectedCategory === 'all' || f.type === selectedCategory);
-    const categoryEnrichedAUM = categoryEnriched.reduce((sum, f) => sum + (f.aum || 0), 0);
-    const scaleFactor = categoryEnrichedAUM > 0 ? (targetIndustryAUM / categoryEnrichedAUM) : 1;
-    
-    const totalAUM = Math.round(rawAUM * scaleFactor);
+    const totalAUM = activeFunds.reduce((sum, f) => sum + (Number(f.aum) || 0), 0);
     
     // Top 1Y Return
-    const top1YVal = activeFunds.length > 0 ? Math.max(...activeFunds.map(f => f.returns['1Y'] || 0)) : 0;
+    const top1YVal = activeFunds.length > 0 ? Math.max(...activeFunds.map(f => f.returns?.['1Y'] || 0)) : 0;
     
     // Top 3Y Return
-    const top3YVal = activeFunds.length > 0 ? Math.max(...activeFunds.map(f => f.returns['3Y'] || 0)) : 0;
+    const top3YVal = activeFunds.length > 0 ? Math.max(...activeFunds.map(f => f.returns?.['3Y'] || 0)) : 0;
     
     // Avg 1Y Return
-    const avg1YVal = activeFunds.length > 0 ? (activeFunds.reduce((sum, f) => sum + (f.returns['1Y'] || 0), 0) / activeFunds.length) : 0;
+    const valid1YFunds = activeFunds.filter(f => f.returns?.['1Y'] != null && !isNaN(f.returns['1Y']));
+    const avg1YVal = valid1YFunds.length > 0 ? (valid1YFunds.reduce((sum, f) => sum + f.returns['1Y'], 0) / valid1YFunds.length) : 0;
     
     // Most Invested SIP Fund (highest AUM SIP fund)
-    const sipFunds = activeFunds.filter(f => f.isSIP).sort((a, b) => b.aum - a.aum);
+    const sipFunds = activeFunds.filter(f => f.isSIP).sort((a, b) => (Number(b.aum) || 0) - (Number(a.aum) || 0));
     const mostInvestedSIPFund = sipFunds.length > 0 ? sipFunds[0] : (activeFunds[0] || { name: 'Quant Small Cap Fund' });
 
     // Format AUM cleanly in Cr or Lakh Cr
@@ -1716,7 +1756,7 @@ export const IndianMfSectorAnalysis = () => {
     if (totalAUM >= 100000) {
       aumFormatted = (totalAUM / 100000).toFixed(2) + ' Lakh Cr';
     } else {
-      aumFormatted = totalAUM.toLocaleString('en-IN') + ' Cr';
+      aumFormatted = totalAUM.toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' Cr';
     }
 
     return {

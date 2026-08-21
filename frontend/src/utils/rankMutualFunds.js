@@ -145,16 +145,51 @@ export function calculateFundRankings(funds = []) {
       };
     });
 
-    // Rank within peer group
-    const validScored = scoredGroup.filter(f => f.compositeScore != null);
-    validScored.sort((a, b) => b.compositeScore - a.compositeScore);
+    // 3-way Star Ranking: Top 10 5Y CAGR ∩ Top 10 Since-Inception CAGR -> Top 3 by AUM large to small
+    const getFundKey = (f) => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim();
+    const getAum = (f) => (f.aum != null && !isNaN(f.aum) && Number(f.aum) > 0 ? Number(f.aum) : null);
+    const get5Y = (f) => {
+      const v = f.returns?.['5Y'] ?? f.fiveYearCagr;
+      return v != null && !isNaN(v) ? Number(v) : null;
+    };
+    const getIncVal = (f) => {
+      const v = f.returns?.['All'] ?? f.inceptionCagr ?? f.sinceInceptionReturn;
+      return v != null && !isNaN(v) ? Number(v) : null;
+    };
 
-    validScored.forEach((fund, idx) => {
-      fund.peerRank = idx + 1;
-      fund.isTop3InPeer = idx < 3;
-    });
+    // 1. Top 10 5Y CAGR
+    const valid5YFunds = [...group].filter(f => get5Y(f) !== null).sort((a, b) => get5Y(b) - get5Y(a)).slice(0, 10);
+    const top10_5YSet = new Set(valid5YFunds.map(getFundKey));
+
+    // 2. Top 10 Since-Inception CAGR
+    const validIncFunds = [...group].filter(f => getIncVal(f) !== null).sort((a, b) => getIncVal(b) - getIncVal(a)).slice(0, 10);
+    const top10_IncSet = new Set(validIncFunds.map(getFundKey));
+
+    // 3. Find common funds with valid AUM and sort by AUM large to small
+    const commonFunds = [...group].filter(f => getAum(f) !== null && top10_5YSet.has(getFundKey(f)) && top10_IncSet.has(getFundKey(f)));
+    commonFunds.sort((a, b) => getAum(b) - getAum(a));
+
+    // 4. If fewer than 3 common funds, fill up to 3 from Top 10 5Y by AUM large to small
+    let top3Starred = [];
+    if (commonFunds.length >= 3) {
+      top3Starred = commonFunds.slice(0, 3);
+    } else {
+      const commonSet = new Set(commonFunds.map(getFundKey));
+      const remainingTop10_5Y = valid5YFunds.filter(f => getAum(f) !== null && !commonSet.has(getFundKey(f)));
+      remainingTop10_5Y.sort((a, b) => getAum(b) - getAum(a));
+      top3Starred = [...commonFunds, ...remainingTop10_5Y].slice(0, 3);
+    }
+
+    const starredSet = new Set(top3Starred.map(getFundKey));
 
     scoredGroup.forEach(fund => {
+      const key = getFundKey(fund);
+      const isStarred = starredSet.has(key);
+
+      fund.isStarred = isStarred;
+      fund.starred = isStarred;
+      fund.isTop3 = isStarred;
+      fund.isTopFund = isStarred;
       if (fund.compositeScore == null) {
         fund.peerRank = null;
         fund.isTop3InPeer = false;

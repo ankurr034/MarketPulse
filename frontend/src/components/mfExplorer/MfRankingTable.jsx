@@ -7,10 +7,12 @@ import {
 } from 'lucide-react';
 
 // Star Hover Tooltip Component with explicit hover state & non-clipping position
-function StarHoverTooltip({ fund, isTop3, categorySharpeRange, categorySortinoRange }) {
+function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortinoRange }) {
   const [isHovered, setIsHovered] = useState(false);
 
-  if (!isTop3) return null;
+  const showStar = isStarred === true || fund?.isStarred === true || fund?.starred === true;
+
+  if (!showStar) return null;
 
   return (
     <div 
@@ -18,7 +20,7 @@ function StarHoverTooltip({ fund, isTop3, categorySharpeRange, categorySortinoRa
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" title="Top 3 Ranked Fund" />
+      <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" title="Starred Fund" />
       {isHovered && (
         <div className="absolute left-6 top-0 flex flex-col gap-2.5 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl shadow-2xl text-xs w-[300px] z-50 pointer-events-none whitespace-normal">
           {/* Top Message with Star Icon */}
@@ -372,7 +374,10 @@ export default function MfRankingTable({
       return {
         ...f,
         calculatedRank: rankNum,
-        isTop3: rankNum != null && rankNum <= 3
+        isStarred: f.isStarred === true,
+        starred: f.isStarred === true || f.starred === true,
+        isTop3: f.isStarred === true || f.isTop3 === true,
+        isTopFund: f.isStarred === true || f.isTopFund === true
       };
     });
   }, [funds, rankMode]);
@@ -429,70 +434,98 @@ export default function MfRankingTable({
       return { display5: [], fullList: [], sharpeRange: null, sortinoRange: null };
     }
 
-    const list = [...subFunds];
-
-    const getInc = (f) => f.returns?.['All'] ?? f.sinceInceptionReturn ?? f.returns?.['5Y'] ?? f.returns?.['3Y'];
-    const getSharpe = (f) => f.sharpeRatio;
-    const getSortino = (f) => f.sortinoRatio;
-    const get1Y = (f) => f.returns?.['1Y'] ?? f.oneYrReturn;
-
-    const incVals = list.map(getInc).filter(v => v != null && !isNaN(v));
-    const sharpeVals = list.map(getSharpe).filter(v => v != null && !isNaN(v));
-    const sortinoVals = list.map(getSortino).filter(v => v != null && !isNaN(v));
-
-    const minInc = incVals.length > 0 ? Math.min(...incVals) : null;
-    const maxInc = incVals.length > 0 ? Math.max(...incVals) : null;
-
-    const minSharpe = sharpeVals.length > 0 ? Math.min(...sharpeVals) : null;
-    const maxSharpe = sharpeVals.length > 0 ? Math.max(...sharpeVals) : null;
-
-    const minSortino = sortinoVals.length > 0 ? Math.min(...sortinoVals) : null;
-    const maxSortino = sortinoVals.length > 0 ? Math.max(...sortinoVals) : null;
-
-    const minMaxNormalize = (val, min, max) => {
-      if (val == null || isNaN(val)) return null;
-      if (min === max || min == null || max == null) return 0.5;
-      return Math.max(0, Math.min(1, (val - min) / (max - min)));
+    const getAum = (f) => {
+      if (f.aum == null || isNaN(f.aum)) return null;
+      const num = Number(f.aum);
+      return num > 0 ? num : null;
     };
 
-    // Rank Top 3 based on combined metric: Since-Inception CAGR + Sharpe + Sortino
-    const scored = list.map(fund => {
-      const normInc = minMaxNormalize(getInc(fund), minInc, maxInc);
-      const normSharpe = minMaxNormalize(getSharpe(fund), minSharpe, maxSharpe);
-      const normSortino = minMaxNormalize(getSortino(fund), minSortino, maxSortino);
+    const get5Y = (f) => {
+      const val = f.returns?.['5Y'] ?? f.fiveYearCagr;
+      if (val == null || isNaN(val)) return null;
+      return Number(val);
+    };
 
-      const validNorms = [normInc, normSharpe, normSortino].filter(v => v != null);
-      const combinedScore = validNorms.length > 0
-        ? validNorms.reduce((a, b) => a + b, 0) / validNorms.length
-        : -Infinity;
+    const getInception = (f) => {
+      const val = f.returns?.['All'] ?? f.inceptionCagr ?? f.sinceInceptionReturn;
+      if (val == null || isNaN(val)) return null;
+      return Number(val);
+    };
 
-      return { fund, combinedScore };
+    const getSharpe = (f) => f.sharpeRatio;
+    const getSortino = (f) => f.sortinoRatio;
+
+    // Sort subcategory funds by existing 5Y CAGR order (with AUM tie-break) as base list
+    const list = [...subFunds].sort((a, b) => {
+      const a5Y = get5Y(a);
+      const b5Y = get5Y(b);
+      if (a5Y != null && b5Y != null && a5Y !== b5Y) return b5Y - a5Y;
+      if (a5Y == null && b5Y != null) return 1;
+      if (a5Y != null && b5Y == null) return -1;
+      const aAum = getAum(a) || 0;
+      const bAum = getAum(b) || 0;
+      return bAum - aAum;
     });
 
-    scored.sort((a, b) => b.combinedScore - a.combinedScore);
+    const getFundKey = (f) => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim();
 
-    const top3Items = scored.slice(0, 3);
-    const remainingItems = scored.slice(3);
+    // 1. Top 10 5Y CAGR Set (independently ranked in this subcategory)
+    const valid5YFunds = list.filter(f => get5Y(f) !== null);
+    valid5YFunds.sort((a, b) => get5Y(b) - get5Y(a));
+    const top10_5YFunds = valid5YFunds.slice(0, 10);
+    const top10_5YSet = new Set(top10_5YFunds.map(getFundKey));
 
-    // Rank 4 and 5: selected from remaining funds based on higher 1-Year Return
-    remainingItems.sort((a, b) => {
-      const valA = get1Y(a.fund) != null && !isNaN(get1Y(a.fund)) ? get1Y(a.fund) : -Infinity;
-      const valB = get1Y(b.fund) != null && !isNaN(get1Y(b.fund)) ? get1Y(b.fund) : -Infinity;
-      return valB - valA;
-    });
+    // 2. Top 10 Since-Inception CAGR Set (independently ranked in this subcategory)
+    const validInceptionFunds = list.filter(f => getInception(f) !== null);
+    validInceptionFunds.sort((a, b) => getInception(b) - getInception(a));
+    const top10_InceptionFunds = validInceptionFunds.slice(0, 10);
+    const top10_InceptionSet = new Set(top10_InceptionFunds.map(getFundKey));
 
-    const next2Items = remainingItems.slice(0, 2);
-    const restItems = remainingItems.slice(2);
+    // 3. Find common funds that are in both Top 10 5Y & Top 10 Since-Inception with valid AUM
+    const commonFunds = list.filter(f => getAum(f) !== null && top10_5YSet.has(getFundKey(f)) && top10_InceptionSet.has(getFundKey(f)));
+    commonFunds.sort((a, b) => getAum(b) - getAum(a));
 
-    const display5 = [
-      ...top3Items.map((item, idx) => ({ ...item.fund, categoryRank: idx + 1, isTop3: true })),
-      ...next2Items.map((item, idx) => ({ ...item.fund, categoryRank: idx + 4, isTop3: false }))
-    ];
+    // 4. If fewer than 3 funds are common in Top 10 5Y & Top 10 Inception, fill up to 3 from Top 10 5Y by AUM large to small
+    let top3Starred = [];
+    if (commonFunds.length >= 3) {
+      top3Starred = commonFunds.slice(0, 3);
+    } else {
+      const commonSet = new Set(commonFunds.map(getFundKey));
+      const remainingTop10_5Y = top10_5YFunds.filter(f => getAum(f) !== null && !commonSet.has(getFundKey(f)));
+      remainingTop10_5Y.sort((a, b) => getAum(b) - getAum(a));
+      top3Starred = [...commonFunds, ...remainingTop10_5Y].slice(0, 3);
+    }
 
-    const fullList = [
-      ...display5,
-      ...restItems.map((item, idx) => ({ ...item.fund, categoryRank: idx + 6, isTop3: false }))
-    ];
+    const starredSet = new Set(top3Starred.map(getFundKey));
+
+    // 5. Starred funds arranged by AUM large to small
+    const starredFunds = [...top3Starred].sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0)).map(fund => ({
+      ...fund,
+      isStarred: true,
+      starred: true,
+      isTop3: true,
+      isTopFund: true
+    }));
+
+    // 6. Rest of funds: remaining funds in Top 10 5Y arranged by AUM large to small, followed by remaining funds
+    const nonStarredTop10_5Y = top10_5YFunds
+      .filter(f => !starredSet.has(getFundKey(f)))
+      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0));
+
+    const remainingOutsideTop10 = list
+      .filter(f => !starredSet.has(getFundKey(f)) && !top10_5YSet.has(getFundKey(f)))
+      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0));
+
+    const nonStarredFunds = [...nonStarredTop10_5Y, ...remainingOutsideTop10].map(fund => ({
+      ...fund,
+      isStarred: false,
+      starred: false,
+      isTop3: false,
+      isTopFund: false
+    }));
+
+    const fullList = [...starredFunds, ...nonStarredFunds];
+    const display5 = fullList.slice(0, 5);
 
     // Range calculated specifically from the displayed category funds
     const display5Sharpes = display5.map(getSharpe).filter(v => v != null && !isNaN(v));
@@ -507,7 +540,7 @@ export default function MfRankingTable({
   // Render individual fund row
   const renderFundRow = (fund, index, customRank = null, categorySharpeRange = null, categorySortinoRange = null) => {
     const rankDisplay = customRank != null ? customRank : fund.calculatedRank;
-    const isTop3 = fund.isTop3 !== undefined ? fund.isTop3 : (customRank != null ? customRank <= 3 : (rankDisplay != null && rankDisplay <= 3));
+    const isStarred = fund.isStarred === true || fund.starred === true;
     const navSparkline = Array.isArray(fund.navHistory) && fund.navHistory.length >= 5 ? fund.navHistory : null;
 
     return (
@@ -528,7 +561,7 @@ export default function MfRankingTable({
           <div className="flex items-center gap-1.5 min-w-0">
             <StarHoverTooltip
               fund={fund}
-              isTop3={isTop3}
+              isStarred={isStarred}
               categorySharpeRange={categorySharpeRange}
               categorySortinoRange={categorySortinoRange}
             />

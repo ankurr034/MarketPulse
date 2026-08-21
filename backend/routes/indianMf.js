@@ -223,9 +223,12 @@ const EXTRA_SCHEMES_REGISTRY = [
 
   // Large & Mid Cap Equity
   { id: '119721', name: 'SBI Large & Midcap Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
-  { id: '118968', name: 'HDFC Large and Mid Cap Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
+  { id: '130498', name: 'HDFC Large and Mid Cap Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
   { id: '119777', name: 'Kotak Equity Opportunities Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
   { id: '120596', name: 'ICICI Prudential Large & Mid Cap Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Large & Mid Cap Equity', specifiedType: 'equity', specifiedSub: 'largemidcap' },
+
+  // Hybrid Funds
+  { id: '118968', name: 'HDFC Balanced Advantage Fund - Growth Plan - Direct Plan', family: 'HDFC Mutual Fund', sectorName: 'Balanced Advantage Fund', specifiedType: 'hybrid', specifiedSub: 'balanced_adv' },
 
   // Value Equity
   { id: '120323', name: 'ICICI Prudential Value Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Value Equity', specifiedType: 'equity', specifiedSub: 'value' },
