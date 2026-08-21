@@ -71,10 +71,16 @@ class UnifiedAssetService {
       if (hasNavHistory && navHistory.length > 2) {
         liveMfAnalyticsService.setRiskFreeRate(rfVal);
         // Convert to format required by calculateSchemeMetrics (date: "DD-MM-YYYY", nav: value)
-        const formattedNavData = [...navHistory].reverse().map(item => ({
-          date: new Date(item.time).toLocaleDateString('en-GB').replace(/\//g, '-'),
-          nav: item.value
-        }));
+        const formattedNavData = [...navHistory].reverse().map(item => {
+          const d = new Date(item.time);
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const year = d.getUTCFullYear();
+          return {
+            date: `${day}-${month}-${year}`,
+            nav: item.value
+          };
+        });
         calcMetrics = liveMfAnalyticsService.calculateSchemeMetrics(formattedNavData);
       }
 

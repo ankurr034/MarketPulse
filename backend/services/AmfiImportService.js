@@ -84,12 +84,74 @@ class AmfiImportService {
           this.lastAuditReport = parsed.auditReport || null;
           this.lastImportMetadata = parsed.metadata || null;
           console.log(`⚡ Loaded ${parsed.schemes.length} active Direct Growth schemes from disk snapshot in 0ms`);
+
+          // Schedule background recomputation of all metrics using corrected CAGR formula
+          setImmediate(() => {
+            this._recomputeMetricsFromCache().catch(err => {
+              console.warn('Background metric recomputation warning:', err.message);
+            });
+          });
+
           return;
         }
       }
     } catch (e) {
       console.warn('Disk snapshot load failed:', e.message);
     }
+  }
+
+  /**
+   * Recompute all scheme metrics from NAV cache files using the corrected CAGR formula.
+   * Runs asynchronously after boot to update any stale snapshot values in memory.
+   */
+  async _recomputeMetricsFromCache() {
+    if (!this.activeSchemesCache || this.activeSchemesCache.length === 0) return;
+    const cacheDir = mfapiCacheService.cacheDir;
+    if (!fs.existsSync(cacheDir)) return;
+
+    let updated = 0;
+    for (const s of this.activeSchemesCache) {
+      const code = String(s.schemeCode).trim();
+      const cacheFile = path.join(cacheDir, code + '.json');
+      if (!fs.existsSync(cacheFile)) continue;
+      try {
+        const raw = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        if (raw && raw.data && raw.data.length > 0) {
+          const metrics = liveMfAnalyticsService.calculateSchemeMetrics(raw.data);
+          const r = metrics.returns || {};
+
+          s.oneDayChangePct = r['1D'] ?? null;
+          s.oneWeekChangePct = r['1W'] ?? null;
+          s.oneMonthChangePct = r['1M'] ?? null;
+          s.threeMonthChangePct = r['3M'] ?? null;
+          s.sixMonthChangePct = r['6M'] ?? null;
+          s.oneYearChangePct = r['1Y'] ?? null;
+          s.threeYearCagr = r['3Y'] ?? null;
+          s.fiveYearCagr = r['5Y'] ?? null;
+          s.inceptionCagr = r['All'] ?? null;
+
+          s.returns = {
+            '1D': r['1D'] ?? null,
+            '1W': r['1W'] ?? null,
+            '1M': r['1M'] ?? null,
+            '3M': r['3M'] ?? null,
+            '6M': r['6M'] ?? null,
+            '1Y': r['1Y'] ?? null,
+            '3Y': r['3Y'] ?? null,
+            '5Y': r['5Y'] ?? null,
+            'All': r['All'] ?? null
+          };
+
+          s.sharpeRatio = metrics.sharpeRatio;
+          s.sortinoRatio = metrics.sortinoRatio;
+          s.launchDate = metrics.launchDate ?? s.launchDate ?? null;
+          s.launchYear = metrics.launchYear ?? s.launchYear ?? null;
+          s.inceptionYear = metrics.launchYear ?? s.inceptionYear ?? null;
+          updated++;
+        }
+      } catch (_) {}
+    }
+    console.log(`🔄 Background recomputation complete: ${updated}/${this.activeSchemesCache.length} schemes updated with verified CAGR formula`);
   }
 
   _saveDiskSnapshot(schemes, auditReport, metadata) {
@@ -336,11 +398,7 @@ class AmfiImportService {
             s.aumProvenance = s.aumProvenance || { value: s.aum, aumCr: s.aum, source: null, status: s.aum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE', asOf: null };
           }
 
-          // If metrics are already present on scheme (e.g. from snapshot), skip recomputing
-          if (s.returns && s.sharpeRatio !== undefined && s.launchDate !== undefined) {
-            enriched++;
-            return;
-          }
+          // Always recompute metrics from NAV history to ensure corrected CAGR formula is applied
 
           // 2. Fetch NAV data from L1/L2 cache and compute metrics
           try {

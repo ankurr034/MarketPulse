@@ -141,16 +141,40 @@ class FundAnalysisEngine {
     if (!navHistory || navHistory.length === 0) return { oneYear: 0, threeYearCagr: 0, fiveYearCagr: 0 };
     
     const latest = navHistory[navHistory.length - 1];
+    const latestTime = latest.time;
     
-    // Find closest date matches for 1y, 3y, 5y ago
-    const oneYearAgo = navHistory.find(d => latest.time - d.time <= 365 * 24 * 60 * 60 * 1000);
-    const threeYearsAgo = navHistory.find(d => latest.time - d.time <= 3 * 365 * 24 * 60 * 60 * 1000);
-    const fiveYearsAgo = navHistory.find(d => latest.time - d.time <= 5 * 365 * 24 * 60 * 60 * 1000);
+    const oneYearTarget = latestTime - 365.25 * 24 * 60 * 60 * 1000;
+    const threeYearsTarget = latestTime - 3 * 365.25 * 24 * 60 * 60 * 1000;
+    const fiveYearsTarget = latestTime - 5 * 365.25 * 24 * 60 * 60 * 1000;
+
+    const findOnOrBefore = (targetTime, maxDays = 30) => {
+      let candidate = null;
+      for (let i = navHistory.length - 1; i >= 0; i--) {
+        if (navHistory[i].time <= targetTime) {
+          if (targetTime - navHistory[i].time <= maxDays * 24 * 60 * 60 * 1000) {
+            candidate = navHistory[i];
+          }
+          break;
+        }
+      }
+      return candidate;
+    };
+
+    const oneYearAgo = findOnOrBefore(oneYearTarget);
+    const threeYearsAgo = findOnOrBefore(threeYearsTarget);
+    const fiveYearsAgo = findOnOrBefore(fiveYearsTarget);
+
+    const calcCagrWithDays = (startItem) => {
+      if (!startItem || startItem.value <= 0 || latest.value <= 0) return 0;
+      const days = (latestTime - startItem.time) / (24 * 60 * 60 * 1000);
+      const yrs = days / 365.25;
+      return financialMath.calculateCAGR(startItem.value, latest.value, yrs);
+    };
 
     return {
       oneYear: oneYearAgo ? financialMath.calculateAbsoluteReturn(oneYearAgo.value, latest.value) : 0,
-      threeYearCagr: threeYearsAgo ? financialMath.calculateCAGR(threeYearsAgo.value, latest.value, 3) : 0,
-      fiveYearCagr: fiveYearsAgo ? financialMath.calculateCAGR(fiveYearsAgo.value, latest.value, 5) : 0,
+      threeYearCagr: threeYearsAgo ? calcCagrWithDays(threeYearsAgo) : 0,
+      fiveYearCagr: fiveYearsAgo ? calcCagrWithDays(fiveYearsAgo) : 0,
     };
   }
 }

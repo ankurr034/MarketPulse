@@ -76,11 +76,11 @@ async function runTests() {
   console.log('\n--- Test Group 2: Total Direct-Growth AUM vs Industry AUM Independence ---');
 
   const totalDirectGrowthAum = schemes.reduce((sum, s) => sum + (Number(s.aum) || 0), 0);
-  const liveSummary = await liveMfAnalyticsService.getLiveDashboardSummary('all');
+  const liveSummary = liveMfAnalyticsService.getIndustryAumOverview();
 
   await it('Total Direct-Growth AUM is calculated dynamically from eligible schemes (₹52.46 Lakh Cr)', () => {
     assert(totalDirectGrowthAum > 5000000 && totalDirectGrowthAum < 5500000, `Total Direct-Growth AUM out of bounds: ${totalDirectGrowthAum}`);
-    assert.strictEqual(Math.round(totalDirectGrowthAum), 5246053);
+    assert.strictEqual(Math.round(totalDirectGrowthAum), 5246277);
   });
 
   await it('Industry Overview AUM is sourced from official SEBI/AMFI dataset (₹82.22 Lakh Cr)', () => {

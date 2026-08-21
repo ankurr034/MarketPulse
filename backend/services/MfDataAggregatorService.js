@@ -184,11 +184,17 @@ class MfDataAggregatorService {
           liveMfAnalyticsService.setRiskFreeRate(0.0625);
         }
       }
-      const formattedNavData = [...navCalcHistory].reverse().map(item => ({
-        date: new Date(item.time).toLocaleDateString('en-GB').replace(/\//g, '-'),
-        nav: item.value,
-        time: item.time
-      }));
+      const formattedNavData = [...navCalcHistory].reverse().map(item => {
+        const d = new Date(item.time);
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const year = d.getUTCFullYear();
+        return {
+          date: `${day}-${month}-${year}`,
+          nav: item.value,
+          time: item.time
+        };
+      });
       calcMetrics = liveMfAnalyticsService.calculateSchemeMetrics(formattedNavData);
     }
 

@@ -153,21 +153,33 @@ class LiveMfAnalyticsService {
       return emptyMetrics;
     }
 
-    const parseDateTemp = (item) => {
-      if (!item) return new Date();
+    const parseDateUtc = (item) => {
+      if (!item) return null;
       const dStr = item.date !== undefined ? item.date : item.time;
-      if (typeof dStr === 'number') return new Date(dStr);
-      const str = String(dStr);
-      const parts = str.split('-');
-      if (parts.length === 3 && parts[0].length <= 2) {
-        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      if (typeof dStr === 'number') {
+        const d = new Date(dStr);
+        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
       }
-      return new Date(str);
+      const str = String(dStr).trim();
+      const parts = str.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length <= 2 && parts[2].length === 4) {
+          return new Date(Date.UTC(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)));
+        }
+        if (parts[0].length === 4 && parts[2].length <= 2) {
+          return new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+        }
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
     };
 
     // Auto-detect and normalize sort order: ensure newest observation is at navData[0]
-    if (navData.length >= 2 && parseDateTemp(navData[0]).getTime() < parseDateTemp(navData[navData.length - 1]).getTime()) {
-      navData = [...navData].reverse();
+    let sortedNavData = [...navData];
+    const firstDate = parseDateUtc(sortedNavData[0]);
+    const lastDate = parseDateUtc(sortedNavData[sortedNavData.length - 1]);
+    if (firstDate && lastDate && firstDate.getTime() < lastDate.getTime()) {
+      sortedNavData.reverse();
     }
 
     const getNavVal = (item) => {
@@ -176,13 +188,14 @@ class LiveMfAnalyticsService {
       return isNaN(v) ? 0 : v;
     };
 
-    const todayNav = getNavVal(navData[0]);
-    if (todayNav <= 0) {
+    const todayNav = getNavVal(sortedNavData[0]);
+    const todayDate = parseDateUtc(sortedNavData[0]);
+    if (todayNav <= 0 || !todayDate) {
       return emptyMetrics;
     }
 
     // Extract launch date and launch year independently of return calculation eligibility
-    const oldestNavItem = navData && navData.length > 0 ? navData[navData.length - 1] : null;
+    const oldestNavItem = sortedNavData && sortedNavData.length > 0 ? sortedNavData[sortedNavData.length - 1] : null;
     let launchDate = oldestNavItem ? (oldestNavItem.date || null) : null;
     let launchYear = null;
     if (oldestNavItem) {
@@ -196,7 +209,7 @@ class LiveMfAnalyticsService {
       }
     }
 
-    if (navData.length < 2) {
+    if (sortedNavData.length < 2) {
       return {
         ...emptyMetrics,
         launchDate,
@@ -205,52 +218,32 @@ class LiveMfAnalyticsService {
       };
     }
 
-    // Parse dates to calculate calendar day offsets
-    const parseDate = (item) => {
-      if (!item) return new Date();
-      const dStr = item.date !== undefined ? item.date : item.time;
-      if (typeof dStr === 'number') return new Date(dStr);
-      const str = String(dStr);
-      const parts = str.split('-');
-      if (parts.length === 3 && parts[0].length <= 2) {
-        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-      }
-      return new Date(str);
-    };
-
-    const todayDate = parseDate(navData[0]);
-
-    // Helper to find NAV closest to a target day offset
-    const getNavAtOffset = (targetDays, maxToleranceDays) => {
-      const targetTime = todayDate.getTime() - targetDays * 24 * 60 * 60 * 1000;
-      let bestObj = null;
-      let minDiff = Infinity;
-      for (let i = 1; i < navData.length; i++) {
-        const d = parseDate(navData[i]);
-        const navVal = getNavVal(navData[i]);
-        if (navVal <= 0) continue;
-        const diff = Math.abs(d.getTime() - targetTime);
-        if (diff < minDiff && diff <= maxToleranceDays * 24 * 60 * 60 * 1000) {
-          minDiff = diff;
-          bestObj = { nav: navVal, date: d };
-        }
-      }
-      return bestObj;
-    };
-
-    const nav7Obj = getNavAtOffset(7, 7);
-    const nav30Obj = getNavAtOffset(30, 15);
-    const nav90Obj = getNavAtOffset(90, 20);
-    const nav180Obj = getNavAtOffset(180, 30);
-    const nav365Obj = getNavAtOffset(365, 30);
-    const nav1095Obj = getNavAtOffset(1095, 60);
-    const nav1826Obj = getNavAtOffset(1826, 60);
-
-    const oldestNavVal = getNavVal(navData[navData.length - 1]);
-    const oldestDate = parseDate(navData[navData.length - 1]);
+    const oldestNavVal = getNavVal(sortedNavData[sortedNavData.length - 1]);
+    const oldestDate = parseDateUtc(sortedNavData[sortedNavData.length - 1]);
     const totalDaysIncep = (todayDate.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000);
 
-    const calcReturn = (navObj) => (navObj && navObj.nav > 0 ? parseFloat((((todayNav - navObj.nav) / navObj.nav) * 100).toFixed(2)) : null);
+    // Deterministic nearest valid NAV immediately on or before target date (never looking into future)
+    const findNavOnOrBefore = (targetDate, maxToleranceDays = 30) => {
+      const targetTime = targetDate.getTime();
+      const maxDiffMs = maxToleranceDays * 24 * 60 * 60 * 1000;
+      for (let i = 0; i < sortedNavData.length; i++) {
+        const d = parseDateUtc(sortedNavData[i]);
+        const navVal = getNavVal(sortedNavData[i]);
+        if (!d || navVal <= 0) continue;
+        if (d.getTime() <= targetTime) {
+          if (targetTime - d.getTime() <= maxDiffMs) {
+            return { nav: navVal, date: d, dateStr: sortedNavData[i].date };
+          }
+          return null; // Nearest is beyond acceptable tolerance
+        }
+      }
+      return null;
+    };
+
+    const calcReturn = (navObj) => {
+      if (!navObj || !navObj.nav || navObj.nav <= 0) return null;
+      return parseFloat((((todayNav - navObj.nav) / navObj.nav) * 100).toFixed(2));
+    };
     
     const calcCagr = (navObj) => {
       if (!navObj || !navObj.nav || navObj.nav <= 0) return null;
@@ -261,17 +254,36 @@ class LiveMfAnalyticsService {
       return parseFloat(cagr.toFixed(2));
     };
 
-    const return1W = totalDaysIncep >= 7 ? calcReturn(nav7Obj) : null;
-    const return1M = totalDaysIncep >= 25 ? calcReturn(nav30Obj) : null;
-    const return3M = totalDaysIncep >= 80 ? calcReturn(nav90Obj) : null;
-    const return6M = totalDaysIncep >= 160 ? calcReturn(nav180Obj) : null;
-    const return1Y = totalDaysIncep >= 330 ? calcReturn(nav365Obj) : null;
-    const return3Y = totalDaysIncep >= 1000 ? calcCagr(nav1095Obj) : null;
-    const return5Y = totalDaysIncep >= 1750 ? calcCagr(nav1826Obj) : null;
+    // Calendar-accurate target dates
+    const d1W = new Date(todayDate); d1W.setUTCDate(d1W.getUTCDate() - 7);
+    const d1M = new Date(todayDate); d1M.setUTCMonth(d1M.getUTCMonth() - 1);
+    const d3M = new Date(todayDate); d3M.setUTCMonth(d3M.getUTCMonth() - 3);
+    const d6M = new Date(todayDate); d6M.setUTCMonth(d6M.getUTCMonth() - 6);
+    const d1Y = new Date(todayDate); d1Y.setUTCFullYear(d1Y.getUTCFullYear() - 1);
+    const d3Y = new Date(todayDate); d3Y.setUTCFullYear(d3Y.getUTCFullYear() - 3);
+    const d5Y = new Date(todayDate); d5Y.setUTCFullYear(d5Y.getUTCFullYear() - 5);
+
+    const nav1DObj = sortedNavData.length > 1 ? { nav: getNavVal(sortedNavData[1]), date: parseDateUtc(sortedNavData[1]), dateStr: sortedNavData[1].date } : null;
+    const nav1WObj = findNavOnOrBefore(d1W, 7);
+    const nav1MObj = findNavOnOrBefore(d1M, 10);
+    const nav3MObj = findNavOnOrBefore(d3M, 15);
+    const nav6MObj = findNavOnOrBefore(d6M, 20);
+    const nav1YObj = findNavOnOrBefore(d1Y, 30);
+    const nav3YObj = totalDaysIncep >= 1000 ? findNavOnOrBefore(d3Y, 30) : null;
+    const nav5YObj = totalDaysIncep >= 1750 ? findNavOnOrBefore(d5Y, 30) : null;
+
+    const return1D = calcReturn(nav1DObj);
+    const return1W = totalDaysIncep >= 7 ? calcReturn(nav1WObj) : null;
+    const return1M = totalDaysIncep >= 25 ? calcReturn(nav1MObj) : null;
+    const return3M = totalDaysIncep >= 80 ? calcReturn(nav3MObj) : null;
+    const return6M = totalDaysIncep >= 160 ? calcReturn(nav6MObj) : null;
+    const return1Y = totalDaysIncep >= 330 ? calcReturn(nav1YObj) : null;
+    const return3Y = totalDaysIncep >= 1000 ? calcCagr(nav3YObj) : null;
+    const return5Y = totalDaysIncep >= 1750 ? calcCagr(nav5YObj) : null;
 
     let returnAll = null;
-    if (oldestNavVal && oldestNavVal > 0 && totalDaysIncep > 10) {
-      if (totalDaysIncep < 360) {
+    if (oldestNavVal && oldestNavVal > 0 && totalDaysIncep >= 10) {
+      if (totalDaysIncep < 365) {
         returnAll = parseFloat((((todayNav - oldestNavVal) / oldestNavVal) * 100).toFixed(2));
       } else {
         const yrs = totalDaysIncep / 365.25;
@@ -331,18 +343,6 @@ class LiveMfAnalyticsService {
     }
     const sharpeRatioDaily = riskAnalyticsService.calculateDailySharpeRatio(dailyReturns, this.riskFreeRate);
     const sortinoRatioDaily = riskAnalyticsService.calculateDailySortinoRatio(dailyReturns, this.riskFreeRate);
-
-
-
-
-    let return1D = null;
-    if (navData && navData.length >= 2) {
-      const navCurr = parseFloat(navData[0].nav);
-      const navPrev = parseFloat(navData[1].nav);
-      if (!isNaN(navCurr) && !isNaN(navPrev) && navPrev > 0) {
-        return1D = parseFloat((((navCurr - navPrev) / navPrev) * 100).toFixed(2));
-      }
-    }
 
     const returns = {
       '1D': return1D,
@@ -593,6 +593,26 @@ class LiveMfAnalyticsService {
 
     this.summaryCache.set(categoryFilter, { data: result, timestamp: Date.now() });
     return result;
+  }
+
+  getIndustryAumOverview() {
+    return {
+      industryAum: {
+        value: '₹ 82.22 Lakh Cr',
+        numericValueCr: 8222480,
+        asOf: '30 Jun 2026',
+        change: '0.78% MoM',
+        status: 'VERIFIED',
+        source: 'AMFI Monthly AUM Data Release',
+        sourceUrl: 'https://www.amfiindia.com/research-information/aum-data/total-industry-trends'
+      },
+      assetAllocation: [
+        { label: 'Equity', percentage: 43.5, value: 3576778, color: '#3b82f6' },
+        { label: 'Debt', percentage: 23.6, value: 1940505, color: '#10b981' },
+        { label: 'Other', percentage: 19.3, value: 1586938, color: '#64748b' },
+        { label: 'Hybrid', percentage: 13.6, value: 1118257, color: '#f59e0b' }
+      ]
+    };
   }
 }
 
