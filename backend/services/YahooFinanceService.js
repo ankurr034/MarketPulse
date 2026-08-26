@@ -32,51 +32,61 @@ class YahooFinanceService {
 
     try {
       const now = new Date();
-      // Fetch complete monthly chart history from inception (period1: 0) to now
-      const chart = await yahooFinance.chart(sym, { period1: 0, period2: now, interval: '1mo' });
-      const quotes = (chart.quotes || []).filter(q => q.close !== null && q.close !== undefined);
-      if (quotes.length === 0) {
+      const p5y = new Date(now.getTime() - 5.2 * 365 * 24 * 60 * 60 * 1000);
+
+      // Fetch 5Y daily chart (for 1W, 1M, 6M, 1Y, 3Y, 5Y) and lifetime monthly chart (for ALL inception)
+      const [dailyChart, monthlyChart] = await Promise.all([
+        yahooFinance.chart(sym, { period1: p5y, period2: now, interval: '1d' }),
+        yahooFinance.chart(sym, { period1: 0, period2: now, interval: '1mo' })
+      ]);
+
+      const dQuotes = (dailyChart.quotes || []).filter(q => (q.adjclose || q.close) !== null && (q.adjclose || q.close) !== undefined);
+      const mQuotes = (monthlyChart.quotes || []).filter(q => (q.adjclose || q.close) !== null && (q.adjclose || q.close) !== undefined);
+      
+      if (dQuotes.length === 0 && mQuotes.length === 0) {
         return { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
       }
 
-      const latestPrice = chart.meta.regularMarketPrice || quotes[quotes.length - 1]?.close;
+      const latestQuote = dQuotes[dQuotes.length - 1] || mQuotes[mQuotes.length - 1];
+      const latestPrice = dailyChart.meta?.regularMarketPrice || latestQuote?.adjclose || latestQuote?.close;
 
       const calcReturn = (pastPrice) => {
         if (!pastPrice || !latestPrice || pastPrice <= 0) return null;
         return parseFloat((((latestPrice - pastPrice) / pastPrice) * 100).toFixed(2));
       };
 
-      const getMonthsAgoPrice = (months) => {
-        if (quotes.length <= months) return quotes[0]?.close;
-        const targetIdx = quotes.length - 1 - months;
-        return quotes[Math.max(0, targetIdx)]?.close;
+      // Broker standard: find the closest trading day quote on or before target calendar lookback
+      const getPriceAtDaysAgo = (days) => {
+        if (dQuotes.length === 0) return null;
+        const targetTime = now.getTime() - days * 24 * 60 * 60 * 1000;
+        let closest = null;
+        let minDiff = Infinity;
+        for (const q of dQuotes) {
+          const t = new Date(q.date).getTime();
+          const diff = Math.abs(t - targetTime);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = q;
+          }
+        }
+        return closest ? (closest.adjclose || closest.close) : null;
       };
 
-      // 1W return: try short 10d daily chart
-      const d10 = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
-      let p1w = null;
-      try {
-        const chart1w = await yahooFinance.chart(sym, { period1: d10, period2: now, interval: '1d' });
-        const dQuotes = (chart1w.quotes || []).filter(q => q.close);
-        if (dQuotes.length >= 5) {
-          p1w = dQuotes[0].close;
-        }
-      } catch(e) {}
-
-      const p1m = getMonthsAgoPrice(1);
-      const p6m = getMonthsAgoPrice(6);
-      const p1y = getMonthsAgoPrice(12);
-      const p3y = getMonthsAgoPrice(36);
-      const p5y = getMonthsAgoPrice(60);
-      const pAll = quotes[0]?.close;
+      const p1w = getPriceAtDaysAgo(7);
+      const p1m = getPriceAtDaysAgo(30);
+      const p6m = getPriceAtDaysAgo(182);
+      const p1y = getPriceAtDaysAgo(365);
+      const p3y = getPriceAtDaysAgo(3 * 365);
+      const p5yPrice = getPriceAtDaysAgo(5 * 365);
+      const pAll = mQuotes.length > 0 ? (mQuotes[0]?.adjclose || mQuotes[0]?.close) : (dQuotes[0]?.adjclose || dQuotes[0]?.close);
 
       const returns = {
-        '1W': p1w ? calcReturn(p1w) : null,
+        '1W': calcReturn(p1w),
         '1M': calcReturn(p1m),
         '6M': calcReturn(p6m),
         '1Y': calcReturn(p1y),
         '3Y': calcReturn(p3y),
-        '5Y': calcReturn(p5y),
+        '5Y': calcReturn(p5yPrice),
         'ALL': calcReturn(pAll)
       };
 
