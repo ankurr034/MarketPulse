@@ -32,7 +32,7 @@ class YahooFinanceService {
 
     try {
       const now = new Date();
-      const p5y = new Date(now.getTime() - 5.2 * 365 * 24 * 60 * 60 * 1000);
+      const p5y = new Date(now.getFullYear() - 5, now.getMonth() - 2, now.getDate());
 
       // Fetch 5Y daily chart (for 1W, 1M, 6M, 1Y, 3Y, 5Y) and lifetime monthly chart (for ALL inception)
       const [dailyChart, monthlyChart] = await Promise.all([
@@ -40,45 +40,51 @@ class YahooFinanceService {
         yahooFinance.chart(sym, { period1: 0, period2: now, interval: '1mo' })
       ]);
 
-      const dQuotes = (dailyChart.quotes || []).filter(q => (q.adjclose || q.close) !== null && (q.adjclose || q.close) !== undefined);
-      const mQuotes = (monthlyChart.quotes || []).filter(q => (q.adjclose || q.close) !== null && (q.adjclose || q.close) !== undefined);
+      const dQuotes = (dailyChart.quotes || []).filter(q => (q.close || q.adjclose) !== null && (q.close || q.adjclose) !== undefined);
+      const mQuotes = (monthlyChart.quotes || []).filter(q => (q.close || q.adjclose) !== null && (q.close || q.adjclose) !== undefined);
       
       if (dQuotes.length === 0 && mQuotes.length === 0) {
         return { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
       }
 
       const latestQuote = dQuotes[dQuotes.length - 1] || mQuotes[mQuotes.length - 1];
-      const latestPrice = dailyChart.meta?.regularMarketPrice || latestQuote?.adjclose || latestQuote?.close;
+      const latestPrice = dailyChart.meta?.regularMarketPrice || latestQuote?.close || latestQuote?.adjclose;
 
       const calcReturn = (pastPrice) => {
         if (!pastPrice || !latestPrice || pastPrice <= 0) return null;
         return parseFloat((((latestPrice - pastPrice) / pastPrice) * 100).toFixed(2));
       };
 
-      // Broker standard: find the closest trading day quote on or before target calendar lookback
-      const getPriceAtDaysAgo = (days) => {
+      // Broker standard (Upstox / Groww): find the latest trading day closing price on or before target date
+      const findQuoteOnOrBefore = (targetDate) => {
         if (dQuotes.length === 0) return null;
-        const targetTime = now.getTime() - days * 24 * 60 * 60 * 1000;
-        let closest = null;
-        let minDiff = Infinity;
+        const targetTime = targetDate.getTime();
+        let best = null;
         for (const q of dQuotes) {
           const t = new Date(q.date).getTime();
-          const diff = Math.abs(t - targetTime);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closest = q;
+          if (t <= targetTime) {
+            best = q;
+          } else {
+            break;
           }
         }
-        return closest ? (closest.adjclose || closest.close) : null;
+        return best ? (best.close || best.adjclose) : (dQuotes[0]?.close || dQuotes[0]?.adjclose);
       };
 
-      const p1w = getPriceAtDaysAgo(7);
-      const p1m = getPriceAtDaysAgo(30);
-      const p6m = getPriceAtDaysAgo(182);
-      const p1y = getPriceAtDaysAgo(365);
-      const p3y = getPriceAtDaysAgo(3 * 365);
-      const p5yPrice = getPriceAtDaysAgo(5 * 365);
-      const pAll = mQuotes.length > 0 ? (mQuotes[0]?.adjclose || mQuotes[0]?.close) : (dQuotes[0]?.adjclose || dQuotes[0]?.close);
+      const d1w = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      const d1m = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      const d6m = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      const d1y = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      const d3y = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+      const d5y = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
+
+      const p1w = findQuoteOnOrBefore(d1w);
+      const p1m = findQuoteOnOrBefore(d1m);
+      const p6m = findQuoteOnOrBefore(d6m);
+      const p1y = findQuoteOnOrBefore(d1y);
+      const p3y = findQuoteOnOrBefore(d3y);
+      const p5yPrice = findQuoteOnOrBefore(d5y);
+      const pAll = mQuotes.length > 0 ? (mQuotes[0]?.close || mQuotes[0]?.adjclose) : (dQuotes[0]?.close || dQuotes[0]?.adjclose);
 
       const returns = {
         '1W': calcReturn(p1w),
