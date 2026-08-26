@@ -1,44 +1,61 @@
-# MarketPulse — Sector Analysis Dashboard
+# MarketPulse — Financial Market & Sector Performance Platform
 
-> **For informational purposes only — not investment advice.**
+> **For informational and analytical purposes only — not investment advice.**
 
-A modern, responsive market analysis dashboard showing sector-wise performance for **Indian (NSE)** and **Global (US/GICS)** markets. Drill into any sector to view constituent stocks, sort by performance, and analyze individual stock charts with technical indicators.
+MarketPulse is a modern, full-stack financial market analytics platform providing comprehensive performance insights across **Indian (NSE)** and **Global (US/GICS)** equities, sector indices, and Indian Mutual Funds.
 
-![Tech Stack](https://img.shields.io/badge/React-18-blue) ![Vite](https://img.shields.io/badge/Vite-5-purple) ![Tailwind](https://img.shields.io/badge/TailwindCSS-3-cyan) ![Node](https://img.shields.io/badge/Node.js-Express-green) ![Yahoo Finance](https://img.shields.io/badge/Data-Yahoo%20Finance-red)
+![Tech Stack](https://img.shields.io/badge/React-18-blue) ![Vite](https://img.shields.io/badge/Vite-5-purple) ![Tailwind](https://img.shields.io/badge/TailwindCSS-3-cyan) ![Node](https://img.shields.io/badge/Node.js-Express-green) ![Yahoo Finance](https://img.shields.io/badge/Data-Yahoo%20Finance-red) ![AMFI](https://img.shields.io/badge/Mutual%20Funds-AMFI%20Official-orange)
 
 ---
 
-## ✨ Features
+## ✨ Key Platform Features
 
-### Sector Heatmap
-- **13 Indian sectors** (Nifty Bank, IT, Auto, Pharma, FMCG, Metal, Energy, Realty, PSU Bank, Financial Services, Media, Infra, Consumer Durables)
-- **11 Global sectors** (Technology, Healthcare, Financials, Energy, Consumer Discretionary, Consumer Staples, Industrials, Materials, Utilities, Real Estate, Communication Services)
-- **Grid View**: Color-coded cards with advance/decline ratio bars
-- **Treemap View**: Size-weighted tiles with color intensity reflecting % change
-- Region toggle: India / Global / All
-- Timeframe toggle: 1D / 1W / 1M / YTD
+### 📈 Stocks Performance Dashboard
+- **Comprehensive Sector Overview**: Compare 19 Indian NSE sectors and global indices at a glance.
+- **Dynamic Header & Timestamp**: Live data update timestamp with interactive refresh (`↻`).
+- **6 Key Breadth Summary Cards**:
+  - *Total Sectors*
+  - *Advancing Sectors*
+  - *Declining Sectors*
+  - *Up Stocks*
+  - *Down Stocks*
+  - *Unchanged Stocks*
+- **Inline Constituent Drill-Down**: In-row dropdown accordion toggle (`⌵` / `⌃`) adjacent to the sector name to expand constituent stocks inline without page reload.
+- **Stock-Level Sub-Filters & Search**: Filter constituents within an expanded sector by *All Stocks*, *Top Gainers*, *Top Losers*, *By Volume*, or *By Market Cap*, plus instant text search.
+- **Export Capabilities**: Dynamic CSV export containing complete sector financials and multi-period returns.
+- **Pagination & Controls**: Configurable row counts (10, 20, 50, All) and "Show More" progressive disclosure.
 
-### Sector Drill-Down
-- Sortable stock table (by % change, price, volume, name)
-- Inline filter for quick stock search
-- Area chart showing sector performance
-- AI-generated sector analysis summary
-- Top gainer/loser badges
+---
 
-### Stock Detail
-- TradingView Lightweight Charts (candlestick)
-- Technical indicators: SMA, EMA, Bollinger Bands, RSI, MACD, VWAP
-- Key statistics: Market Cap, P/E, EPS, Volume, 52W Range
-- 52-week range visualizer
+### 📊 Accounting-Grade Fundamentals Engine
+- **Reported EBIT (Operating Profit in ₹ Cr)**:
+  - Computed from reported TTM financial statement metrics:
+    $$\text{EBIT (₹ Cr)} = \frac{\text{Reported Total Revenue (TTM)} \times \text{Reported Operating Margin (TTM)}}{10,000,000}$$
+  - **Financial Institutions Rule**: Commercial banks and NBFCs (e.g., HDFC Bank, ICICI Bank, SBI) evaluate EBIT strictly to `null` (`—`) in accordance with GAAP/IFRS standards (as interest expense is an operating cost of capital).
+  - Non-financial corporations display authentic operating income figures.
+- **Reported Net Profit (₹ Cr)**:
+  - Sourced directly from reported `defaultKeyStatistics.netIncomeToCommon` (TTM) or verified compatible shares $\times$ EPS.
+- **Data Integrity**: Zero fabricated or hardcoded financial metrics; unavailable values strictly display `—`.
 
-### Dashboard Features
-- **Top Gainers / Top Losers** widget (cross-sector, top 10 each)
-- **Market Indices Ticker**: Nifty 50, Sensex, Bank Nifty, S&P 500, NASDAQ, FTSE 100
-- **Dark / Light theme** toggle
-- **Search**: Find stocks and sectors by name
-- **Responsive**: Mobile-first design, works on all screen sizes
-- **Skeleton loaders**: Smooth loading states
-- **Real-time ticks**: WebSocket-powered price updates
+---
+
+### ⏳ Authentic Multi-Period Performance Returns
+- **Real Historical Returns**: Computes true price percentage changes across historical lookback windows:
+  - **1W**: 1 week ago close
+  - **1M**: 4 weeks (1 month) ago close
+  - **6M**: 26 weeks (6 months) ago close
+  - **1Y**: 52 weeks (1 year) ago close
+  - **3Y**: 156 weeks (3 years) ago close
+  - **5Y**: 60 months (5 years) ago close
+  - **ALL**: Inception / First trade listing date close
+- **Distinct 5Y vs Inception (ALL)**: Accurately differentiates 5-year performance from lifetime all-time performance (e.g. Infosys +143,260% ALL vs -33.14% 5Y).
+
+---
+
+### 📑 Indian Mutual Funds & Sector Analysis
+- **AMFI Official Data Pipeline**: Live NAV synchronization directly from AMFI.
+- **AUM-Weighted Portfolio Analytics**: Sector allocation breakdown, top equity holdings, and fund comparison.
+- **Scheme Directory**: Filter across Large Cap, Mid Cap, Small Cap, Flexi Cap, Sectoral/Thematic, and Commodity ETFs.
 
 ---
 
@@ -46,13 +63,12 @@ A modern, responsive market analysis dashboard showing sector-wise performance f
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, Vite 5, Tailwind CSS 3 |
-| Charts | TradingView Lightweight Charts, Recharts |
-| State | Redux Toolkit |
-| Real-time | Socket.io |
-| Backend | Node.js, Express |
-| Data | Yahoo Finance (via `yahoo-finance2`) |
-| Fonts | Inter, Outfit (Google Fonts) |
+| **Frontend** | React 18, Vite 5, Tailwind CSS 3, Lucide Icons |
+| **Charts** | TradingView Lightweight Charts, Recharts |
+| **State Management** | Redux Toolkit |
+| **Backend** | Node.js, Express.js |
+| **Data Providers** | Yahoo Finance (`yahoo-finance2`), AMFI Official NAV Portal |
+| **Real-time** | WebSocket (Socket.io) |
 
 ---
 
@@ -61,12 +77,12 @@ A modern, responsive market analysis dashboard showing sector-wise performance f
 ### Prerequisites
 - **Node.js** 18+ and **npm** 9+
 
-### Setup
+### Installation & Setup
 
 ```bash
-# Clone the repo
+# Clone the repository
+git clone https://github.com/ankurr034/MarketPulse.git
 cd MarketPulse
-
 
 # Install backend dependencies
 cd backend
@@ -76,114 +92,41 @@ npm install
 cd ../frontend
 npm install
 
-# Return to root
+# Return to root directory
 cd ..
 ```
 
-### Run Development Servers
+### Run the Application
 
 ```bash
-# From the project root:
+# Start both backend and frontend concurrently from root:
 npm run dev
 ```
 
-This starts both servers concurrently:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5001
-
-### Environment Variables (Optional)
-
-Create `backend/.env`:
-
-```env
-PORT=5001
-```
-
-No API keys are required — Yahoo Finance does not need authentication.
+- **Frontend Application**: `http://localhost:3000`
+- **Backend API Server**: `http://localhost:5001`
 
 ---
 
-## 📊 Data Source
+## 📡 API Endpoints Summary
 
-- **Provider**: Yahoo Finance (unofficial, via `yahoo-finance2` npm package)
-- **Coverage**: ~200 stocks across NSE (India) and NYSE/NASDAQ (US)
-- **Update frequency**: Data cached for 5 minutes, WebSocket ticks every 1.5s
-- **Delay**: Data is typically delayed by **15+ minutes** for Indian markets
-
-### ⚠️ Data Limitations
-
-- Yahoo Finance is an unofficial data source and may have intermittent availability
-- Some NSE tickers may not return data due to Yahoo's coverage gaps
-- Data should NOT be used for real-time trading decisions
-- Rate limiting is handled via staggered batch requests and caching
-- The data provider can be swapped by implementing the same interface in `SectorDataService.js`
-
-### Swapping Data Providers
-
-The backend is designed with a clean interface. To swap Yahoo Finance for another provider:
-
-1. Implement the same methods in `YahooFinanceService.js` (or create a new service)
-2. The `SectorDataService` consumes quotes via `getQuotes(symbols[])` — any provider returning `{ symbol, name, ltp, change, changePercent, volume, ... }` is compatible
-3. Update the import in `SectorDataService.js`
-
-Compatible alternatives: Alpha Vantage, Twelve Data, Finnhub, IEX Cloud.
-
----
-
-## 📁 Project Structure
-
-```
-MarketPulse/
-├── backend/
-│   ├── server.js              # Express + Socket.io entry
-│   ├── routes/
-│   │   ├── sectors.js         # Sector endpoints
-│   │   ├── stocks.js          # Stock search/detail/chart
-│   │   └── market.js          # Indices, breadth, heatmap
-│   └── services/
-│       ├── SectorDataService.js    # Sector definitions + aggregation
-│       ├── YahooFinanceService.js  # Yahoo Finance API wrapper
-│       └── SimulatorService.js     # Real-time tick simulation
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── pages/
-│   │   │   ├── SectorHeatmap.jsx   # Main landing page
-│   │   │   ├── SectorDetail.jsx    # Sector drill-down
-│   │   │   └── StockDetails.jsx    # Stock chart + stats
-│   │   ├── components/
-│   │   │   ├── Header.jsx          # Search, toggles, theme
-│   │   │   ├── Footer.jsx          # Disclaimers
-│   │   │   ├── TopMoversWidget.jsx # Gainers/Losers sidebar
-│   │   │   ├── MarketIndicesTicker.jsx
-│   │   │   ├── SparklineChart.jsx
-│   │   │   └── TradingViewChart.jsx
-│   │   ├── store/
-│   │   │   └── slices/marketSlice.js
-│   │   └── hooks/useWebSocket.js
-│   ├── tailwind.config.js
-│   └── vite.config.js
-└── docker-compose.yml
-```
-
----
-
-## 🐳 Docker Deployment
-
-```bash
-docker-compose up --build
-```
+| Endpoint | Method | Description |
+|---|:---:|---|
+| `/api/sectors` | `GET` | All sectors with live LTP, advances/declines, market cap, EBIT, Net Profit, and returns |
+| `/api/sectors/:sectorId` | `GET` | Detailed sector data with constituent stock financials and returns |
+| `/api/stocks/search` | `GET` | Search equities by ticker symbol or company name |
+| `/api/stocks/:symbol` | `GET` | Full stock quote, fundamentals, and support/resistance levels |
+| `/api/indian-mf/directory` | `GET` | Searchable directory of Indian mutual fund schemes |
+| `/api/indian-mf/sector-breakdown` | `GET` | Sector holdings breakdown across Indian mutual funds |
 
 ---
 
 ## 📜 Disclaimer
 
-This application is a **market analysis tool for educational and informational purposes only**. It does not constitute financial advice, investment recommendations, or an offer to buy or sell securities. Data is sourced from third-party providers and may be delayed, inaccurate, or incomplete. Always consult a qualified financial advisor before making investment decisions.
-
-No personal financial data is collected, stored, or processed by this application.
+This application is built as an **analytical and educational platform for market visualization**. It does not constitute financial, legal, or investment advice. Data is sourced from third-party feeds and may be delayed. Always perform independent due diligence or consult a SEBI/SEC registered financial advisor before making investment decisions.
 
 ---
 
-## License
+## 📄 License
 
 MIT
