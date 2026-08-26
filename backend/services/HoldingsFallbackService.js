@@ -36,7 +36,8 @@ class HoldingsFallbackService {
             for (const [code, item] of Object.entries(parsed.disclosures)) {
               if (item && typeof item.value === 'number' && item.value > 0) {
                 if (!this.cache.has(`aum_details_${code}`)) {
-                  this.cache.set(`aum_details_${code}`, { data: item, timestamp: Date.now() });
+                  // Permanent cache marker so verified AUM survives server lifetime
+                  this.cache.set(`aum_details_${code}`, { data: item, timestamp: 0, isPermanent: true });
                   totalLoaded++;
                 }
               }
@@ -47,7 +48,7 @@ class HoldingsFallbackService {
         console.warn(`Failed reading AUM disk cache from ${p}:`, e.message);
       }
     }
-    console.log(`⚡ Pre-loaded ${totalLoaded} verified scheme AUM records from disk cache`);
+    console.log(`⚡ Pre-loaded ${totalLoaded} verified scheme AUM records from disk cache (Permanent TTL)`);
   }
 
   _saveDiskCache(code, item) {
@@ -67,6 +68,8 @@ class HoldingsFallbackService {
         }
       } catch (e) {}
     }
+    // Also keep in memory cache permanently
+    this.cache.set(`aum_details_${code}`, { data: item, timestamp: 0, isPermanent: true });
   }
 
   classifySecurityType(name, sector) {
@@ -81,7 +84,12 @@ class HoldingsFallbackService {
 
   _getCached(key) {
     const item = this.cache.get(key);
-    if (item && Date.now() - item.timestamp < this.CACHE_TTL) {
+    if (!item) return null;
+    // Permanent cache items (e.g. verified disk AUM disclosures) do not expire unless replaced
+    if (item.isPermanent || item.timestamp === 0) {
+      return item.data;
+    }
+    if (Date.now() - item.timestamp < this.CACHE_TTL) {
       return item.data;
     }
     return null;
@@ -99,6 +107,10 @@ class HoldingsFallbackService {
         data.launchYear = existing.launchYear;
         data.launchDate = existing.launchDate;
         data.launchSource = existing.launchSource;
+      }
+      // If setting aum_details and new data is null/unavailable but existing had valid AUM, preserve existing!
+      if (key.startsWith('aum_details_') && (!data.value || data.value <= 0) && (existing.value && existing.value > 0)) {
+        return; // Do NOT overwrite verified AUM with UNAVAILABLE
       }
     }
     this.cache.set(key, { data, timestamp: Date.now() });

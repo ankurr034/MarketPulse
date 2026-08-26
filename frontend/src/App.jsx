@@ -140,7 +140,7 @@ function App() {
         <MarketIndicesTicker />
 
         {/* Main content area */}
-        <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 md:px-6 py-5">
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 md:px-6 py-5">
           <div className="flex flex-col lg:flex-row gap-5">
             {/* Primary content */}
             <div className="flex-1 min-w-0">
@@ -149,8 +149,8 @@ function App() {
               </Suspense>
             </div>
 
-            {/* Sidebar - Top Movers (visible on heatmap and sector-detail views) */}
-            {(activeView === 'heatmap' || activeView === 'sector-detail') && (
+            {/* Sidebar - Top Movers (visible on sector-detail view) */}
+            {activeView === 'sector-detail' && (
               <aside className="w-full lg:w-[280px] shrink-0">
                 <div className="lg:sticky lg:top-[72px]">
                   <TopMoversWidget />

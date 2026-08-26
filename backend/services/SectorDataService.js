@@ -814,6 +814,8 @@ class SectorDataService {
         return {
           ...stock,
           ...quote,
+          ebit: quote.ebit || null,
+          netProfit: quote.netProfit || null,
           changePercent
         };
       }
@@ -835,6 +837,8 @@ class SectorDataService {
         pe: null,
         pb: null,
         eps: null,
+        ebit: null,
+        netProfit: null,
         dividendYield: null,
         vwap: null
       };
@@ -944,6 +948,25 @@ class SectorDataService {
 
           const totalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
           const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
+          
+          // Sector EBIT:
+          // 1. Financial sectors (Banks/NBFCs) do not contribute/display EBIT (strictly null).
+          // 2. For non-financial sectors, aggregate valid non-financial constituent EBIT values.
+          //    If at least one valid constituent exists, return the valid aggregation.
+          const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
+          let totalEbit = null;
+          if (!isFinancialSector) {
+            const validEbitStocks = validStocks.filter(s => typeof s.ebit === 'number' && s.ebit > 0);
+            if (validEbitStocks.length > 0) {
+              totalEbit = validEbitStocks.reduce((sum, s) => sum + s.ebit, 0);
+            }
+          }
+
+          // Sector Net Profit: Aggregated across valid constituent reported Net Profits.
+          const validNetProfitStocks = validStocks.filter(s => typeof s.netProfit === 'number' && s.netProfit > 0);
+          let totalNetProfit = validNetProfitStocks.length > 0
+            ? validNetProfitStocks.reduce((sum, s) => sum + s.netProfit, 0)
+            : null;
 
           const indexTicker = sector.etfTicker || sector.indexTicker;
           const indexQuote = indexTicker ? indexEtfQuoteMap.get(indexTicker) : null;
@@ -980,6 +1003,23 @@ class SectorDataService {
           if (sectorChangePercent > 0.5) trend = 'Bullish';
           else if (sectorChangePercent < -0.5) trend = 'Bearish';
 
+          // Sector multi-period returns: from indexQuote.returns or average of valid constituent returns
+          const indexReturns = (indexQuote && indexQuote.returns) ? indexQuote.returns : null;
+          const sectorReturns = {};
+          ['1W', '1M', '6M', '1Y', '3Y', '5Y', 'ALL'].forEach(p => {
+            const hasIndexVal = indexReturns && typeof indexReturns[p] === 'number' && !isNaN(indexReturns[p]) && indexReturns[p] !== 0;
+            if (hasIndexVal) {
+              sectorReturns[p] = indexReturns[p];
+            } else {
+              const validConstituentReturns = validStocks
+                .map(s => s.returns && s.returns[p])
+                .filter(v => typeof v === 'number' && !isNaN(v));
+              sectorReturns[p] = validConstituentReturns.length > 0
+                ? parseFloat((validConstituentReturns.reduce((sum, v) => sum + v, 0) / validConstituentReturns.length).toFixed(2))
+                : (indexReturns && typeof indexReturns[p] === 'number' ? indexReturns[p] : null);
+            }
+          });
+
           results.push({
             id: sector.id,
             name: sector.name,
@@ -994,6 +1034,8 @@ class SectorDataService {
             validStocks: validStocks.length,
             totalVolume,
             totalMarketCap,
+            ebit: totalEbit,
+            netProfit: totalNetProfit,
             fiftyTwoWeekHigh,
             fiftyTwoWeekLow,
             open,
@@ -1001,6 +1043,7 @@ class SectorDataService {
             dayHigh,
             dayLow,
             indexPrice,
+            returns: sectorReturns,
             stocks: stocksWithQuotes
           });
         } catch (err) {
@@ -1019,6 +1062,8 @@ class SectorDataService {
             validStocks: 0,
             totalVolume: 0,
             totalMarketCap: 0,
+            ebit: null,
+            netProfit: null,
             fiftyTwoWeekHigh: 0,
             fiftyTwoWeekLow: 0,
             indexPrice: 0,
@@ -1116,6 +1161,23 @@ class SectorDataService {
         aiSummary = `The ${sector.name} sector is demonstrating range-bound and neutral activity ${periodLabel}. Trading volume remains moderate with mixed performance across the constituents. ${advanceCount} stocks are advancing while ${declineCount} are declining. Traders are awaiting key macro indicators before committing to directional positions.`;
       }
 
+      const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
+      let totalEbit = null;
+      if (!isFinancialSector) {
+        const validEbitStocks = validStocks.filter(s => typeof s.ebit === 'number' && s.ebit > 0);
+        if (validEbitStocks.length > 0) {
+          totalEbit = validEbitStocks.reduce((sum, s) => sum + s.ebit, 0);
+        }
+      }
+
+      const validNetProfitStocks = validStocks.filter(s => typeof s.netProfit === 'number' && s.netProfit > 0);
+      let totalNetProfit = validNetProfitStocks.length > 0
+        ? validNetProfitStocks.reduce((sum, s) => sum + s.netProfit, 0)
+        : null;
+
+      const totalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
+      const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
+
       return {
         id: sector.id,
         name: sector.name,
@@ -1124,6 +1186,10 @@ class SectorDataService {
         changePercent: sectorChangePercent,
         timeframe,
         trend,
+        ebit: totalEbit,
+        netProfit: totalNetProfit,
+        totalVolume,
+        totalMarketCap,
         stocks: sorted,
         gainers,
         losers,

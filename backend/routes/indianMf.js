@@ -119,10 +119,23 @@ router.get('/sectors/flat', async (req, res) => {
           ? Number(fund.aum)
           : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null);
 
+        const navDateVal = fund.navDate || fund.date || 'Data Unavailable';
+        const aumDateVal = fund.aumProvenance?.asOf || fund.aumDate || (cleanAum ? '30 Jun 2026' : null);
+
+        const launchYearVal = fund.launchYear ?? fund.inceptionYear ?? null;
+
         flatFunds.push({
           ...fund,
           aum: cleanAum,
           aumCr: cleanAum,
+          launchYear: launchYearVal,
+          inceptionYear: launchYearVal,
+          launchDate: fund.launchDate ?? null,
+          navDate: navDateVal,
+          asOfDate: navDateVal,
+          navAsOfDate: navDateVal,
+          aumAsOfDate: aumDateVal,
+          performanceAsOfDate: navDateVal,
           sectorName: sector.sectorName,
           sectorId: sector.sectorId
         });
@@ -301,10 +314,14 @@ router.get('/all-direct-schemes', async (req, res) => {
           parentCategory: classification.parentCategory
         } : {}),
         nav: s.nav,
-        navDate: s.date,
+        navDate: s.navDate || s.date || 'Data Unavailable',
+        asOfDate: s.navDate || s.date || null,
+        navAsOfDate: s.navDate || s.date || null,
+        aumAsOfDate: s.aumProvenance?.asOf || s.aumDate || (cleanAum ? '30 Jun 2026' : null),
+        performanceAsOfDate: s.navDate || s.date || null,
         aum: cleanAum,
         aumCr: cleanAum,
-        aumProvenance: s.aumProvenance || { value: cleanAum, aumCr: cleanAum, source: cleanAum ? 'Upvaly FinAPI Disclosure' : null, status: cleanAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE' },
+        aumProvenance: s.aumProvenance || { value: cleanAum, aumCr: cleanAum, source: cleanAum ? 'Upvaly FinAPI Disclosure' : null, status: cleanAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE', asOf: s.aumProvenance?.asOf || (cleanAum ? '30 Jun 2026' : null) },
         oneWeekChangePct: s.oneWeekChangePct ?? null,
         oneMonthChangePct: s.oneMonthChangePct ?? null,
         threeMonthChangePct: s.threeMonthChangePct ?? null,
@@ -361,6 +378,9 @@ router.get('/extra-schemes', async (req, res) => {
         const resolvedName = assetSummary?.schemeName || assetSummary?.name || s.name;
         const resolvedAmc = assetSummary?.amc || assetSummary?.family || resolveAmcName(s.family || resolvedName);
 
+        const navDateVal = assetSummary?.navDate || assetSummary?.date || 'Data Unavailable';
+        const aumDateVal = cleanAum ? (cachedAum?.asOf || assetSummary?.aumAsOf || '30 Jun 2026') : null;
+
         return {
           id: s.id,
           schemeCode: s.id,
@@ -385,7 +405,12 @@ router.get('/extra-schemes', async (req, res) => {
           family: resolvedAmc,
           fundHouse: resolvedAmc,
           aum: cleanAum,
-          aumCr: cleanAum
+          aumCr: cleanAum,
+          navDate: navDateVal,
+          asOfDate: navDateVal,
+          navAsOfDate: navDateVal,
+          aumAsOfDate: aumDateVal,
+          performanceAsOfDate: navDateVal
         };
       }));
       enriched.push(...results);

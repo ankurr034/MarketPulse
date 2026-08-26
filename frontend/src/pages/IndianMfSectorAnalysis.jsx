@@ -195,6 +195,31 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
   const formattedNav = Number.isFinite(navValue) ? navValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
   const formattedAum = Number.isFinite(aumValue) ? aumValue.toLocaleString('en-IN') : '—';
 
+  const formatNavDate = (dateStr) => {
+    if (!dateStr || dateStr === 'Data Unavailable') return 'Date unavailable';
+    if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+      const [d, m, y] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      const day = String(parsed.getUTCDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[parsed.getUTCMonth()];
+      const year = parsed.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return dateStr;
+  };
+
   // Effective holdings with fallback to guarantee holdings display
   const getEffectiveHoldings = () => {
     if (detail?.holdings && detail.holdings.length > 0) return detail.holdings;
@@ -285,7 +310,12 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
             </button>
           </div>
         </td>
-        <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">₹{formattedNav}</td>
+        <td 
+          className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle"
+          title={`NAV: ₹${formattedNav}\nAs of: ${formatNavDate(fund.navAsOfDate || fund.navDate || fund.asOfDate)}`}
+        >
+          ₹{formattedNav}
+        </td>
         <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">₹{formattedAum} Cr</td>
         <td className={`py-2 px-1 text-right whitespace-nowrap align-middle ${sortBy === 'sharpe' ? 'bg-indigo-500/5' : ''}`}>
           <MiniRatioIndicator value={currentSharpe} type="sharpe" />

@@ -1,524 +1,1104 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setActiveSector, setSectors, setLoading, setActiveSymbol, setTimeframe } from '../store/slices/marketSlice';
-import { ArrowUpRight, ArrowDownRight, Minus, LayoutGrid, Grid3X3, List, TrendingUp, TrendingDown, BarChart2, Activity } from 'lucide-react';
-import { Treemap, ResponsiveContainer } from 'recharts';
-import SparklineChart from '../components/SparklineChart';
+import { 
+  Building, Building2, Landmark, Cpu, Car, Pill, ShoppingBag, 
+  Hammer, Zap, Tv, HardHat, TrendingUp, Download, RefreshCw, 
+  Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, 
+  ChevronsLeft, ChevronsRight, ArrowRight
+} from 'lucide-react';
 import axios from 'axios';
-import { formatPrice } from '../utils/currencyFormatter.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-// Custom treemap node renderer
-const CustomTreemapNode = ({ x, y, width, height, name, changePercent, region }) => {
-  if (width < 4 || height < 4) return null;
+// Period list
+const PERIODS = ['1W', '1M', '6M', '1Y', '3Y', '5Y', 'ALL'];
 
-  const absChange = Math.abs(changePercent || 0);
-  const isPositive = (changePercent || 0) >= 0;
-  const isNeutral = absChange < 0.1;
-
-  let bgColor;
-  if (isNeutral) {
-    bgColor = 'rgba(100, 116, 139, 0.3)';
-  } else if (isPositive) {
-    const intensity = Math.min(absChange / 3, 1);
-    bgColor = `rgba(34, 197, 94, ${0.15 + intensity * 0.45})`;
-  } else {
-    const intensity = Math.min(absChange / 3, 1);
-    bgColor = `rgba(239, 68, 68, ${0.15 + intensity * 0.45})`;
-  }
-
-  const showText = width > 60 && height > 35;
-  const showPercent = width > 40 && height > 25;
-
-  return (
-    <g>
-      <rect
-        x={x} y={y} width={width} height={height}
-        rx={4}
-        fill={bgColor}
-        stroke="var(--bg-primary)"
-        strokeWidth={2}
-        style={{ cursor: 'pointer' }}
-      />
-      {showText && (
-        <text x={x + width / 2} y={y + height / 2 - 6} textAnchor="middle" fill="var(--text-primary)" fontSize={width > 100 ? 11 : 9} fontWeight={600} fontFamily="Inter">
-          {name}
-        </text>
-      )}
-      {showPercent && (
-        <text x={x + width / 2} y={y + height / 2 + 10} textAnchor="middle" fill={isNeutral ? 'var(--text-muted)' : isPositive ? 'var(--gain)' : 'var(--loss)'} fontSize={width > 100 ? 12 : 10} fontWeight={700} fontFamily="Inter">
-          {isPositive && !isNeutral ? '+' : ''}{(changePercent || 0).toFixed(2)}%
-        </text>
-      )}
-    </g>
-  );
+// Format currency numbers with Indian commas
+const formatIndianNumber = (num, minDec = 2, maxDec = 2) => {
+  if (num === null || num === undefined || isNaN(num)) return '—';
+  return Number(num).toLocaleString('en-IN', {
+    minimumFractionDigits: minDec,
+    maximumFractionDigits: maxDec
+  });
 };
 
-// Skeleton card
-const SkeletonCard = () => (
-  <div className="glass-card p-5 space-y-3">
-    <div className="skeleton h-4 w-3/4" />
-    <div className="skeleton h-8 w-1/2" />
-    <div className="skeleton h-3 w-full" />
-    <div className="flex justify-between">
-      <div className="skeleton h-3 w-1/3" />
-      <div className="skeleton h-3 w-1/4" />
-    </div>
-  </div>
-);
+// Format large volumes as Cr / L / K
+const formatVolumeValue = (vol) => {
+  if (vol === null || vol === undefined || isNaN(vol) || vol === 0) return '—';
+  const num = Number(vol);
+  if (num >= 10000000) {
+    return `${(num / 10000000).toFixed(2)} Cr`;
+  }
+  if (num >= 100000) {
+    return `${(num / 100000).toFixed(2)} L`;
+  }
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)} K`;
+  }
+  return num.toLocaleString('en-IN');
+};
 
-// Inline Sector Detail for Accordion
-const InlineSectorDetail = ({ sectorId, timeframe }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    const fetchDetail = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(`${API_BASE}/sectors/${sectorId}?timeframe=${timeframe}`);
-        setData(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+// Map sector types to clean themed Lucide icons & colors
+const getSectorTheming = (name = '', id = '') => {
+  const lower = (name + ' ' + id).toLowerCase();
+  if (lower.includes('realt') || lower.includes('real estate') || lower.includes('property')) {
+    return {
+      icon: <Building size={16} className="text-emerald-600 dark:text-emerald-400" />,
+      bg: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
     };
-    fetchDetail();
-  }, [sectorId, timeframe]);
+  }
+  if (lower.includes('bank') || lower.includes('psu bank')) {
+    return {
+      icon: <Landmark size={16} className="text-blue-600 dark:text-blue-400" />,
+      bg: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800'
+    };
+  }
+  if (lower.includes('fin') || lower.includes('financial')) {
+    return {
+      icon: <Building2 size={16} className="text-amber-600 dark:text-amber-400" />,
+      bg: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+    };
+  }
+  if (lower.includes('it') || lower.includes('tech')) {
+    return {
+      icon: <Cpu size={16} className="text-purple-600 dark:text-purple-400" />,
+      bg: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800'
+    };
+  }
+  if (lower.includes('pharma') || lower.includes('health')) {
+    return {
+      icon: <Pill size={16} className="text-cyan-600 dark:text-cyan-400" />,
+      bg: 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-200 dark:border-cyan-800'
+    };
+  }
+  if (lower.includes('auto')) {
+    return {
+      icon: <Car size={16} className="text-orange-600 dark:text-orange-400" />,
+      bg: 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800'
+    };
+  }
+  if (lower.includes('fmcg') || lower.includes('consum')) {
+    return {
+      icon: <ShoppingBag size={16} className="text-rose-600 dark:text-rose-400" />,
+      bg: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800'
+    };
+  }
+  if (lower.includes('metal')) {
+    return {
+      icon: <Hammer size={16} className="text-slate-600 dark:text-slate-400" />,
+      bg: 'bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700'
+    };
+  }
+  if (lower.includes('energy') || lower.includes('oil') || lower.includes('power')) {
+    return {
+      icon: <Zap size={16} className="text-yellow-600 dark:text-yellow-400" />,
+      bg: 'bg-yellow-50 dark:bg-yellow-950/40 border-yellow-200 dark:border-yellow-800'
+    };
+  }
+  if (lower.includes('media')) {
+    return {
+      icon: <Tv size={16} className="text-pink-600 dark:text-pink-400" />,
+      bg: 'bg-pink-50 dark:bg-pink-950/40 border-pink-200 dark:border-pink-800'
+    };
+  }
+  if (lower.includes('infra')) {
+    return {
+      icon: <HardHat size={16} className="text-indigo-600 dark:text-indigo-400" />,
+      bg: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800'
+    };
+  }
+  return {
+    icon: <TrendingUp size={16} className="text-sky-600 dark:text-sky-400" />,
+    bg: 'bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800'
+  };
+};
 
-  if (loading) return <div className="p-6 text-center text-sm text-[var(--text-muted)] animate-pulse">Loading constituents for {sectorId}...</div>;
-  if (!data || !data.stocks) return <div className="p-6 text-center text-sm text-[var(--text-muted)]">No data available</div>;
+// Stock logo badge palette
+const getStockBadge = (symbol = '') => {
+  const clean = symbol.replace('.NS', '').replace('.BO', '').toUpperCase();
+  const first = clean.charAt(0) || 'S';
+  
+  if (clean.includes('HDFC')) {
+    return { letter: 'H', bg: 'bg-blue-600 text-white' };
+  }
+  if (clean.includes('ICICI')) {
+    return { letter: 'i', bg: 'bg-amber-600 text-white' };
+  }
+  if (clean.includes('SBI')) {
+    return { letter: 'S', bg: 'bg-sky-600 text-white' };
+  }
+  if (clean.includes('AXIS')) {
+    return { letter: 'A', bg: 'bg-red-800 text-white' };
+  }
+  if (clean.includes('KOTAK')) {
+    return { letter: 'K', bg: 'bg-red-600 text-white' };
+  }
+  if (clean.includes('TCS')) {
+    return { letter: 'T', bg: 'bg-indigo-600 text-white' };
+  }
+  if (clean.includes('INFY')) {
+    return { letter: 'I', bg: 'bg-blue-500 text-white' };
+  }
+  if (clean.includes('RELIANCE')) {
+    return { letter: 'R', bg: 'bg-blue-700 text-white' };
+  }
+  if (clean.includes('TATA')) {
+    return { letter: 'T', bg: 'bg-blue-600 text-white' };
+  }
+  if (clean.includes('SUN')) {
+    return { letter: 'S', bg: 'bg-orange-500 text-white' };
+  }
 
-  return (
-    <div className="p-4 bg-slate-900/50 shadow-inner overflow-hidden border-b border-[var(--border-color)] animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
-          <Activity size={14} className="text-indigo-400" />
-          {data.name} Constituents
-        </h4>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('View Full Details clicked, sectorId:', sectorId);
-            dispatch(setActiveSector(sectorId));
-          }}
-          className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-        >
-          View Full Details <ArrowUpRight size={14} />
-        </button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
-              <th className="pb-2 font-medium uppercase tracking-wider">Company</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider">Price</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider">Change ({timeframe})</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider hidden sm:table-cell">PE</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider hidden sm:table-cell">PB</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider hidden md:table-cell">52W Range</th>
-              <th className="pb-2 text-right font-medium uppercase tracking-wider hidden lg:table-cell">Volume</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.stocks.map(stock => {
-              const isUp = stock.changePercent > 0;
-              const isDown = stock.changePercent < 0;
-              return (
-                <tr 
-                  key={stock.symbol} 
-                  className="border-b border-[var(--border-color)] border-opacity-30 last:border-0 hover:brightness-110 transition-colors"
-                  style={isUp ? { background: 'var(--gain-bg)' } : isDown ? { background: 'var(--loss-bg)' } : {}}
-                >
-                  <td className="py-2.5 px-2 font-medium text-[var(--text-primary)]">
-                    <div className="flex flex-col">
-                      <span>{stock.name || stock.symbol}</span>
-                      <span className="text-[10px] text-[var(--text-muted)]">{stock.symbol}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[var(--text-primary)]">{formatPrice(stock.ltp, stock.symbol)}</td>
-                  <td className={`py-2.5 px-2 text-right font-mono ${isUp ? 'text-gain' : isDown ? 'text-loss' : 'text-[var(--text-primary)]'}`}>
-                    {isUp ? '+' : ''}{stock.changePercent?.toFixed(2)}%
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[var(--text-secondary)] hidden sm:table-cell">
-                    {stock.pe ? stock.pe.toFixed(1) : '—'}
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[var(--text-secondary)] hidden sm:table-cell">
-                    {stock.pb ? stock.pb.toFixed(1) : '—'}
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[var(--text-muted)] hidden md:table-cell">
-                    {stock.low52 && stock.high52 ? `${stock.low52?.toFixed(1)} - ${stock.high52?.toFixed(1)}` : '—'}
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[var(--text-muted)] hidden lg:table-cell">
-                    {stock.volume ? (stock.volume > 1000000 ? (stock.volume/1000000).toFixed(2) + 'M' : (stock.volume/1000).toFixed(1) + 'K') : '-'}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  // Consistent fallback based on char code
+  const palettes = [
+    'bg-blue-600 text-white',
+    'bg-emerald-600 text-white',
+    'bg-purple-600 text-white',
+    'bg-indigo-600 text-white',
+    'bg-amber-600 text-white',
+    'bg-rose-600 text-white',
+    'bg-cyan-600 text-white',
+    'bg-teal-600 text-white'
+  ];
+  const idx = (clean.charCodeAt(0) + (clean.charCodeAt(1) || 0)) % palettes.length;
+  return { letter: first, bg: palettes[idx] };
+};
+
+// Authentic multi-period returns from real historical backend price data
+const getMultiPeriodReturns = (item) => {
+  if (item?.returns && typeof item.returns === 'object') {
+    return {
+      '1W': item.returns['1W'] !== undefined && item.returns['1W'] !== null ? Number(item.returns['1W']) : null,
+      '1M': item.returns['1M'] !== undefined && item.returns['1M'] !== null ? Number(item.returns['1M']) : null,
+      '6M': item.returns['6M'] !== undefined && item.returns['6M'] !== null ? Number(item.returns['6M']) : null,
+      '1Y': item.returns['1Y'] !== undefined && item.returns['1Y'] !== null ? Number(item.returns['1Y']) : null,
+      '3Y': item.returns['3Y'] !== undefined && item.returns['3Y'] !== null ? Number(item.returns['3Y']) : null,
+      '5Y': item.returns['5Y'] !== undefined && item.returns['5Y'] !== null ? Number(item.returns['5Y']) : null,
+      'ALL': item.returns['ALL'] !== undefined && item.returns['ALL'] !== null ? Number(item.returns['ALL']) : null
+    };
+  }
+  return { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
 };
 
 export default function SectorHeatmap() {
   const dispatch = useDispatch();
-  const { sectors, region, timeframe, assetClass, loading, stocks: allStocks, indices: allIndices } = useSelector(state => state.market);
-  const [viewMode, setViewMode] = useState('table'); // 'grid' | 'treemap' | 'table'
-  const [expandedSectorId, setExpandedSectorId] = useState(null);
-  const [stockTimeframe, setStockTimeframe] = useState('1D');
-  const [expandedIndex, setExpandedIndex] = useState(null);
+  const { sectors, region, timeframe, assetClass, loading, lastUpdated } = useSelector(state => state.market);
 
-  // Fetch sectors data
+  // Filter & interaction state
+  const [selectedSectorFilter, setSelectedSectorFilter] = useState('all');
+  const [activePeriod, setActivePeriod] = useState('1W');
+  const [expandedSectorId, setExpandedSectorId] = useState(null);
+  
+  // Expanded inline sector detail states
+  const [sectorDetailCache, setSectorDetailCache] = useState({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [stockFilterTab, setStockFilterTab] = useState('all'); // 'all' | 'gainers' | 'losers' | 'volume' | 'marketCap'
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
+  const [visibleStockCount, setVisibleStockCount] = useState(5);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Refresh trigger state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Format actual backend/store update timestamp
+  const formattedLastUpdated = useMemo(() => {
+    if (!lastUpdated) return '—';
+    const d = new Date(lastUpdated);
+    if (isNaN(d.getTime())) return '—';
+    const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return `${dateStr}, ${timeStr}`;
+  }, [lastUpdated]);
+
+  // Fetch Sectors
+  const fetchSectorsData = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const res = await axios.get(`${API_BASE}/sectors?region=${region}&timeframe=${timeframe}&assetClass=${assetClass}`);
+      dispatch(setSectors(res.data));
+    } catch (err) {
+      console.error('Failed to fetch sectors:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [dispatch, region, timeframe, assetClass]);
+
   useEffect(() => {
-    const fetchSectors = async () => {
+    fetchSectorsData();
+    const interval = setInterval(fetchSectorsData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchSectorsData]);
+
+  // Fetch individual sector constituents when expanded
+  useEffect(() => {
+    if (!expandedSectorId) return;
+
+    // Check if already in cache
+    if (sectorDetailCache[expandedSectorId]) return;
+
+    const fetchDetail = async () => {
+      setDetailLoading(true);
       try {
-        dispatch(setLoading(true));
-        const res = await axios.get(`${API_BASE}/sectors?region=${region}&timeframe=${timeframe}&assetClass=${assetClass}`);
-        dispatch(setSectors(res.data));
+        const res = await axios.get(`${API_BASE}/sectors/${expandedSectorId}?timeframe=${timeframe}`);
+        setSectorDetailCache(prev => ({
+          ...prev,
+          [expandedSectorId]: res.data
+        }));
       } catch (err) {
-        console.error('Failed to fetch sectors:', err.message);
+        console.error('Failed to fetch sector details for', expandedSectorId, err);
       } finally {
-        dispatch(setLoading(false));
+        setDetailLoading(false);
       }
     };
 
-    fetchSectors();
-    const interval = setInterval(fetchSectors, 60000); // Refresh every 60s
-    return () => clearInterval(interval);
-  }, [dispatch, region, timeframe, assetClass]);
+    fetchDetail();
+  }, [expandedSectorId, timeframe, sectorDetailCache]);
 
-  // Summary stats
+  // Summary Metrics Computation
   const summary = useMemo(() => {
-    const gaining = sectors.filter(s => (s.changePercent || 0) > 0).length;
-    const declining = sectors.filter(s => (s.changePercent || 0) < 0).length;
-    const flat = sectors.length - gaining - declining;
-    return { gaining, declining, flat, total: sectors.length };
+    const totalSectors = sectors.length;
+    const advancingSectors = sectors.filter(s => (s.changePercent || 0) > 0).length;
+    const decliningSectors = sectors.filter(s => (s.changePercent || 0) < 0).length;
+    const advancingSectorsPct = totalSectors > 0 ? Math.round((advancingSectors / totalSectors) * 100) : 0;
+    const decliningSectorsPct = totalSectors > 0 ? Math.round((decliningSectors / totalSectors) * 100) : 0;
+
+    let upStocks = 0;
+    let downStocks = 0;
+    let totalConstituentStocks = 0;
+
+    sectors.forEach(s => {
+      upStocks += (s.advances || 0);
+      downStocks += (s.declines || 0);
+      totalConstituentStocks += (s.totalStocks || s.stocks?.length || (s.advances || 0) + (s.declines || 0) || 0);
+    });
+
+    const unchangedStocks = Math.max(0, totalConstituentStocks - upStocks - downStocks);
+    const upStocksPct = totalConstituentStocks > 0 ? Math.round((upStocks / totalConstituentStocks) * 100) : 0;
+    const downStocksPct = totalConstituentStocks > 0 ? Math.round((downStocks / totalConstituentStocks) * 100) : 0;
+    const unchangedStocksPct = totalConstituentStocks > 0 ? Math.round((unchangedStocks / totalConstituentStocks) * 100) : 0;
+
+    return {
+      totalSectors,
+      advancingSectors,
+      decliningSectors,
+      advancingSectorsPct,
+      decliningSectorsPct,
+      upStocks,
+      downStocks,
+      unchangedStocks,
+      totalConstituentStocks,
+      upStocksPct,
+      downStocksPct,
+      unchangedStocksPct
+    };
   }, [sectors]);
 
-  // Treemap data
-  const treemapData = useMemo(() => {
-    return sectors.map(s => ({
-      name: s.name,
-      size: s.stockCount || s.stocks?.length || 8,
-      changePercent: s.changePercent || 0,
-      region: s.region,
-      id: s.id
-    }));
-  }, [sectors]);
+  // Filtered Sectors
+  const filteredSectors = useMemo(() => {
+    if (selectedSectorFilter === 'all') return sectors;
+    return sectors.filter(s => s.id === selectedSectorFilter);
+  }, [sectors, selectedSectorFilter]);
 
-  const handleSectorClick = (sectorId) => {
-    if (viewMode === 'table') {
-      setExpandedSectorId(prev => prev === sectorId ? null : sectorId);
+  // Paginated Sectors
+  const totalPages = Math.ceil(filteredSectors.length / (rowsPerPage === 'all' ? filteredSectors.length || 1 : rowsPerPage));
+  const paginatedSectors = useMemo(() => {
+    if (rowsPerPage === 'all') return filteredSectors;
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredSectors.slice(start, start + rowsPerPage);
+  }, [filteredSectors, currentPage, rowsPerPage]);
+
+  // Toggle Sector Expansion
+  const handleToggleExpand = (sectorId) => {
+    if (expandedSectorId === sectorId) {
+      setExpandedSectorId(null);
     } else {
-      dispatch(setActiveSector(sectorId));
+      setExpandedSectorId(sectorId);
+      setStockFilterTab('all');
+      setStockSearchQuery('');
+      setVisibleStockCount(5);
     }
   };
 
-  const getChangeIcon = (pct) => {
-    if (pct > 0.1) return <ArrowUpRight size={16} />;
-    if (pct < -0.1) return <ArrowDownRight size={16} />;
-    return <Minus size={14} />;
+  // Export CSV
+  const handleExportCSV = () => {
+    if (!sectors || sectors.length === 0) return;
+
+    const headers = [
+      '#',
+      'Sector',
+      'Up Stocks',
+      'Down Stocks',
+      'Total Stocks',
+      '52W High',
+      '52W Low',
+      'Price (INR)',
+      'Market Cap (Cr INR)',
+      'P/E',
+      'EPS (INR)',
+      'EBIT (Cr INR)',
+      'Net Profit (Cr INR)',
+      'Volume',
+      '1W (%)',
+      '1M (%)',
+      '6M (%)',
+      '1Y (%)',
+      '3Y (%)',
+      '5Y (%)',
+      'ALL (%)'
+    ];
+
+    const rows = filteredSectors.map((s, index) => {
+      const rets = getMultiPeriodReturns(s);
+      return [
+        index + 1,
+        `"${s.name || ''}"`,
+        s.advances || 0,
+        s.declines || 0,
+        s.totalStocks || s.stocks?.length || 0,
+        s.fiftyTwoWeekHigh || '—',
+        s.fiftyTwoWeekLow || '—',
+        s.indexPrice ? s.indexPrice.toFixed(2) : '—',
+        s.totalMarketCap || '—',
+        s.pe ? s.pe.toFixed(2) : '—',
+        s.eps ? s.eps.toFixed(2) : '—',
+        s.ebit ? s.ebit.toFixed(2) : '—',
+        s.netProfit ? s.netProfit.toFixed(2) : '—',
+        s.totalVolume || '—',
+        rets['1W'] !== null ? `${rets['1W']}%` : '—',
+        rets['1M'] !== null ? `${rets['1M']}%` : '—',
+        rets['6M'] !== null ? `${rets['6M']}%` : '—',
+        rets['1Y'] !== null ? `${rets['1Y']}%` : '—',
+        rets['3Y'] !== null ? `${rets['3Y']}%` : '—',
+        rets['5Y'] !== null ? `${rets['5Y']}%` : '—',
+        rets['ALL'] !== null ? `${rets['ALL']}%` : '—'
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `stocks_performance_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const getCardGlowClass = (pct) => {
-    if (pct > 0.1) return 'sector-card-gain';
-    if (pct < -0.1) return 'sector-card-loss';
-    return 'sector-card-neutral';
+  // Get constituent stocks for the currently expanded sector
+  const getExpandedStocks = (sector) => {
+    const detail = sectorDetailCache[sector.id] || sector;
+    let list = detail.stocks || [];
+
+    // Filter by search query
+    if (stockSearchQuery.trim()) {
+      const q = stockSearchQuery.toLowerCase().trim();
+      list = list.filter(stk => 
+        (stk.symbol && stk.symbol.toLowerCase().includes(q)) ||
+        (stk.name && stk.name.toLowerCase().includes(q))
+      );
+    }
+
+    // Filter by tab
+    if (stockFilterTab === 'gainers') {
+      list = [...list].sort((a, b) => (b.changePercent || 0) - (a.changePercent || 0)).filter(s => (s.changePercent || 0) > 0);
+    } else if (stockFilterTab === 'losers') {
+      list = [...list].sort((a, b) => (a.changePercent || 0) - (b.changePercent || 0)).filter(s => (s.changePercent || 0) < 0);
+    } else if (stockFilterTab === 'volume') {
+      list = [...list].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+    } else if (stockFilterTab === 'marketCap') {
+      list = [...list].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+    }
+
+    return list;
   };
 
   return (
-    <div className="view-transition space-y-5">
-      {/* Summary Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="w-full space-y-4 md:space-y-5 animate-in fade-in duration-300">
+      {/* ── HEADER TITLE & REFRESH ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="font-display font-bold text-xl" style={{ color: 'var(--text-primary)' }}>
-            Sector Performance
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-display">
+            Stocks Performance
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {summary.total} sectors • <span className="text-gain">{summary.gaining} gaining</span> • <span className="text-loss">{summary.declining} declining</span> • {summary.flat} flat
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Compare all sectors at a glance
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Timeframe Selector */}
-          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-900/60 border border-slate-800">
-            {['1D', '1W', '1M', '1Y', '5Y', 'ALL'].map(tf => (
-              <button
-                key={tf}
-                onClick={() => dispatch(setTimeframe(tf))}
-                className={`px-3 py-1.5 rounded-md text-[10px] font-mono font-bold transition-all ${
-                  timeframe === tf 
-                    ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/10' 
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-start sm:self-auto bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg shadow-2xs">
+          <span>🕒 Last updated: {formattedLastUpdated}</span>
+          <button 
+            onClick={fetchSectorsData}
+            disabled={isRefreshing}
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+            title="Refresh live performance data"
+          >
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-blue-600' : ''} />
+          </button>
+        </div>
+      </div>
 
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'grid' ? 'active' : ''}`}
-            >
-              <LayoutGrid size={13} /> Grid
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'table' ? 'active' : ''}`}
-            >
-              <List size={13} /> Table
-            </button>
-            <button
-              onClick={() => setViewMode('treemap')}
-              className={`toggle-pill flex items-center gap-1.5 text-xs ${viewMode === 'treemap' ? 'active' : ''}`}
-            >
-              <Grid3X3 size={13} /> Treemap
-            </button>
+      {/* ── SUMMARY CARDS (6) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {/* Card 1: Total Sectors */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Total Sectors
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono">
+            {summary.totalSectors}
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            All NSE Sectors
+          </div>
+        </div>
+
+        {/* Card 2: Advancing */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Advancing
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+            {summary.advancingSectors} <span className="text-sm font-semibold">({summary.advancingSectorsPct}%)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Sectors
+          </div>
+        </div>
+
+        {/* Card 3: Declining */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Declining
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
+            {summary.decliningSectors} <span className="text-sm font-semibold">({summary.decliningSectorsPct}%)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Sectors
+          </div>
+        </div>
+
+        {/* Card 4: Up Stocks */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Up Stocks
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+            {formatIndianNumber(summary.upStocks, 0, 0)} <span className="text-sm font-semibold">({summary.upStocksPct}%)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Out of {formatIndianNumber(summary.totalConstituentStocks, 0, 0)}
+          </div>
+        </div>
+
+        {/* Card 5: Down Stocks */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Down Stocks
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
+            {formatIndianNumber(summary.downStocks, 0, 0)} <span className="text-sm font-semibold">({summary.downStocksPct}%)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Out of {formatIndianNumber(summary.totalConstituentStocks, 0, 0)}
+          </div>
+        </div>
+
+        {/* Card 6: Unchanged Stocks */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Unchanged Stocks
+          </div>
+          <div className="mt-2 text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-200 font-mono">
+            {formatIndianNumber(summary.unchangedStocks, 0, 0)} <span className="text-sm font-semibold">({summary.unchangedStocksPct}%)</span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Out of {formatIndianNumber(summary.totalConstituentStocks, 0, 0)}
           </div>
         </div>
       </div>
 
-      {/* Loading skeleton */}
-      {loading && sectors.length === 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(12)].map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      )}
+      {/* ── CONTROLS ROW: DROPDOWN + PERIODS + EXPORT CSV ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Sector Dropdown */}
+          <div className="relative">
+            <select
+              value={selectedSectorFilter}
+              onChange={(e) => {
+                setSelectedSectorFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer min-w-[140px]"
+            >
+              <option value="all">All Sectors</option>
+              {sectors.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
 
-      {/* Table View */}
-      {viewMode === 'table' && sectors.length > 0 && (
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="text-left">Sector</th>
-                  <th className="text-center">Advance/Decline</th>
-                  <th className="text-right">Index Price</th>
-                  <th className="text-right">52W H/L (% Change)</th>
-                  <th className="text-right">Change ({timeframe})</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectors.map((sector) => {
-                  const pct = sector.changePercent || 0;
-                  const isPositive = pct > 0;
-                  const isNegative = pct < 0;
-                  
-                  let statusIcon = '⚪';
-                  let statusText = sector.trend || 'Neutral';
-                  if (statusText === 'Bullish') statusIcon = '🟢';
-                  if (statusText === 'Bearish') statusIcon = '🔴';
+          {/* Period Filter Buttons */}
+          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs">
+            {PERIODS.map(p => {
+              const isActive = activePeriod === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setActivePeriod(p)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                    isActive
+                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-400/80 dark:border-blue-500/80 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Export CSV Button */}
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs ml-auto"
+        >
+          <Download size={13} className="text-slate-500 dark:text-slate-400" />
+          <span>Export CSV</span>
+        </button>
+      </div>
+
+      {/* ── MAIN SECTOR TABLE CONTAINER ── */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+            <thead>
+              <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-3 w-8 text-center">#</th>
+                <th className="py-3 px-3">Sector</th>
+                <th className="py-3 px-3 text-center">Up / Down / Total</th>
+                <th className="py-3 px-3 text-center">52W High / Low</th>
+                <th className="py-3 px-3 text-right">Price (₹)</th>
+                <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
+                <th className="py-3 px-3 text-right">P/E</th>
+                <th className="py-3 px-3 text-right">EPS (₹)</th>
+                <th className="py-3 px-3 text-right">EBIT (₹ Cr)</th>
+                <th className="py-3 px-3 text-right">Net Profit (₹ Cr)</th>
+                <th className="py-3 px-3 text-right">Volume</th>
+                
+                {/* Performance Header with Subcolumns */}
+                <th colSpan={7} className="py-1 px-3 text-center border-l border-slate-200 dark:border-slate-800">
+                  <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 pb-1">
+                    Performance (%)
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 pt-1 border-t border-slate-200 dark:border-slate-800 font-medium text-[9px]">
+                    <span>1W</span>
+                    <span>1M</span>
+                    <span>6M</span>
+                    <span>1Y</span>
+                    <span>3Y</span>
+                    <span>5Y</span>
+                    <span>ALL</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
+              {paginatedSectors.length > 0 ? (
+                paginatedSectors.map((sector, idx) => {
+                  const isExpanded = expandedSectorId === sector.id;
+                  const theming = getSectorTheming(sector.name, sector.id);
+                  const periodReturns = getMultiPeriodReturns(sector);
+                  const rowIndex = (currentPage - 1) * (rowsPerPage === 'all' ? 0 : rowsPerPage) + idx + 1;
+
+                  // Compute sector aggregates if available
+                  const constituentList = sector.stocks || [];
+                  const validConstituents = constituentList.filter(s => s.pe && s.pe > 0);
+                  const avgPe = validConstituents.length > 0 
+                    ? validConstituents.reduce((acc, c) => acc + c.pe, 0) / validConstituents.length 
+                    : null;
+                  const validEps = constituentList.filter(s => s.eps && s.eps > 0);
+                  const avgEps = validEps.length > 0 
+                    ? validEps.reduce((acc, c) => acc + c.eps, 0) / validEps.length 
+                    : null;
 
                   return (
                     <React.Fragment key={sector.id}>
-                      <tr
-                        onClick={() => handleSectorClick(sector.id)}
-                        className={`cursor-pointer transition-colors hover:bg-slate-800/50 ${expandedSectorId === sector.id ? 'bg-slate-800/30' : ''}`}
-                      >
-                        <td>
-                          <div className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                            <span className="text-[var(--text-muted)] text-[10px] w-3 flex justify-center">
-                              {expandedSectorId === sector.id ? '▼' : '▶'}
-                            </span>
-                            {sector.name}
-                          </div>
+                      {/* Main Sector Row */}
+                      <tr className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
+                        isExpanded ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
+                      }`}>
+                        {/* # */}
+                        <td className="py-3 px-3 text-center font-mono text-slate-400 font-medium">
+                          {rowIndex}
                         </td>
-                        <td className="text-center">
-                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            <span className="text-gain font-semibold">{sector.advances || sector.advanceCount || 0} ↑</span>
-                            <span className="mx-2">/</span>
-                            <span className="text-loss font-semibold">{sector.declines || sector.declineCount || 0} ↓</span>
-                          </div>
-                        </td>
-                        <td className="text-right font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
-                          {sector.indexPrice ? sector.indexPrice.toFixed(2) : '—'}
-                        </td>
-                        <td className="text-right font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          {sector.fiftyTwoWeekHigh && sector.fiftyTwoWeekLow && sector.indexPrice ? (
-                            <div className="flex flex-col">
-                              <span className="text-gain">
-                                H: {sector.fiftyTwoWeekHigh?.toFixed(2)}
-                                <span className="text-loss ml-1 font-semibold">
-                                  ({(((sector.indexPrice - sector.fiftyTwoWeekHigh) / sector.fiftyTwoWeekHigh) * 100).toFixed(1)}%)
-                                </span>
-                              </span>
-                              <span className="text-loss">
-                                L: {sector.fiftyTwoWeekLow?.toFixed(2)}
-                                <span className="text-gain ml-1 font-semibold">
-                                  (+{(((sector.indexPrice - sector.fiftyTwoWeekLow) / sector.fiftyTwoWeekLow) * 100).toFixed(1)}%)
-                                </span>
-                              </span>
+
+                        {/* Sector Name & Icon with Dropdown Toggle */}
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleExpand(sector.id);
+                              }}
+                              className={`p-1 rounded-md transition-all border flex items-center justify-center ${
+                                isExpanded
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 hover:border-blue-300'
+                              }`}
+                              title={isExpanded ? 'Hide stocks' : 'Show stocks'}
+                            >
+                              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                            </button>
+                            <div className={`w-6 h-6 rounded-md flex items-center justify-center border shrink-0 ${theming.bg}`}>
+                              {theming.icon}
                             </div>
+                            <button
+                              onClick={() => handleToggleExpand(sector.id)}
+                              className="text-left font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight text-xs hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                            >
+                              {sector.name}
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Up / Down / Total */}
+                        <td className="py-3 px-3 text-center font-mono">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{sector.advances || 0}</span>
+                          <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                          <span className="text-rose-600 dark:text-rose-400 font-semibold">{sector.declines || 0}</span>
+                          <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-semibold">{sector.totalStocks || constituentList.length || 0}</span>
+                        </td>
+
+                        {/* 52W High / Low */}
+                        <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                          {sector.fiftyTwoWeekHigh && sector.fiftyTwoWeekLow ? (
+                            <span>
+                              {formatIndianNumber(sector.fiftyTwoWeekHigh, 2, 2)}
+                              <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                              {formatIndianNumber(sector.fiftyTwoWeekLow, 2, 2)}
+                            </span>
                           ) : '—'}
                         </td>
-                        <td className="text-right">
-                          <div className={`font-mono font-semibold ${isPositive ? 'text-gain' : isNegative ? 'text-loss' : ''}`}>
-                            {isPositive ? '+' : ''}{pct.toFixed(2)}%
-                          </div>
+
+                        {/* Price (₹) */}
+                        <td className="py-3 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
+                          {sector.indexPrice ? formatIndianNumber(sector.indexPrice, 2, 2) : '—'}
                         </td>
+
+                        {/* Market Cap (₹ Cr) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                          {sector.totalMarketCap ? formatIndianNumber(sector.totalMarketCap, 0, 0) : '—'}
+                        </td>
+
+                        {/* P/E */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {sector.pe ? formatIndianNumber(sector.pe, 2, 2) : (avgPe ? formatIndianNumber(avgPe, 2, 2) : '—')}
+                        </td>
+
+                        {/* EPS (₹) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {sector.eps ? formatIndianNumber(sector.eps, 2, 2) : (avgEps ? formatIndianNumber(avgEps, 2, 2) : '—')}
+                        </td>
+
+                        {/* EBIT (₹ Cr) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {sector.ebit ? formatIndianNumber(sector.ebit, 0, 0) : '—'}
+                        </td>
+
+                        {/* Net Profit (₹ Cr) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {sector.netProfit ? formatIndianNumber(sector.netProfit, 0, 0) : '—'}
+                        </td>
+
+                        {/* Volume */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                          {formatVolumeValue(sector.totalVolume)}
+                        </td>
+
+                        {/* Multi-Period Performance Subcolumns */}
+                        {PERIODS.map(p => {
+                          const val = periodReturns[p];
+                          const isPos = val !== null && val > 0;
+                          const isNeg = val !== null && val < 0;
+                          return (
+                            <td 
+                              key={p} 
+                              className={`py-3 px-1 text-center font-mono font-medium text-[11px] ${
+                                isPos ? 'text-emerald-600 dark:text-emerald-400' :
+                                isNeg ? 'text-rose-600 dark:text-rose-400' :
+                                'text-slate-400'
+                              }`}
+                            >
+                              {val !== null ? `${isPos ? '+' : ''}${val.toFixed(2)}%` : '—'}
+                            </td>
+                          );
+                        })}
                       </tr>
-                      {expandedSectorId === sector.id && (
-                        <tr>
-                          <td colSpan="5" className="p-0 border-0">
-                            <InlineSectorDetail sectorId={sector.id} timeframe={timeframe} />
+
+                      {/* ── INLINE ACCORDION EXPANDED SECTOR STOCKS VIEW ── */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/70 dark:bg-slate-900/90 border-t border-b border-slate-200 dark:border-slate-800">
+                          <td colSpan={18} className="p-3 sm:p-5">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+                              {/* Subheader: Sector Title + Filter Tabs + Search */}
+                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 font-display">
+                                    {sector.name} — <span className="font-mono text-slate-500 font-normal">{getExpandedStocks(sector).length} Stocks</span>
+                                  </h3>
+
+                                  {/* Filter Tabs */}
+                                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    {[
+                                      { key: 'all', label: 'All Stocks' },
+                                      { key: 'gainers', label: 'Top Gainers' },
+                                      { key: 'losers', label: 'Top Losers' },
+                                      { key: 'volume', label: 'By Volume' },
+                                      { key: 'marketCap', label: 'By Market Cap' }
+                                    ].map(tab => (
+                                      <button
+                                        key={tab.key}
+                                        onClick={() => setStockFilterTab(tab.key)}
+                                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                                          stockFilterTab === tab.key
+                                            ? 'bg-blue-600 text-white shadow-2xs'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                        }`}
+                                      >
+                                        {tab.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  {/* Search Stocks in Sector */}
+                                  <div className="relative">
+                                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                      type="text"
+                                      placeholder={`Search within ${sector.name}`}
+                                      value={stockSearchQuery}
+                                      onChange={(e) => setStockSearchQuery(e.target.value)}
+                                      className="pl-8 pr-3 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 w-52"
+                                    />
+                                  </div>
+
+                                  {/* View All Stocks Link */}
+                                  <button
+                                    onClick={() => dispatch(setActiveSector(sector.id))}
+                                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 shrink-0"
+                                  >
+                                    <span>View All Stocks</span>
+                                    <ArrowRight size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Nested Stocks Table */}
+                              {detailLoading && !sectorDetailCache[sector.id] ? (
+                                <div className="py-12 text-center text-xs text-slate-500">
+                                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                  Loading constituent stocks for {sector.name}...
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+                                    <thead>
+                                      <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                                        <th className="py-2.5 px-3 w-8 text-center">#</th>
+                                        <th className="py-2.5 px-3">Stock</th>
+                                        <th className="py-2.5 px-3 text-right">Price (₹)</th>
+                                        <th className="py-2.5 px-3 text-right">Market Cap (₹ Cr)</th>
+                                        <th className="py-2.5 px-3 text-center">52W High / Low</th>
+                                        <th className="py-2.5 px-3 text-right">P/E</th>
+                                        <th className="py-2.5 px-3 text-right">EPS (₹)</th>
+                                        <th className="py-2.5 px-3 text-right">EBIT (₹ Cr)</th>
+                                        <th className="py-2.5 px-3 text-right">Net Profit (₹ Cr)</th>
+                                        <th className="py-2.5 px-3 text-right">Volume</th>
+                                        
+                                        {/* Performance Subcolumns */}
+                                        <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
+                                          <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 pb-0.5">
+                                            Performance (%)
+                                          </div>
+                                          <div className="grid grid-cols-7 gap-1 pt-0.5 border-t border-slate-200 dark:border-slate-800 font-medium text-[9px]">
+                                            <span>1W</span>
+                                            <span>1M</span>
+                                            <span>6M</span>
+                                            <span>1Y</span>
+                                            <span>3Y</span>
+                                            <span>5Y</span>
+                                            <span>ALL</span>
+                                          </div>
+                                        </th>
+                                      </tr>
+                                    </thead>
+
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
+                                      {(() => {
+                                        const constituentStocks = getExpandedStocks(sector);
+                                        const displayedStocks = constituentStocks.slice(0, visibleStockCount);
+
+                                        if (displayedStocks.length === 0) {
+                                          return (
+                                            <tr>
+                                              <td colSpan={18} className="py-8 text-center text-slate-400 italic">
+                                                No stocks found matching the criteria.
+                                              </td>
+                                            </tr>
+                                          );
+                                        }
+
+                                        return displayedStocks.map((stock, sIdx) => {
+                                          const badge = getStockBadge(stock.symbol);
+                                          const stockRets = getMultiPeriodReturns(stock);
+                                          const cleanSymbol = (stock.symbol || '').replace('.NS', '').replace('.BO', '');
+
+                                          return (
+                                            <tr 
+                                              key={stock.symbol || sIdx}
+                                              onClick={() => dispatch(setActiveSymbol(stock.symbol))}
+                                              className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                                            >
+                                              {/* # */}
+                                              <td className="py-2.5 px-3 text-center font-mono text-slate-400">
+                                                {sIdx + 1}
+                                              </td>
+
+                                              {/* Stock Badge + Symbol */}
+                                              <td className="py-2.5 px-3">
+                                                <div className="flex items-center gap-2">
+                                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badge.bg}`}>
+                                                    {badge.letter}
+                                                  </div>
+                                                  <div className="flex flex-col">
+                                                    <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                                                      {cleanSymbol}
+                                                    </span>
+                                                    {stock.name && stock.name !== cleanSymbol && (
+                                                      <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                                        {stock.name}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </td>
+
+                                              {/* Price (₹) */}
+                                              <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
+                                                {stock.ltp ? formatIndianNumber(stock.ltp, 2, 2) : '—'}
+                                              </td>
+
+                                              {/* Market Cap (₹ Cr) */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                                                {stock.marketCap ? formatIndianNumber(stock.marketCap, 0, 0) : '—'}
+                                              </td>
+
+                                              {/* 52W High / Low */}
+                                              <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                                                {stock.high52 && stock.low52 ? (
+                                                  <span>
+                                                    {formatIndianNumber(stock.high52, 2, 2)}
+                                                    <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                                                    {formatIndianNumber(stock.low52, 2, 2)}
+                                                  </span>
+                                                ) : '—'}
+                                              </td>
+
+                                              {/* P/E */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                                {stock.pe ? formatIndianNumber(stock.pe, 2, 2) : '—'}
+                                              </td>
+
+                                              {/* EPS (₹) */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                                {stock.eps ? formatIndianNumber(stock.eps, 2, 2) : '—'}
+                                              </td>
+
+                                              {/* EBIT (₹ Cr) */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                                {stock.ebit ? formatIndianNumber(stock.ebit, 0, 0) : '—'}
+                                              </td>
+
+                                              {/* Net Profit (₹ Cr) */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                                {stock.netProfit ? formatIndianNumber(stock.netProfit, 0, 0) : '—'}
+                                              </td>
+
+                                              {/* Volume */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                                                {formatVolumeValue(stock.volume)}
+                                              </td>
+
+                                              {/* Multi-Period Performance Subcolumns */}
+                                              {PERIODS.map(p => {
+                                                const sVal = stockRets[p];
+                                                const sPos = sVal !== null && sVal > 0;
+                                                const sNeg = sVal !== null && sVal < 0;
+                                                return (
+                                                  <td 
+                                                    key={p} 
+                                                    className={`py-2.5 px-1 text-center font-mono font-medium text-[11px] ${
+                                                      sPos ? 'text-emerald-600 dark:text-emerald-400' :
+                                                      sNeg ? 'text-rose-600 dark:text-rose-400' :
+                                                      'text-slate-400'
+                                                    }`}
+                                                  >
+                                                    {sVal !== null ? `${sPos ? '+' : ''}${sVal.toFixed(2)}%` : '—'}
+                                                  </td>
+                                                );
+                                              })}
+                                            </tr>
+                                          );
+                                        });
+                                      })()}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+
+                              {/* Show More / Stocks Count Indicator */}
+                              {(() => {
+                                const constituentStocks = getExpandedStocks(sector);
+                                const totalStocks = constituentStocks.length;
+                                const displayedCount = Math.min(visibleStockCount, totalStocks);
+
+                                if (totalStocks <= 5) return null;
+
+                                return (
+                                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                                    <span>
+                                      Showing {displayedCount} of {totalStocks} stocks
+                                    </span>
+
+                                    <button
+                                      onClick={() => {
+                                        if (visibleStockCount >= totalStocks) {
+                                          setVisibleStockCount(5);
+                                        } else {
+                                          setVisibleStockCount(prev => Math.min(prev + 10, totalStocks));
+                                        }
+                                      }}
+                                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700"
+                                    >
+                                      <span>{visibleStockCount >= totalStocks ? 'Show Less' : 'Show More'}</span>
+                                      {visibleStockCount >= totalStocks ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </td>
                         </tr>
                       )}
                     </React.Fragment>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                })
+              ) : (
+                <tr>
+                  <td colSpan={18} className="py-12 text-center text-slate-400 italic">
+                    {loading ? 'Loading sectors performance data...' : 'No sector data available matching your criteria.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
 
-      {/* Grid View */}
-      {viewMode === 'grid' && sectors.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {sectors.map((sector) => {
-            const pct = sector.changePercent || 0;
-            const isPositive = pct > 0.1;
-            const isNegative = pct < -0.1;
+        {/* ── TABLE FOOTER: DISCLAIMER & PAGINATION ── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50/60 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+          {/* Footnote */}
+          <div className="text-[11px]">
+            * All prices are in INR. Data delayed by 15 minutes. Source: NSE
+          </div>
 
-            return (
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-4">
+            {/* Page buttons */}
+            <div className="flex items-center gap-1">
               <button
-                key={sector.id}
-                onClick={() => handleSectorClick(sector.id)}
-                className={`glass-card p-5 text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${getCardGlowClass(pct)}`}
-                style={{ cursor: 'pointer' }}
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="First Page"
               >
-                {/* Sector header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs">{sector.region === 'india' ? '🇮🇳' : '🌍'}</span>
-                      <h3 className="font-display font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                        {sector.name}
-                      </h3>
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-0.5 text-sm font-bold ${isPositive ? 'text-gain' : isNegative ? 'text-loss' : ''}`} style={!isPositive && !isNegative ? { color: 'var(--text-muted)' } : {}}>
-                    {getChangeIcon(pct)}
-                    {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
-                  </div>
-                </div>
-
-                {/* Advance/Decline bar */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
-                    <span className="text-gain">{sector.advances || sector.advanceCount || 0} ↑</span>
-                    <span className="text-loss">{sector.declines || sector.declineCount || 0} ↓</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden flex" style={{ background: 'var(--bg-secondary)' }}>
-                    {(() => {
-                      const total = (sector.advances || sector.advanceCount || 0) + (sector.declines || sector.declineCount || 0);
-                      const advPct = total > 0 ? ((sector.advances || sector.advanceCount || 0) / total) * 100 : 50;
-                      return (
-                        <>
-                          <div className="h-full rounded-l-full" style={{ width: `${advPct}%`, background: 'var(--gain)' }} />
-                          <div className="h-full rounded-r-full" style={{ width: `${100 - advPct}%`, background: 'var(--loss)' }} />
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* 52W High / Low & Price */}
-                {sector.indexPrice > 0 && (
-                  <div className="mb-3 flex items-center justify-between text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    <div>
-                      <span className="block opacity-75">Index/ETF</span>
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{sector.indexPrice.toFixed(2)}</span>
-                    </div>
-                    {(sector.fiftyTwoWeekHigh > 0 && sector.fiftyTwoWeekLow > 0) && (
-                      <div className="text-right">
-                        <span className="block opacity-75">52W Range</span>
-                        <span className="font-semibold">{sector.fiftyTwoWeekLow.toFixed(2)} - {sector.fiftyTwoWeekHigh.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Sparkline + stats */}
-                <div className="flex items-end justify-between">
-                  <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    {sector.stockCount || sector.stocks?.length || '—'} stocks
-                  </div>
-                  {sector.sparkline && sector.sparkline.length > 1 && (
-                    <SparklineChart data={sector.sparkline} positive={pct >= 0} width={50} height={20} />
-                  )}
-                  <div className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                    {sector.trend || '—'}
-                  </div>
-                </div>
+                <ChevronsLeft size={14} />
               </button>
-            );
-          })}
-        </div>
-      )}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft size={14} />
+              </button>
 
-      {/* Treemap View */}
-      {viewMode === 'treemap' && sectors.length > 0 && (
-        <div className="glass-card p-4" style={{ height: '520px' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <Treemap
-              data={treemapData}
-              dataKey="size"
-              aspectRatio={4 / 3}
-              stroke="none"
-              content={<CustomTreemapNode />}
-              onClick={(node) => {
-                if (node && node.id) handleSectorClick(node.id);
-              }}
-            />
-          </ResponsiveContainer>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`w-7 h-7 rounded text-xs font-semibold transition-all ${
+                    currentPage === pageNum
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500 font-bold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
 
-          {/* Legend */}
-          <div className="flex items-center justify-center gap-6 mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(34, 197, 94, 0.5)' }} />
-              <span>Strong Gain</span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="p-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="p-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Last Page"
+              >
+                <ChevronsRight size={14} />
+              </button>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(34, 197, 94, 0.2)' }} />
-              <span>Mild Gain</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(100, 116, 139, 0.3)' }} />
-              <span>Flat</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(239, 68, 68, 0.2)' }} />
-              <span>Mild Loss</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(239, 68, 68, 0.5)' }} />
-              <span>Strong Loss</span>
+
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+              <span className="text-[11px] whitespace-nowrap">Rows per page:</span>
+              <div className="relative">
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 pr-6 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value="all">All</option>
+                </select>
+                <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
-      )}
-
-
-
-      {/* Empty state */}
-      {!loading && sectors.length === 0 && (
-        <div className="glass-card p-12 text-center">
-          <Activity size={40} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
-          <h3 className="font-display font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>No sector data available</h3>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Data is loading or the API is temporarily unavailable. Please wait...</p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -365,6 +365,10 @@ class LiveMfAnalyticsService {
       sharpeRatio5Y, sortinoRatio5Y,
       sharpeRatioInception: sharpeRatio,
       sortinoRatioInception: sortinoRatio,
+      navDate: sortedNavData[0]?.date || null,
+      asOfDate: sortedNavData[0]?.date || null,
+      navAsOfDate: sortedNavData[0]?.date || null,
+      performanceAsOfDate: sortedNavData[0]?.date || null,
       launchYear, inceptionYear: launchYear, launchDate
     };
   }

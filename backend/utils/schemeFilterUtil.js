@@ -172,24 +172,25 @@ export function resolveCommodityClassification(schemeName, rawCategory = '') {
   const n = (schemeName || '').toLowerCase();
   const c = (rawCategory || '').toLowerCase();
 
-  // Exclude Overseas / Global funds
-  if (c.includes('fof overseas') || c.includes('overseas') || n.includes('overseas') || n.includes('world') || n.includes('global agri')) {
+  // Commodities (Gold, Silver, Gold Mining, Metals, Precious Metals, Commodity FoFs, Commodity ETFs)
+  const isCommodity = n.includes('gold') || n.includes('silver') || n.includes('commodity') || n.includes('precious') || n.includes('metal') || n.includes('mining') || c.includes('gold') || c.includes('silver') || c.includes('commodity');
+  if (!isCommodity) {
     return null;
   }
 
-  // Commodities (Gold, Silver, Gold Mining, Metals, Precious Metals, Commodity FoFs, Commodity ETFs)
-  const isCommodity = n.includes('gold') || n.includes('silver') || n.includes('commodity') || n.includes('precious') || n.includes('metal') || c.includes('gold') || c.includes('silver') || c.includes('commodity');
-  
-  if (isCommodity) {
-    let sub = 'other_commodities';
-    if (n.includes('goldmine') || n.includes('mining') || n.includes('mine')) sub = 'gold_mining';
-    else if (n.includes('metal') || n.includes('copper')) sub = 'other_metals';
-    else if (n.includes('silver')) sub = 'silver';
-    else if (n.includes('gold')) sub = 'gold';
-    return { specifiedType: 'commodities', specifiedSub: sub, type: 'commodities', subType: sub, parentCategory: 'COMMODITIES' };
+  // Exclude Overseas / Global funds unless they are explicit commodity mining / precious metals funds
+  if (c.includes('fof overseas') || c.includes('overseas') || n.includes('overseas') || n.includes('world') || n.includes('global agri')) {
+    if (!(n.includes('gold') || n.includes('silver') || n.includes('mining') || n.includes('metal') || n.includes('goldmine'))) {
+      return null;
+    }
   }
-
-  return null;
+  
+  let sub = 'other_commodities';
+  if (n.includes('goldmine') || n.includes('mining') || n.includes('mine')) sub = 'gold_mining';
+  else if (n.includes('metal') || n.includes('copper')) sub = 'other_metals';
+  else if (n.includes('silver')) sub = 'silver';
+  else if (n.includes('gold')) sub = 'gold';
+  return { specifiedType: 'commodities', specifiedSub: sub, type: 'commodities', subType: sub, parentCategory: 'COMMODITIES' };
 }
 
 export function resolveSchemeClassification(schemeName, rawCategory = '') {
@@ -226,8 +227,12 @@ export function sanitizeFundRecord(rawRecord) {
     canonicalKey,
     category: rawRecord.category || 'Data Unavailable',
     subCategory: rawRecord.subCategory || 'Data Unavailable',
-    nav: typeof rawRecord.nav === 'number' && !isNaN(rawRecord.nav) ? rawRecord.nav : null,
+    nav: (typeof rawRecord.nav === 'number' && !isNaN(rawRecord.nav) && rawRecord.nav > 0) ? rawRecord.nav : null,
+    date: rawRecord.date || rawRecord.navDate || 'Data Unavailable',
     navDate: rawRecord.navDate || rawRecord.date || 'Data Unavailable',
+    asOfDate: rawRecord.asOfDate || rawRecord.navDate || rawRecord.date || 'Data Unavailable',
+    navAsOfDate: rawRecord.navAsOfDate || rawRecord.navDate || rawRecord.date || 'Data Unavailable',
+    performanceAsOfDate: rawRecord.performanceAsOfDate || rawRecord.navDate || rawRecord.date || 'Data Unavailable',
     aum: (typeof rawRecord.aum === 'number' && !isNaN(rawRecord.aum) && rawRecord.aum > 0) ? rawRecord.aum : null,
     aumCr: (typeof rawRecord.aum === 'number' && !isNaN(rawRecord.aum) && rawRecord.aum > 0) ? rawRecord.aum : null,
     expenseRatio: typeof rawRecord.expenseRatio === 'number' && !isNaN(rawRecord.expenseRatio) ? rawRecord.expenseRatio : null,

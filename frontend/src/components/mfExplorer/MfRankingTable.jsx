@@ -92,6 +92,18 @@ function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortin
           <div className="pt-1 text-[10px] text-slate-400 dark:text-slate-500 font-mono border-t border-slate-100 dark:border-slate-800">
             Range is based on the funds shown in this category.
           </div>
+
+          {/* As-Of Dates */}
+          {(fund.navAsOfDate || fund.navDate || fund.aumAsOfDate) && (
+            <div className="pt-1.5 text-[9.5px] text-slate-500 dark:text-slate-400 font-mono border-t border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+              {(fund.navAsOfDate || fund.navDate) && (
+                <div>NAV As of: <span className="font-semibold text-slate-700 dark:text-slate-200">{fund.navAsOfDate || fund.navDate}</span></div>
+              )}
+              {fund.aumAsOfDate && (
+                <div>AUM As of: <span className="font-semibold text-slate-700 dark:text-slate-200">{fund.aumAsOfDate}</span></div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -215,6 +227,31 @@ export default function MfRankingTable({
   const formatNAV = (nav) => {
     if (nav == null || isNaN(nav) || Number(nav) <= 0) return '—';
     return `₹ ${Number(nav).toFixed(2)}`;
+  };
+
+  const formatNavDate = (dateStr) => {
+    if (!dateStr || dateStr === 'Data Unavailable') return 'Date unavailable';
+    if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+      const [d, m, y] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      const day = String(parsed.getUTCDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[parsed.getUTCMonth()];
+      const year = parsed.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return dateStr;
   };
 
   const formatPct = (val) => {
@@ -583,6 +620,14 @@ export default function MfRankingTable({
                 </span>
               </>
             )}
+            {(fund.navAsOfDate || fund.navDate) && (
+              <>
+                <span>•</span>
+                <span className="font-mono text-[9.5px] text-slate-400 dark:text-slate-500" title={`NAV As of: ${fund.navAsOfDate || fund.navDate}${fund.aumAsOfDate ? ` | AUM As of: ${fund.aumAsOfDate}` : ''}`}>
+                  As of {fund.navAsOfDate || fund.navDate}
+                </span>
+              </>
+            )}
           </div>
         </td>
 
@@ -595,7 +640,10 @@ export default function MfRankingTable({
         </td>
 
         {/* NAV */}
-        <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap">
+        <td 
+          className="py-2.5 px-2 text-right font-mono text-xs text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap"
+          title={`NAV: ${formatNAV(fund.nav)}\nAs of: ${formatNavDate(fund.navAsOfDate || fund.navDate || fund.asOfDate)}`}
+        >
           {formatNAV(fund.nav)}
         </td>
 

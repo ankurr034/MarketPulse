@@ -32,6 +32,31 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
     return `${symbol}${Number(val).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const formatNavDate = (dateStr) => {
+    if (!dateStr || dateStr === 'Data Unavailable') return 'Date unavailable';
+    if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+      const [d, m, y] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName} ${y}`;
+    }
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      const day = String(parsed.getUTCDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[parsed.getUTCMonth()];
+      const year = parsed.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return dateStr;
+  };
+
   const fetchDetail = async (range) => {
     setLoading(true);
     try {
@@ -197,6 +222,9 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
               {(asset.launchYear || asset.inceptionYear) && (
                 <span className="text-amber-500 font-semibold">• Launched {asset.launchYear || asset.inceptionYear}</span>
               )}
+              {(asset.navAsOfDate || asset.navDate || asset.asOfDate) && (
+                <span className="text-[11px] opacity-80">• As of {asset.navAsOfDate || asset.navDate || asset.asOfDate}</span>
+              )}
             </div>
           </div>
         </div>
@@ -227,7 +255,10 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
                     {isUp ? '+' : ''}{displayChange?.toFixed(2)}%
                   </div>
                 </div>
-                <div className="text-right">
+                <div 
+                  className="text-right"
+                  title={`NAV: ${formatPrice(displayPrice, asset.currency)}\nAs of: ${formatNavDate(asset.navAsOfDate || asset.navDate || asset.asOfDate)}`}
+                >
                   <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-0.5">NAV</div>
                   <div className="font-mono text-sm font-semibold text-[var(--text-primary)]">
                     {formatPrice(displayPrice, asset.currency)}
