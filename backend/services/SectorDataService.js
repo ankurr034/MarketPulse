@@ -848,6 +848,14 @@ class SectorDataService {
 
   async _getHistoricalIndexData(ticker, timeframe, baseChangePercent = 0) {
     try {
+      const returns = await yahooFinanceService.getHistoricalReturns(ticker);
+      if (returns && typeof returns[timeframe] === 'number' && !isNaN(returns[timeframe])) {
+        return {
+          changePercent: returns[timeframe],
+          price: 100
+        };
+      }
+
       let range = '1y';
       if (timeframe === '1W') range = '5d';
       else if (timeframe === '1M') range = '1mo';
@@ -860,7 +868,7 @@ class SectorDataService {
       if (chart && chart.length >= 2) {
         const firstPrice = chart[0].close || chart[0].value || chart[0].price;
         const lastPrice = chart[chart.length - 1].close || chart[chart.length - 1].value || chart[chart.length - 1].price;
-        if (firstPrice && lastPrice) {
+        if (firstPrice && lastPrice && firstPrice > 0) {
           const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
           return {
             changePercent: parseFloat(changePercent.toFixed(2)),
@@ -872,23 +880,8 @@ class SectorDataService {
       console.warn(`Historical index fetch for ${ticker} (${timeframe}):`, e.message);
     }
 
-    // Dynamic historical multiplier fallback for timeframes
-    const multiplierMap = {
-      '1D': 1.0,
-      '1W': 2.2,
-      '1M': 5.4,
-      '1Y': 16.8,
-      '5Y': 42.5,
-      'ALL': 85.0
-    };
-    const factor = multiplierMap[timeframe] || 1.0;
-    const hash = (ticker || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const computedChange = baseChangePercent !== 0 
-      ? baseChangePercent * factor 
-      : (((hash % 9) + 1) * 2.4 * factor);
-
     return {
-      changePercent: parseFloat(computedChange.toFixed(2)),
+      changePercent: baseChangePercent,
       price: 100
     };
   }
@@ -1095,18 +1088,15 @@ class SectorDataService {
       const stocksWithQuotes = await this._fetchSectorQuotes(sector);
       const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
-      // If timeframe is not 1D, compute historical change% for each stock
+      // If timeframe is not 1D, use constituent stock historical return for the selected timeframe
       const isHistorical = timeframe !== '1D';
       if (isHistorical) {
-        const stockTickers = validStocks.map(s => s.symbol).filter(Boolean);
-        const historicalResults = await Promise.allSettled(
-          stockTickers.map(ticker => this._getHistoricalIndexData(ticker, timeframe, 0))
-        );
-        historicalResults.forEach((result, idx) => {
-          if (result.status === 'fulfilled' && result.value) {
-            const stock = stocksWithQuotes.find(s => s.symbol === stockTickers[idx]);
-            if (stock) {
-              stock.changePercent = result.value.changePercent;
+        stocksWithQuotes.forEach(stock => {
+          if (stock.returns && typeof stock.returns[timeframe] === 'number' && !isNaN(stock.returns[timeframe])) {
+            stock.changePercent = stock.returns[timeframe];
+            if (typeof stock.ltp === 'number' && stock.ltp > 0) {
+              const basePrice = stock.ltp / (1 + stock.changePercent / 100);
+              stock.change = parseFloat((stock.ltp - basePrice).toFixed(2));
             }
           }
         });
