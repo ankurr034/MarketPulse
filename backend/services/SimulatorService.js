@@ -1,4 +1,5 @@
 import yahooFinanceService from './YahooFinanceService.js';
+import marketDataGateway from './MarketDataGateway.js';
 
 // Core symbols config
 const CORE_SYMBOLS = [
@@ -312,7 +313,7 @@ class SimulatorService {
       isPolling = true;
       try {
         const allSymbolsToFetch = [...new Set([...CORE_SYMBOLS, ...Object.values(INDEX_TICKER_MAP)])];
-        const quotesRes = await yahooFinanceService.getQuotes(allSymbolsToFetch);
+        const quotesRes = await marketDataGateway.getQuotes(allSymbolsToFetch);
         const quotes = quotesRes.available ? quotesRes.data : [];
         if (!quotes || quotes.length === 0) return;
 

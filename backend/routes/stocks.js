@@ -1,5 +1,6 @@
 import express from 'express';
 import yahooFinanceService from '../services/YahooFinanceService.js';
+import marketDataGateway from '../services/MarketDataGateway.js';
 import simulator from '../services/SimulatorService.js';
 
 const router = express.Router();
@@ -42,8 +43,8 @@ router.get('/:symbol', async (req, res) => {
   const sym = symbol.toUpperCase();
   
   try {
-    // 1. Try Yahoo Finance first
-    const stockRes = await yahooFinanceService.getQuoteDetail(sym);
+    // 1. Try MarketDataGateway (Upstox -> Yahoo Finance Fallback)
+    const stockRes = await marketDataGateway.getQuoteDetail(sym);
     const stock = stockRes.available ? stockRes.data : null;
     if (stock) {
       return res.json(stock);
@@ -69,7 +70,7 @@ router.get('/:symbol/chart', async (req, res) => {
   const sym = symbol.toUpperCase();
 
   try {
-    const chartRes = await yahooFinanceService.getChartData(sym, interval);
+    const chartRes = await marketDataGateway.getChartData(sym, interval);
     const candles = chartRes.available ? chartRes.data : [];
     if (candles && candles.length > 0) {
       if (candles.earliestDate) {

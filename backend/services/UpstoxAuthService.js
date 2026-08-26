@@ -4,29 +4,21 @@ import config from '../config/upstox.js';
 
 class UpstoxAuthService {
   constructor() {
-    this.accessToken = null;
-    this.tokenExpiry = null;
-    
-    // Auto-setup analytics token if provided
-    if (config.analyticsToken) {
-      console.log('Upstox: Using Analytics Token');
-      this.accessToken = config.analyticsToken;
-      // Analytics tokens generally do not expire daily like OAuth, 
-      // but we set a very long expiry to bypass daily checks.
-      this.tokenExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); 
+    this.accessToken = config.accessToken || null;
+    this.tokenExpiry = this.accessToken ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
+    this.isValidated = false;
+    this.validationError = null;
+
+    if (this.accessToken) {
+      console.log('UpstoxAuthService: Initialized with environment access token.');
     }
   }
 
   getAuthorizationUrl(state = '') {
-    return `${config.baseUrl}/login/authorization/dialog?response_type=code&client_id=${config.apiKey}&redirect_uri=${config.redirectUri}&state=${state}`;
+    return `${config.baseUrl}/login/authorization/dialog?response_type=code&client_id=${config.apiKey}&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=${state}`;
   }
 
   async exchangeCodeForToken(code) {
-    if (config.analyticsToken) {
-      console.log('Upstox: Analytics token is already configured, ignoring OAuth exchange.');
-      return this.accessToken;
-    }
-
     try {
       const data = querystring.stringify({
         code: code,
@@ -44,35 +36,86 @@ class UpstoxAuthService {
       });
       
       this.accessToken = response.data.access_token;
-      
-      // Calculate token expiry (tokens expire at 3:30 AM IST of the next day)
-      // We'll set a basic 24-hour expiry here, or you could do strict 3:30 AM IST logic
       this.tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      this.isValidated = true;
+      this.validationError = null;
       
-      console.log('Upstox: Standard OAuth token fetched successfully.');
+      console.log('UpstoxAuthService: OAuth access token generated successfully.');
       return this.accessToken;
     } catch (err) {
-      console.error('Upstox Access Token error:', err.response?.data || err.message);
-      throw new Error('Failed to fetch Upstox access token');
+      const errMsg = err.response?.data?.message || err.message;
+      console.error('Upstox Access Token error:', errMsg);
+      this.validationError = errMsg;
+      throw new Error(`Failed to exchange Upstox authorization code: ${errMsg}`);
+    }
+  }
+
+  setAccessToken(token, expiryHours = 24) {
+    if (!token) return;
+    this.accessToken = token;
+    this.tokenExpiry = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
+    this.isValidated = true;
+    this.validationError = null;
+    console.log('UpstoxAuthService: Access token updated programmatically.');
+  }
+
+  async verifyToken() {
+    if (!this.accessToken) {
+      this.isValidated = false;
+      this.validationError = 'No access token provided';
+      return false;
+    }
+
+    try {
+      const res = await axios.get(`${config.baseUrl}/user/profile`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Accept': 'application/json'
+        },
+        timeout: 5000
+      });
+
+      if (res.data && res.data.status === 'success') {
+        this.isValidated = true;
+        this.validationError = null;
+        return true;
+      }
+      this.isValidated = false;
+      this.validationError = 'Invalid response from Upstox profile endpoint';
+      return false;
+    } catch (err) {
+      const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
+      this.isValidated = false;
+      this.validationError = errMsg;
+      return false;
     }
   }
 
   getValidToken() {
-    // If no token, or if token has expired
     if (!this.accessToken) {
-      console.warn('Upstox: No access token available. Please authenticate.');
       return null;
     }
     
     if (this.tokenExpiry && new Date() > this.tokenExpiry) {
-      if (!config.analyticsToken) {
-        console.warn('Upstox: OAuth token has expired. Manual re-authentication required.');
-        this.accessToken = null;
-        return null;
-      }
+      this.accessToken = null;
+      this.isValidated = false;
+      this.validationError = 'Token expired';
+      return null;
     }
 
     return this.accessToken;
+  }
+
+  getAuthStatus() {
+    const token = this.getValidToken();
+    return {
+      authenticated: !!token,
+      isValidated: this.isValidated,
+      validationError: this.validationError,
+      hasCredentials: !!(config.apiKey && config.apiSecret),
+      tokenExpiry: this.tokenExpiry ? this.tokenExpiry.toISOString() : null,
+      source: this.accessToken ? (process.env.UPSTOX_ACCESS_TOKEN ? 'ENV' : 'OAUTH') : 'NONE'
+    };
   }
 }
 

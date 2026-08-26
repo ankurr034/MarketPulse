@@ -1,4 +1,5 @@
 import yahooFinanceService from './YahooFinanceService.js';
+import marketDataGateway from './MarketDataGateway.js';
 import unifiedMfService from './UnifiedMfService.js';
 import riskAnalyticsService from './RiskAnalyticsService.js';
 import liveMfAnalyticsService from './LiveMfAnalyticsService.js';
@@ -22,7 +23,7 @@ class UnifiedAssetService {
     }
 
     if (type === 'stock') {
-      const quotesRes = await yahooFinanceService.getQuotes([id]);
+      const quotesRes = await marketDataGateway.getQuotes([id]);
       const quotes = quotesRes.available ? quotesRes.data : [];
       if (!quotes || quotes.length === 0) return null;
       const q = quotes[0];
@@ -199,9 +200,9 @@ class UnifiedAssetService {
 
   async getAssetDetail(type, id, region = 'india', range = 'all') {
     if (type === 'stock') {
-      const detailRes = await yahooFinanceService.getQuoteDetail(id);
+      const detailRes = await marketDataGateway.getQuoteDetail(id);
       const detail = detailRes.available ? detailRes.data : null;
-      const chartRes = await yahooFinanceService.getChartData(id, range);
+      const chartRes = await marketDataGateway.getChartData(id, range);
       const chart = chartRes.available ? chartRes.data : [];
 
       let rangeChangePct = detail?.changePercent || detail?.oneYearChangePct;

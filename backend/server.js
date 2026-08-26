@@ -36,6 +36,8 @@ import mongoose from 'mongoose';
 // Import services
 import simulator from './services/SimulatorService.js';
 import sectorDataService from './services/SectorDataService.js';
+import upstoxMarketDataService from './services/UpstoxMarketDataService.js';
+import upstoxInstrumentService from './services/UpstoxInstrumentService.js';
 
 dotenv.config();
 
@@ -118,6 +120,11 @@ io.on('connection', (socket) => {
 
 // Initialize simulation
 simulator.initialize(io);
+
+// Initialize Upstox Instruments and Market Data Streamer V3
+upstoxInstrumentService.initialize().then(() => {
+  upstoxMarketDataService.initializeWebSocket(io, ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'ITC.NS', 'SUNPHARMA.NS', '^NSEI', '^NSEBANK']);
+}).catch(err => console.warn('Upstox init warning:', err.message));
 
 // Connect to MongoDB
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/trading-dashboard';

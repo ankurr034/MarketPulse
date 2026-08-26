@@ -1,4 +1,5 @@
 import yahooFinanceService from './YahooFinanceService.js';
+import marketDataGateway from './MarketDataGateway.js';
 
 // INDIAN SECTORS (13 Nifty sectors)
 const INDIAN_SECTORS = [
@@ -763,7 +764,7 @@ class SectorDataService {
     // Process chunks concurrently with Promise.allSettled
     const chunkPromises = chunks.map(async (chunk) => {
       try {
-        const quotesRes = await yahooFinanceService.getQuotes(chunk);
+        const quotesRes = await marketDataGateway.getQuotes(chunk);
         if (quotesRes && quotesRes.available && quotesRes.data) {
           for (const q of quotesRes.data) {
             this.symbolCache.set(q.symbol, { data: q, timestamp: now });
@@ -914,6 +915,12 @@ class SectorDataService {
       const indexEtfQuotes = indexEtfTickers.length > 0 ? await this._batchFetchQuotes(indexEtfTickers) : [];
       const indexEtfQuoteMap = new Map();
       indexEtfQuotes.forEach(q => indexEtfQuoteMap.set(q.symbol, q));
+
+      // Pre-fetch all sector constituent stocks in ONE unified batch
+      const allConstituentSymbols = [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))];
+      if (allConstituentSymbols.length > 0) {
+        await this._batchFetchQuotes(allConstituentSymbols);
+      }
 
       // Fetch historical index data if timeframe is not 1D
       const isHistorical = timeframe !== '1D';
