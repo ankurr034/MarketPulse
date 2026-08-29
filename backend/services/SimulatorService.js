@@ -27,27 +27,27 @@ export const INDEX_TICKER_MAP = {
 };
 
 const STOCKS_METADATA = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', sector: 'Energy', basePrice: 1322 },
-  { symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', sector: 'IT', basePrice: 2280 },
-  { symbol: 'INFY.NS', name: 'Infosys Ltd.', sector: 'IT', basePrice: 1115 },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', sector: 'Banking', basePrice: 723 },
-  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', sector: 'Banking', basePrice: 1412 },
-  { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking', basePrice: 1053 },
-  { symbol: 'TMCV.NS', name: 'Tata Motors Ltd.', sector: 'Auto', basePrice: 471 },
-  { symbol: 'ITC.NS', name: 'ITC Ltd.', sector: 'FMCG', basePrice: 270 },
-  { symbol: 'SUNPHARMA.NS', name: 'Sun Pharmaceutical Industries Ltd.', sector: 'Pharma', basePrice: 1875 },
-  { symbol: 'TATASTEEL.NS', name: 'Tata Steel Ltd.', sector: 'Metals', basePrice: 185 },
-  { symbol: 'DLF.NS', name: 'DLF Ltd.', sector: 'Realty', basePrice: 665 },
-  { symbol: 'AAPL', name: 'Apple Inc.', sector: 'IT', basePrice: 305 },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'IT', basePrice: 480 },
-  { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Auto', basePrice: 250 },
-  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 225 },
-  { symbol: '^NSEI', name: 'NIFTY 50', sector: 'Index', basePrice: 24154 },
-  { symbol: '^CNX100', name: 'NIFTY 100', sector: 'Index', basePrice: 25333 },
-  { symbol: 'JUNIORBEES.NS', name: 'NIFTY NEXT 50', sector: 'Index', basePrice: 805 },
-  { symbol: '^NSEMDCP50', name: 'NIFTY MIDCAP 50', sector: 'Index', basePrice: 18216 },
-  { symbol: '^CNXSC', name: 'NIFTY SMALLCAP 100', sector: 'Index', basePrice: 19808 },
-  { symbol: '^CRSLDX', name: 'NIFTY 500', sector: 'Index', basePrice: 23472 }
+  { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', sector: 'Energy', basePrice: 1295 },
+  { symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', sector: 'IT', basePrice: 3880 },
+  { symbol: 'INFY.NS', name: 'Infosys Ltd.', sector: 'IT', basePrice: 1820 },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', sector: 'Banking', basePrice: 1742.5 },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', sector: 'Banking', basePrice: 1265.8 },
+  { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking', basePrice: 812.3 },
+  { symbol: 'TMCV.NS', name: 'Tata Motors Commercial Vehicles', sector: 'Auto', basePrice: 485 },
+  { symbol: 'ITC.NS', name: 'ITC Ltd.', sector: 'FMCG', basePrice: 478.5 },
+  { symbol: 'SUNPHARMA.NS', name: 'Sun Pharmaceutical Industries Ltd.', sector: 'Pharma', basePrice: 1885 },
+  { symbol: 'TATASTEEL.NS', name: 'Tata Steel Ltd.', sector: 'Metals', basePrice: 148.5 },
+  { symbol: 'DLF.NS', name: 'DLF Ltd.', sector: 'Realty', basePrice: 825 },
+  { symbol: 'AAPL', name: 'Apple Inc.', sector: 'IT', basePrice: 228.5 },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'IT', basePrice: 428.0 },
+  { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Auto', basePrice: 248.5 },
+  { symbol: 'NVDA', name: 'Nvidia Corporation', sector: 'IT', basePrice: 132.5 },
+  { symbol: '^NSEI', name: 'NIFTY 50', sector: 'Index', basePrice: 24150 },
+  { symbol: '^CNX100', name: 'NIFTY 100', sector: 'Index', basePrice: 25350 },
+  { symbol: 'JUNIORBEES.NS', name: 'NIFTY NEXT 50', sector: 'Index', basePrice: 715 },
+  { symbol: '^NSEMDCP50', name: 'NIFTY MIDCAP 50', sector: 'Index', basePrice: 15850 },
+  { symbol: '^CNXSC', name: 'NIFTY SMALLCAP 100', sector: 'Index', basePrice: 17450 },
+  { symbol: '^CRSLDX', name: 'NIFTY 500', sector: 'Index', basePrice: 22450 }
 ];
 
 const SECTORS_LIST = [
@@ -394,12 +394,17 @@ class SimulatorService {
     return day >= 1 && day <= 5 && currentTime >= 9.25 && currentTime <= 15.5;
   }
 
-  // Micro fluctuations every 1.5s around the Yahoo anchor
+  // Micro fluctuations - only active when explicit simulator flag is enabled
   startSimulationLoops() {
+    if (process.env.ENABLE_MARKET_SIMULATOR !== 'true') {
+      // Production mode: disable synthetic price drift
+      return;
+    }
+
     this.initTimer = setInterval(() => {
       const marketOpen = this.isMarketOpen();
 
-      // Only drift prices when market is open
+      // Only drift prices when simulator is explicitly enabled and market is open
       if (marketOpen) {
         // 1. Update Global Indices (slight drift)
         Object.keys(this.indices).forEach(name => {

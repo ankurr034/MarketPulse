@@ -1,7 +1,7 @@
 import express from 'express';
 import yahooFinanceService from '../services/YahooFinanceService.js';
 import marketDataGateway from '../services/MarketDataGateway.js';
-import simulator from '../services/SimulatorService.js';
+import sectorDataService from '../services/SectorDataService.js';
 
 const router = express.Router();
 
@@ -12,26 +12,20 @@ router.get('/', async (req, res) => {
     if (query && query.trim().length > 0) {
       const searchRes = await yahooFinanceService.search(query);
       const results = searchRes.available ? searchRes.data : [];
+      res.setHeader('X-Data-Source', 'YAHOO_FINANCE');
+      res.setHeader('X-Data-Status', 'LIVE');
       return res.json(results);
     }
     
-    // Default fallback list from simulator
-    const stocks = simulator.getStocks();
-    res.json(stocks.map(s => ({
-      symbol: s.symbol,
-      name: s.name,
-      sector: s.sector,
-      ltp: s.ltp,
-      open: s.open,
-      previousClose: s.previousClose,
-      change: s.change,
-      changePercent: s.changePercent,
-      dayHigh: s.dayHigh,
-      dayLow: s.dayLow,
-      high52: s.high52,
-      low52: s.low52,
-      volume: s.volume
-    })));
+    // Return all stocks across all sectors with verified quotes & provenance
+    const symbols = sectorDataService.getAllSymbols();
+    const quotesRes = await marketDataGateway.getQuotes(symbols);
+    const data = quotesRes.data || [];
+    const primarySource = data.length > 0 ? (data[0].source || 'YAHOO_FINANCE') : 'YAHOO_FINANCE_UNAVAILABLE';
+    const primaryStatus = data.length > 0 ? (data[0].dataStatus || 'UNAVAILABLE') : 'UNAVAILABLE';
+    res.setHeader('X-Data-Source', primarySource);
+    res.setHeader('X-Data-Status', primaryStatus);
+    return res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -43,21 +37,25 @@ router.get('/:symbol', async (req, res) => {
   const sym = symbol.toUpperCase();
   
   try {
-    // 1. Try MarketDataGateway (Upstox -> Yahoo Finance Fallback)
+    // Pure Authoritative Gateway (Yahoo Finance -> YAHOO_FINANCE_UNAVAILABLE)
     const stockRes = await marketDataGateway.getQuoteDetail(sym);
-    const stock = stockRes.available ? stockRes.data : null;
-    if (stock) {
+    const stock = stockRes && stockRes.data ? stockRes.data : null;
+    
+    if (stock && stock.dataStatus !== 'UNAVAILABLE' && stock.ltp !== null) {
+      res.setHeader('X-Data-Source', stock.source || 'YAHOO_FINANCE');
+      res.setHeader('X-Data-Status', stock.dataStatus || 'LIVE');
       return res.json(stock);
     }
     
-    // 2. Try Local Simulator (e.g. for simple mock codes like RELIANCE)
-    const mockStock = simulator.getStock(sym);
-    if (mockStock) {
-      const { candles, ...metaData } = mockStock;
-      return res.json(metaData);
+    if (stock) {
+      res.setHeader('X-Data-Source', 'YAHOO_FINANCE_UNAVAILABLE');
+      res.setHeader('X-Data-Status', 'UNAVAILABLE');
+      return res.status(404).json(stock);
     }
 
-    res.status(404).json({ error: 'Stock not found' });
+    res.setHeader('X-Data-Source', 'YAHOO_FINANCE_UNAVAILABLE');
+    res.setHeader('X-Data-Status', 'UNAVAILABLE');
+    res.status(404).json({ error: 'Stock not found', symbol: sym, source: 'YAHOO_FINANCE_UNAVAILABLE', dataStatus: 'UNAVAILABLE' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -66,7 +64,7 @@ router.get('/:symbol', async (req, res) => {
 // Get stock chart candles
 router.get('/:symbol/chart', async (req, res) => {
   const { symbol } = req.params;
-  const interval = req.query.interval || '1D'; // 1m, 5m, 1H, 1D
+  const interval = req.query.interval || '1D'; // 1m, 5m, 1H, 1D, 1W, 1M, 1Y
   const sym = symbol.toUpperCase();
 
   try {
@@ -76,22 +74,18 @@ router.get('/:symbol/chart', async (req, res) => {
       if (candles.earliestDate) {
         res.setHeader('X-Earliest-Date', candles.earliestDate);
       }
+      res.setHeader('X-Data-Source', chartRes.source || 'YAHOO_FINANCE');
+      res.setHeader('X-Data-Status', chartRes.dataStatus || 'EOD');
       return res.json(candles);
     }
 
-    // 2. Fallback to Local Simulator
-    const mockStock = simulator.getStock(sym);
-    if (mockStock) {
-      const validIntervals = ['1m', '5m', '1H', '1D'];
-      const targetInterval = validIntervals.includes(interval) ? interval : '1D';
-      const mockCandles = mockStock.candles[targetInterval] || [];
-      return res.json(mockCandles);
-    }
-
-    res.status(404).json({ error: 'Stock not found' });
+    res.setHeader('X-Data-Source', 'YAHOO_FINANCE_UNAVAILABLE');
+    res.setHeader('X-Data-Status', 'UNAVAILABLE');
+    res.status(404).json({ error: 'Stock chart not found', symbol: sym, source: 'YAHOO_FINANCE_UNAVAILABLE', dataStatus: 'UNAVAILABLE' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 export default router;
+

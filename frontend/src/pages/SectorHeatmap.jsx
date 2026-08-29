@@ -619,16 +619,8 @@ export default function SectorHeatmap() {
                   const periodReturns = getMultiPeriodReturns(sector);
                   const rowIndex = (currentPage - 1) * (rowsPerPage === 'all' ? 0 : rowsPerPage) + idx + 1;
 
-                  // Compute sector aggregates if available
+                  // Constituent list (for stock expansion only, not for index-level metric derivation)
                   const constituentList = sector.stocks || [];
-                  const validConstituents = constituentList.filter(s => s.pe && s.pe > 0);
-                  const avgPe = validConstituents.length > 0 
-                    ? validConstituents.reduce((acc, c) => acc + c.pe, 0) / validConstituents.length 
-                    : null;
-                  const validEps = constituentList.filter(s => s.eps && s.eps > 0);
-                  const avgEps = validEps.length > 0 
-                    ? validEps.reduce((acc, c) => acc + c.eps, 0) / validEps.length 
-                    : null;
 
                   return (
                     <React.Fragment key={sector.id}>
@@ -702,12 +694,12 @@ export default function SectorHeatmap() {
 
                         {/* P/E */}
                         <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                          {sector.pe ? formatIndianNumber(sector.pe, 2, 2) : (avgPe ? formatIndianNumber(avgPe, 2, 2) : '—')}
+                          {sector.pe ? formatIndianNumber(sector.pe, 2, 2) : '—'}
                         </td>
 
                         {/* EPS (₹) */}
                         <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                          {sector.eps ? formatIndianNumber(sector.eps, 2, 2) : (avgEps ? formatIndianNumber(avgEps, 2, 2) : '—')}
+                          {sector.eps ? formatIndianNumber(sector.eps, 2, 2) : '—'}
                         </td>
 
                         {/* EBIT (₹ Cr) */}

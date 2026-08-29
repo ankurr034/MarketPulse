@@ -1,5 +1,6 @@
 import yahooFinanceService from './YahooFinanceService.js';
 import marketDataGateway from './MarketDataGateway.js';
+import { getIndianMarketSession } from './MarketDataValidator.js';
 
 // INDIAN SECTORS (13 Nifty sectors)
 const INDIAN_SECTORS = [
@@ -9,6 +10,7 @@ const INDIAN_SECTORS = [
     region: 'india',
     assetClass: 'stocks',
     indexTicker: '^NSEBANK',
+    etfTicker: 'BANKBEES.NS',
     stocks: [
       { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
       { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
@@ -27,6 +29,7 @@ const INDIAN_SECTORS = [
     name: 'Nifty IT',
     region: 'india',
     indexTicker: '^CNXIT',
+    etfTicker: 'ITBEES.NS',
     stocks: [
       { symbol: 'TCS.NS', name: 'TCS' },
       { symbol: 'INFY.NS', name: 'Infosys' },
@@ -45,6 +48,7 @@ const INDIAN_SECTORS = [
     name: 'Nifty Auto',
     region: 'india',
     indexTicker: '^CNXAUTO',
+    etfTicker: 'AUTOBEES.NS',
     stocks: [
       { symbol: 'TMCV.NS', name: 'Tata Motors (Commercial)' },
       { symbol: 'TMPV.NS', name: 'Tata Motors Passenger Vehicles' },
@@ -63,6 +67,7 @@ const INDIAN_SECTORS = [
     name: 'Nifty Pharma',
     region: 'india',
     indexTicker: '^CNXPHARMA',
+    etfTicker: 'PHARMABEES.NS',
     stocks: [
       { symbol: 'SUNPHARMA.NS', name: 'Sun Pharma' },
       { symbol: 'DRREDDY.NS', name: 'Dr. Reddys' },
@@ -148,6 +153,7 @@ const INDIAN_SECTORS = [
     name: 'Nifty PSU Bank',
     region: 'india',
     indexTicker: '^CNXPSUBANK',
+    etfTicker: 'PSUBNKBEES.NS',
     stocks: [
       { symbol: 'SBIN.NS', name: 'State Bank of India' },
       { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda' },
@@ -196,6 +202,7 @@ const INDIAN_SECTORS = [
     name: 'Nifty Infra',
     region: 'india',
     indexTicker: '^CNXINFRA',
+    etfTicker: 'INFRABEES.NS',
     stocks: [
       { symbol: 'LT.NS', name: 'Larsen & Toubro' },
       { symbol: 'ADANIPORTS.NS', name: 'Adani Ports' },
@@ -326,7 +333,8 @@ const INDIAN_SECTORS = [
     name: 'Nifty Next 50 Index',
     region: 'india',
     assetClass: 'stocks',
-    indexTicker: 'JUNIORBEES.NS',
+    indexTicker: '^NSMIDCP',
+    etfTicker: 'JUNIORBEES.NS',
     stocks: [
       { symbol: 'DLF.NS', name: 'DLF' },
       { symbol: 'GODREJPROP.NS', name: 'Godrej Properties' },
@@ -794,19 +802,86 @@ class SectorDataService {
   }
 
   /**
-   * Fetch quotes for a sector's constituent stocks with per-symbol error tolerance.
+   * Fetch quotes for a sector's constituent stocks with per-symbol error tolerance and provenance tracking.
    */
-  async _fetchSectorQuotes(sector) {
+  async _fetchSectorQuotes(sector, fetchReturns = false) {
     const symbols = sector.stocks.map(s => s.symbol);
     const quotes = await this._batchFetchQuotes(symbols);
 
     // Map quotes by symbol for easy lookup
     const quoteMap = new Map();
-    quotes.forEach(q => quoteMap.set(q.symbol, q));
+    quotes.forEach(q => {
+      quoteMap.set(q.symbol, q);
+      if (q.symbol.endsWith('.NS')) {
+        quoteMap.set(q.symbol.replace('.NS', ''), q);
+      }
+    });
 
-    // Return enriched stock data, preserving sector stock metadata
+    const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
+
+    // Fetch multi-period historical returns for constituent stocks in parallel if requested or cached
+    const returnsMap = new Map();
+    if (fetchReturns) {
+      const stockReturnsList = await Promise.allSettled(
+        symbols.map(sym => yahooFinanceService.getHistoricalReturns(sym))
+      );
+      symbols.forEach((sym, idx) => {
+        if (stockReturnsList[idx].status === 'fulfilled' && stockReturnsList[idx].value) {
+          returnsMap.set(sym, stockReturnsList[idx].value);
+          if (sym.endsWith('.NS')) {
+            returnsMap.set(sym.replace('.NS', ''), stockReturnsList[idx].value);
+          }
+        }
+      });
+    } else {
+      symbols.forEach(sym => {
+        const cached = yahooFinanceService.returnsCache?.get(sym)?.data;
+        if (cached) {
+          returnsMap.set(sym, cached);
+          if (sym.endsWith('.NS')) {
+            returnsMap.set(sym.replace('.NS', ''), cached);
+          }
+        }
+      });
+    }
+
+    // Fetch financials (EBIT & Net Profit) for constituent stocks if requested or cached
+    const financialsMap = new Map();
+    if (!isFinancialSector) {
+      if (fetchReturns) {
+        const stockFinList = await Promise.allSettled(
+          symbols.map(sym => yahooFinanceService.getStockFinancials(sym))
+        );
+        symbols.forEach((sym, idx) => {
+          if (stockFinList[idx].status === 'fulfilled' && stockFinList[idx].value) {
+            financialsMap.set(sym, stockFinList[idx].value);
+            if (sym.endsWith('.NS')) {
+              financialsMap.set(sym.replace('.NS', ''), stockFinList[idx].value);
+            }
+          }
+        });
+      } else {
+        symbols.forEach(sym => {
+          const cached = yahooFinanceService.financialsCache?.get(sym)?.data;
+          if (cached) {
+            financialsMap.set(sym, cached);
+            if (sym.endsWith('.NS')) {
+              financialsMap.set(sym.replace('.NS', ''), cached);
+            }
+          }
+        });
+      }
+    }
+
+    // Return enriched stock data, preserving sector stock metadata and strict provenance
     return sector.stocks.map(stock => {
-      const quote = quoteMap.get(stock.symbol);
+      const quote = quoteMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? quoteMap.get(stock.symbol.replace('.NS', '')) : null);
+      const stockRets = returnsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? returnsMap.get(stock.symbol.replace('.NS', '')) : null) || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
+      const stockFin = financialsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? financialsMap.get(stock.symbol.replace('.NS', '')) : null);
+
+      const resolvedEbit = isFinancialSector ? null : (stockFin?.ebit ?? quote?.ebit ?? null);
+      const resolvedNetProfit = stockFin?.netProfit ?? quote?.netProfit ?? null;
+
       if (quote && typeof quote.ltp === 'number' && quote.ltp > 0) {
         let changePercent = quote.changePercent;
         if ((changePercent === undefined || changePercent === null || isNaN(changePercent)) && quote.previousClose > 0) {
@@ -815,13 +890,20 @@ class SectorDataService {
         return {
           ...stock,
           ...quote,
-          ebit: quote.ebit || null,
-          netProfit: quote.netProfit || null,
-          changePercent
+          returns: stockRets,
+          ebit: resolvedEbit,
+          netProfit: resolvedNetProfit,
+          changePercent,
+          source: quote.source || "YAHOO_FINANCE",
+          sourceType: quote.sourceType || "YAHOO_QUOTE",
+          dataStatus: quote.dataStatus || (quote.isLive ? "LIVE" : "EOD"),
+          isLive: quote.isLive ?? false,
+          priceAsOf: quote.priceAsOf || new Date().toISOString(),
+          lastUpdatedAt: quote.lastUpdatedAt || new Date().toISOString()
         };
       }
       
-      // If live quote is missing, return clean fallback with null values
+      // If quote is completely missing or unavailable, return clean honest null representation
       return {
         ...stock,
         ltp: null,
@@ -838,28 +920,39 @@ class SectorDataService {
         pe: null,
         pb: null,
         eps: null,
-        ebit: null,
-        netProfit: null,
+        ebit: resolvedEbit,
+        netProfit: resolvedNetProfit,
         dividendYield: null,
-        vwap: null
+        vwap: null,
+        returns: stockRets,
+        source: "UNAVAILABLE",
+        sourceType: "UNAVAILABLE",
+        dataStatus: "UNAVAILABLE",
+        isLive: false,
+        priceAsOf: null,
+        lastUpdatedAt: new Date().toISOString()
       };
     });
   }
 
+  /**
+   * Fetch historical index change percent for a timeframe.
+   */
   async _getHistoricalIndexData(ticker, timeframe, baseChangePercent = 0) {
     try {
       const returns = await yahooFinanceService.getHistoricalReturns(ticker);
       if (returns && typeof returns[timeframe] === 'number' && !isNaN(returns[timeframe])) {
         return {
-          changePercent: returns[timeframe],
-          price: 100
+          changePercent: returns[timeframe]
         };
       }
 
       let range = '1y';
       if (timeframe === '1W') range = '5d';
       else if (timeframe === '1M') range = '1mo';
+      else if (timeframe === '6M') range = '6mo';
       else if (timeframe === '1Y') range = '1y';
+      else if (timeframe === '3Y') range = '5y';
       else if (timeframe === '5Y') range = '5y';
       else if (timeframe === 'ALL') range = 'max';
 
@@ -871,8 +964,7 @@ class SectorDataService {
         if (firstPrice && lastPrice && firstPrice > 0) {
           const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
           return {
-            changePercent: parseFloat(changePercent.toFixed(2)),
-            price: lastPrice
+            changePercent: parseFloat(changePercent.toFixed(2))
           };
         }
       }
@@ -881,8 +973,7 @@ class SectorDataService {
     }
 
     return {
-      changePercent: baseChangePercent,
-      price: 100
+      changePercent: baseChangePercent
     };
   }
 
@@ -903,33 +994,95 @@ class SectorDataService {
         sectors = sectors.filter(s => s.region === 'global');
       }
 
-      // Pre-fetch ETF/Index quotes to get 52-week high and low efficiently
-      const indexEtfTickers = [...new Set(sectors.map(s => s.etfTicker || s.indexTicker).filter(Boolean))];
-      const indexEtfQuotes = indexEtfTickers.length > 0 ? await this._batchFetchQuotes(indexEtfTickers) : [];
-      const indexEtfQuoteMap = new Map();
-      indexEtfQuotes.forEach(q => indexEtfQuoteMap.set(q.symbol, q));
+      const session = getIndianMarketSession();
 
-      // Pre-fetch all sector constituent stocks in ONE unified batch
+      // ──────────────────────────────────────────────────────
+      // STEP 1: Determine primary instrument ticker for each sector
+      //   - Indian sectors: always use indexTicker (^NSEBANK, ^CNXIT, etc.)
+      //     NEVER fall back to etfTicker for index-level data.
+      //   - Global sectors: use etfTicker (XLK, XLV, etc.) as the primary 
+      //     instrument since there is no separate index ticker.
+      // ──────────────────────────────────────────────────────
+      const primaryTickerMap = new Map(); // sectorId -> ticker
+      for (const s of sectors) {
+        if (s.region === 'india') {
+          // Indian sectors: indexTicker is the ONLY source
+          if (s.indexTicker) {
+            primaryTickerMap.set(s.id, s.indexTicker);
+          }
+        } else {
+          // Global sectors: etfTicker IS the primary instrument
+          if (s.etfTicker) {
+            primaryTickerMap.set(s.id, s.etfTicker);
+          } else if (s.indexTicker) {
+            primaryTickerMap.set(s.id, s.indexTicker);
+          }
+        }
+      }
+
+      // ──────────────────────────────────────────────────────
+      // STEP 2: Batch-fetch index/primary instrument quotes
+      // ──────────────────────────────────────────────────────
+      const uniquePrimaryTickers = [...new Set([...primaryTickerMap.values()].filter(Boolean))];
+      const primaryQuotes = uniquePrimaryTickers.length > 0 ? await this._batchFetchQuotes(uniquePrimaryTickers) : [];
+      const primaryQuoteMap = new Map();
+      primaryQuotes.forEach(q => primaryQuoteMap.set(q.symbol, q));
+
+      // ──────────────────────────────────────────────────────
+      // STEP 3: Fetch index historical returns for all primary tickers in parallel
+      // ──────────────────────────────────────────────────────
+      const indexReturnsResults = await Promise.allSettled(
+        uniquePrimaryTickers.map(async (ticker) => ({
+          ticker,
+          rets: await yahooFinanceService.getHistoricalReturns(ticker)
+        }))
+      );
+      const indexReturnsMap = new Map();
+      indexReturnsResults.forEach(res => {
+        if (res.status === 'fulfilled' && res.value && res.value.rets) {
+          indexReturnsMap.set(res.value.ticker, res.value.rets);
+        }
+      });
+
+      // ──────────────────────────────────────────────────────
+      // STEP 4: Pre-fetch all constituent stock quotes in ONE unified batch
+      // ──────────────────────────────────────────────────────
       const allConstituentSymbols = [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))];
       if (allConstituentSymbols.length > 0) {
         await this._batchFetchQuotes(allConstituentSymbols);
       }
 
-      // Fetch historical index data if timeframe is not 1D
-      const isHistorical = timeframe !== '1D';
-      const historicalReturnsMap = new Map();
-      
-      if (isHistorical && indexEtfTickers.length > 0) {
-        await Promise.all(indexEtfTickers.map(async (ticker) => {
-          const baseQuote = indexEtfQuoteMap.get(ticker);
-          const baseChange = baseQuote && baseQuote.changePercent ? baseQuote.changePercent : 0.85;
-          const hist = await this._getHistoricalIndexData(ticker, timeframe, baseChange);
-          if (hist) {
-            historicalReturnsMap.set(ticker, hist);
+      // Background pre-warm: constituent financials & returns (non-blocking)
+      const nonFinancialSymbols = [...new Set(
+        sectors
+          .filter(s => !s.id.includes('bank') && !s.id.includes('fin') && !s.id.includes('insurance'))
+          .flatMap(s => s.stocks.map(st => st.symbol))
+      )].filter(sym => !yahooFinanceService.financialsCache.has(sym));
+
+      const uncalculatedSymbols = allConstituentSymbols.filter(sym => !yahooFinanceService.returnsCache.has(sym));
+
+      if (nonFinancialSymbols.length > 0 || uncalculatedSymbols.length > 0) {
+        setTimeout(async () => {
+          if (nonFinancialSymbols.length > 0) {
+            const finChunkSize = 25;
+            for (let i = 0; i < nonFinancialSymbols.length; i += finChunkSize) {
+              const chunk = nonFinancialSymbols.slice(i, i + finChunkSize);
+              await Promise.allSettled(chunk.map(sym => yahooFinanceService.getStockFinancials(sym)));
+            }
           }
-        }));
+          if (uncalculatedSymbols.length > 0) {
+            const retChunkSize = 25;
+            for (let i = 0; i < uncalculatedSymbols.length; i += retChunkSize) {
+              const chunk = uncalculatedSymbols.slice(i, i + retChunkSize);
+              await Promise.allSettled(chunk.map(sym => yahooFinanceService.getHistoricalReturns(sym)));
+            }
+          }
+        }, 0);
       }
 
+      // ──────────────────────────────────────────────────────
+      // STEP 5: Build sector results
+      // ──────────────────────────────────────────────────────
       const results = [];
 
       for (const sector of sectors) {
@@ -937,7 +1090,7 @@ class SectorDataService {
           const stocksWithQuotes = await this._fetchSectorQuotes(sector);
           const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
-          // Compute aggregated metrics
+          // ── Constituent aggregates (kept SEPARATE from index metrics) ──
           const changePercents = validStocks.map(s => s.changePercent).filter(v => typeof v === 'number' && !isNaN(v));
           const avgChangePercent = changePercents.length > 0
             ? parseFloat((changePercents.reduce((sum, v) => sum + v, 0) / changePercents.length).toFixed(2))
@@ -945,14 +1098,23 @@ class SectorDataService {
 
           const advances = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent > 0).length;
           const declines = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent < 0).length;
+          const unchanged = validStocks.length - advances - declines;
 
-          const totalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
+          // Constituent aggregate metrics (for internal/separate display only)
+          const constituentTotalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
           const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
           
-          // Sector EBIT:
-          // 1. Financial sectors (Banks/NBFCs) do not contribute/display EBIT (strictly null).
-          // 2. For non-financial sectors, aggregate valid non-financial constituent EBIT values.
-          //    If at least one valid constituent exists, return the valid aggregation.
+          const validPeStocks = validStocks.filter(s => typeof s.pe === 'number' && s.pe > 0);
+          const constituentAvgPe = validPeStocks.length > 0
+            ? parseFloat((validPeStocks.reduce((sum, s) => sum + s.pe, 0) / validPeStocks.length).toFixed(2))
+            : null;
+
+          const validEpsStocks = validStocks.filter(s => typeof s.eps === 'number' && s.eps > 0);
+          const constituentAvgEps = validEpsStocks.length > 0
+            ? parseFloat((validEpsStocks.reduce((sum, s) => sum + s.eps, 0) / validEpsStocks.length).toFixed(2))
+            : null;
+
+          // Sector EBIT (constituent aggregate — labelled as such)
           const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
           let totalEbit = null;
           if (!isFinancialSector) {
@@ -962,88 +1124,119 @@ class SectorDataService {
             }
           }
 
-          // Sector Net Profit: Aggregated across valid constituent reported Net Profits.
+          // Sector Net Profit (constituent aggregate)
           const validNetProfitStocks = validStocks.filter(s => typeof s.netProfit === 'number' && s.netProfit > 0);
           let totalNetProfit = validNetProfitStocks.length > 0
             ? validNetProfitStocks.reduce((sum, s) => sum + s.netProfit, 0)
             : null;
 
-          const indexTicker = sector.etfTicker || sector.indexTicker;
-          const indexQuote = indexTicker ? indexEtfQuoteMap.get(indexTicker) : null;
-          let fiftyTwoWeekHigh = indexQuote && indexQuote.high52 ? indexQuote.high52 : 0;
-          let fiftyTwoWeekLow = indexQuote && indexQuote.low52 ? indexQuote.low52 : 0;
-          let open = indexQuote ? indexQuote.open : 0;
-          let previousClose = indexQuote ? indexQuote.previousClose : 0;
-          let dayHigh = indexQuote ? indexQuote.dayHigh : 0;
-          let dayLow = indexQuote ? indexQuote.dayLow : 0;
-          
-          // Use the true Index/ETF change percent if available, otherwise fallback to unweighted average
-          let sectorChangePercent = (indexQuote && typeof indexQuote.changePercent === 'number' && !isNaN(indexQuote.changePercent))
-            ? indexQuote.changePercent 
-            : avgChangePercent;
-          let indexPrice = indexQuote ? indexQuote.ltp : 0;
+          // ── Official index instrument data ──
+          const primaryTicker = primaryTickerMap.get(sector.id) || null;
+          const indexQuote = primaryTicker ? primaryQuoteMap.get(primaryTicker) : null;
+          const indexReturns = primaryTicker ? indexReturnsMap.get(primaryTicker) : null;
 
-          if (isHistorical && indexTicker && historicalReturnsMap.has(indexTicker)) {
-            const hist = historicalReturnsMap.get(indexTicker);
-            sectorChangePercent = hist.changePercent;
-            indexPrice = hist.price;
+          // Index price — exclusively from the index instrument, no fallback
+          const indexPrice = (indexQuote && typeof indexQuote.ltp === 'number' && indexQuote.ltp > 0) ? indexQuote.ltp : null;
+          const previousClose = (indexQuote && typeof indexQuote.previousClose === 'number' && indexQuote.previousClose > 0) ? indexQuote.previousClose : null;
+          const open = (indexQuote && typeof indexQuote.open === 'number' && indexQuote.open > 0) ? indexQuote.open : null;
+          const dayHigh = (indexQuote && typeof indexQuote.dayHigh === 'number' && indexQuote.dayHigh > 0) ? indexQuote.dayHigh : null;
+          const dayLow = (indexQuote && typeof indexQuote.dayLow === 'number' && indexQuote.dayLow > 0) ? indexQuote.dayLow : null;
+
+          // 52W High/Low — exclusively from the index instrument, NO constituent fallback
+          const fiftyTwoWeekHigh = (indexQuote && typeof indexQuote.high52 === 'number' && indexQuote.high52 > 0) ? indexQuote.high52 : null;
+          const fiftyTwoWeekLow = (indexQuote && typeof indexQuote.low52 === 'number' && indexQuote.low52 > 0) ? indexQuote.low52 : null;
+
+          // PE, EPS, Volume — exclusively from the index instrument
+          // Yahoo does not provide PE/EPS/Volume for NSE indices — this will correctly be null
+          const indexPe = (indexQuote && typeof indexQuote.pe === 'number' && indexQuote.pe > 0) ? indexQuote.pe : null;
+          const indexEps = (indexQuote && typeof indexQuote.eps === 'number') ? indexQuote.eps : null;
+          const indexVolume = (indexQuote && typeof indexQuote.volume === 'number' && indexQuote.volume > 0) ? indexQuote.volume : null;
+
+          // ── Index returns — exclusively from primary instrument, NO constituent fallback ──
+          const sectorReturns = {};
+          ['1W', '1M', '6M', '1Y', '3Y', '5Y', 'ALL'].forEach(p => {
+            const hasIndexVal = indexReturns && typeof indexReturns[p] === 'number' && !isNaN(indexReturns[p]);
+            sectorReturns[p] = hasIndexVal ? indexReturns[p] : null;
+          });
+
+          // ── ALL return validation: detect data quality issues ──
+          if (sectorReturns['ALL'] !== null && Math.abs(sectorReturns['ALL']) > 50000) {
+            console.warn(`[DATA QUALITY WARNING] ${sector.id} (${primaryTicker}): ALL return = ${sectorReturns['ALL']}% exceeds 50000% — marking as suspect. Not correcting; logging for investigation.`);
           }
 
-          if (indexTicker === 'JUNIORBEES.NS') {
-            indexPrice = indexPrice * 100;
-            fiftyTwoWeekHigh = fiftyTwoWeekHigh * 100;
-            fiftyTwoWeekLow = fiftyTwoWeekLow * 100;
-            open = open * 100;
-            previousClose = previousClose * 100;
-            dayHigh = dayHigh * 100;
-            dayLow = dayLow * 100;
+          // sectorChangePercent: for display/sorting
+          let sectorChangePercent;
+          if (timeframe === '1D') {
+            // Use index change% if available, otherwise constituent avg
+            sectorChangePercent = (indexQuote && typeof indexQuote.changePercent === 'number' && !isNaN(indexQuote.changePercent))
+              ? indexQuote.changePercent 
+              : avgChangePercent;
+          } else if (sectorReturns[timeframe] !== null && sectorReturns[timeframe] !== undefined) {
+            sectorChangePercent = sectorReturns[timeframe];
+          } else {
+            sectorChangePercent = avgChangePercent;
           }
-            
+
           let trend = 'Neutral';
           if (sectorChangePercent > 0.5) trend = 'Bullish';
           else if (sectorChangePercent < -0.5) trend = 'Bearish';
 
-          // Sector multi-period returns: from indexQuote.returns or average of valid constituent returns
-          const indexReturns = (indexQuote && indexQuote.returns) ? indexQuote.returns : null;
-          const sectorReturns = {};
-          ['1W', '1M', '6M', '1Y', '3Y', '5Y', 'ALL'].forEach(p => {
-            const hasIndexVal = indexReturns && typeof indexReturns[p] === 'number' && !isNaN(indexReturns[p]) && indexReturns[p] !== 0;
-            if (hasIndexVal) {
-              sectorReturns[p] = indexReturns[p];
-            } else {
-              const validConstituentReturns = validStocks
-                .map(s => s.returns && s.returns[p])
-                .filter(v => typeof v === 'number' && !isNaN(v));
-              sectorReturns[p] = validConstituentReturns.length > 0
-                ? parseFloat((validConstituentReturns.reduce((sum, v) => sum + v, 0) / validConstituentReturns.length).toFixed(2))
-                : (indexReturns && typeof indexReturns[p] === 'number' ? indexReturns[p] : null);
-            }
-          });
+          const sourceBreakdown = {
+            live: stocksWithQuotes.filter(s => s.dataStatus === 'LIVE').length,
+            eod: stocksWithQuotes.filter(s => s.dataStatus === 'EOD').length,
+            unavailable: stocksWithQuotes.filter(s => s.dataStatus === 'UNAVAILABLE' || s.ltp === null).length
+          };
+
+          // Determine data status for the index row
+          const indexDataStatus = indexPrice !== null
+            ? (session.isOpen ? 'LIVE' : 'EOD')
+            : 'UNAVAILABLE';
 
           results.push({
             id: sector.id,
             name: sector.name,
             region: sector.region,
             assetClass: sector.assetClass || 'stocks',
-            etfTicker: indexTicker || null,
-            changePercent: sectorChangePercent,
-            trend,
-            advances,
-            declines,
-            totalStocks: sector.stocks.length,
-            validStocks: validStocks.length,
-            totalVolume,
-            totalMarketCap,
-            ebit: totalEbit,
-            netProfit: totalNetProfit,
-            fiftyTwoWeekHigh,
-            fiftyTwoWeekLow,
-            open,
+            
+            // ── Source provenance ──
+            primaryTicker: primaryTicker,
+            indexTicker: sector.indexTicker || null,
+            etfTicker: sector.etfTicker || null,
+            indexDataSource: primaryTicker || null,
+            indexDataStatus,
+            indexDataTimestamp: new Date().toISOString(),
+
+            // ── Official index metrics (from primary instrument only) ──
+            indexPrice,
             previousClose,
+            open,
             dayHigh,
             dayLow,
-            indexPrice,
+            fiftyTwoWeekHigh,
+            fiftyTwoWeekLow,
+            pe: indexPe,
+            eps: indexEps,
+            totalVolume: indexVolume,
+
+            // ── Index returns (exclusively from primary instrument) ──
+            changePercent: sectorChangePercent,
+            trend,
             returns: sectorReturns,
+
+            // ── Constituent metrics (separate from index, labelled clearly) ──
+            advances,
+            declines,
+            unchanged,
+            totalStocks: validStocks.length,
+            validStocks: validStocks.length,
+            totalMarketCap,
+            constituentAvgPe,
+            constituentAvgEps,
+            constituentTotalVolume,
+            ebit: totalEbit,
+            netProfit: totalNetProfit,
+
+            sourceBreakdown,
             stocks: stocksWithQuotes
           });
         } catch (err) {
@@ -1053,20 +1246,37 @@ class SectorDataService {
             name: sector.name,
             region: sector.region,
             assetClass: sector.assetClass || 'stocks',
-            etfTicker: sector.etfTicker || sector.indexTicker || null,
+            primaryTicker: primaryTickerMap.get(sector.id) || null,
+            indexTicker: sector.indexTicker || null,
+            etfTicker: sector.etfTicker || null,
+            indexDataSource: primaryTickerMap.get(sector.id) || null,
+            indexDataStatus: 'UNAVAILABLE',
+            indexDataTimestamp: new Date().toISOString(),
+            indexPrice: null,
+            previousClose: null,
+            open: null,
+            dayHigh: null,
+            dayLow: null,
+            fiftyTwoWeekHigh: null,
+            fiftyTwoWeekLow: null,
+            pe: null,
+            eps: null,
+            totalVolume: null,
             changePercent: 0,
             trend: 'Neutral',
+            returns: { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null },
             advances: 0,
             declines: 0,
+            unchanged: 0,
             totalStocks: sector.stocks.length,
             validStocks: 0,
-            totalVolume: 0,
             totalMarketCap: 0,
+            constituentAvgPe: null,
+            constituentAvgEps: null,
+            constituentTotalVolume: 0,
             ebit: null,
             netProfit: null,
-            fiftyTwoWeekHigh: 0,
-            fiftyTwoWeekLow: 0,
-            indexPrice: 0,
+            sourceBreakdown: { live: 0, eod: 0, unavailable: sector.stocks.length },
             stocks: []
           });
         }
@@ -1080,12 +1290,24 @@ class SectorDataService {
    * Get detailed data for a single sector by ID.
    */
   async getSectorDetail(sectorId, timeframe = '1D') {
-    const sector = ALL_SECTORS.find(s => s.id === sectorId);
+    if (!sectorId) return null;
+    const normId = sectorId.toLowerCase().trim();
+    const sector = ALL_SECTORS.find(s => 
+      s.id.toLowerCase() === normId ||
+      s.name.toLowerCase() === normId ||
+      s.id.replace('global-', '').toLowerCase() === normId ||
+      s.id.replace('nifty-', '').toLowerCase() === normId ||
+      (normId.includes('tech') && s.id.includes('technology')) ||
+      (normId.includes('bank') && s.id.includes('bank')) ||
+      (normId.includes('pharma') && s.id.includes('pharma')) ||
+      (normId.includes('auto') && s.id.includes('auto')) ||
+      (normId.includes('fmcg') && s.id.includes('fmcg'))
+    );
     if (!sector) return null;
 
-    const cacheKey = `sector_detail_${sectorId}_${timeframe}`;
+    const cacheKey = `sector_detail_${sector.id}_${timeframe}`;
     return this._getCachedOrFetch(cacheKey, async () => {
-      const stocksWithQuotes = await this._fetchSectorQuotes(sector);
+      const stocksWithQuotes = await this._fetchSectorQuotes(sector, true);
       const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
       // If timeframe is not 1D, use constituent stock historical return for the selected timeframe
@@ -1120,26 +1342,41 @@ class SectorDataService {
       const advanceCount = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent > 0).length;
       const declineCount = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent < 0).length;
 
-      // Fetch the index/etf quote to get the true change percent
-      const indexTicker = sector.etfTicker || sector.indexTicker;
+      // Fetch the primary index quote to get the true change percent and 52W metrics
+      const primaryTicker = sector.region === 'india' 
+        ? (sector.indexTicker || null)
+        : (sector.etfTicker || sector.indexTicker || null);
+
       let sectorChangePercent = avgChangePercent;
+      let indexPrice = null;
+      let fiftyTwoWeekHigh = null;
+      let fiftyTwoWeekLow = null;
+      let indexPe = null;
+      let indexEps = null;
       
-      if (indexTicker) {
+      if (primaryTicker) {
         try {
           if (isHistorical) {
-            const hist = await this._getHistoricalIndexData(indexTicker, timeframe, 0);
+            const hist = await this._getHistoricalIndexData(primaryTicker, timeframe, 0);
             if (hist) {
               sectorChangePercent = hist.changePercent;
+              if (hist.price) indexPrice = hist.price;
             }
           } else {
-            const indexQuoteArrayRes = await yahooFinanceService.getQuotes([indexTicker]);
+            const indexQuoteArrayRes = await marketDataGateway.getQuotes([primaryTicker]);
             const indexQuoteArray = indexQuoteArrayRes.available ? indexQuoteArrayRes.data : [];
-            if (indexQuoteArray && indexQuoteArray.length > 0 && typeof indexQuoteArray[0].changePercent === 'number') {
-              sectorChangePercent = indexQuoteArray[0].changePercent;
+            if (indexQuoteArray && indexQuoteArray.length > 0) {
+              const q = indexQuoteArray[0];
+              if (typeof q.changePercent === 'number') sectorChangePercent = q.changePercent;
+              if (q.ltp) indexPrice = q.ltp;
+              if (q.high52) fiftyTwoWeekHigh = q.high52;
+              if (q.low52) fiftyTwoWeekLow = q.low52;
+              if (typeof q.pe === 'number' && q.pe > 0) indexPe = q.pe;
+              if (typeof q.eps === 'number') indexEps = q.eps;
             }
           }
         } catch (e) {
-          console.error(`Failed to fetch index/etf quote for ${indexTicker}`, e.message);
+          console.warn(`Failed to fetch index quote for ${primaryTicker}:`, e.message);
         }
       }
 
@@ -1179,7 +1416,12 @@ class SectorDataService {
         id: sector.id,
         name: sector.name,
         region: sector.region,
-        indexSymbol: sector.etfTicker || sector.indexTicker || null,
+        indexSymbol: primaryTicker,
+        indexPrice,
+        fiftyTwoWeekHigh,
+        fiftyTwoWeekLow,
+        pe: indexPe,
+        eps: indexEps,
         changePercent: sectorChangePercent,
         timeframe,
         trend,
@@ -1192,7 +1434,9 @@ class SectorDataService {
         losers,
         advanceCount,
         declineCount,
-        totalStocks: sector.stocks.length,
+        unchanged: Math.max(0, validStocks.length - advanceCount - declineCount),
+        validStocks: validStocks.length,
+        totalStocks: validStocks.length,
         aiSummary
       };
     });
@@ -1208,18 +1452,7 @@ class SectorDataService {
       try {
         const allSymbols = this.getAllSymbols();
         const allQuotes = await this._batchFetchQuotes(allSymbols);
-        let validQuotes = allQuotes.filter(q => q && typeof q.ltp === 'number' && q.ltp > 0 && typeof q.changePercent === 'number' && !isNaN(q.changePercent));
-
-        if (validQuotes.length === 0) {
-          const simStocks = (await import('./SimulatorService.js')).default.getStocks();
-          validQuotes = simStocks.filter(s => s && typeof s.ltp === 'number' && s.ltp > 0).map(s => ({
-            symbol: s.symbol,
-            name: s.name,
-            ltp: s.ltp,
-            change: s.change,
-            changePercent: s.changePercent
-          }));
-        }
+        const validQuotes = allQuotes.filter(q => q && typeof q.ltp === 'number' && q.ltp > 0 && typeof q.changePercent === 'number' && !isNaN(q.changePercent));
 
         const sortedByChange = [...validQuotes].sort((a, b) => b.changePercent - a.changePercent);
         const gainers = sortedByChange.slice(0, count);
@@ -1227,14 +1460,8 @@ class SectorDataService {
 
         return { gainers, losers };
       } catch (e) {
-        console.warn('Top movers error, falling back to simulator:', e.message);
-        const simStocks = (await import('./SimulatorService.js')).default.getStocks();
-        const valid = simStocks.filter(s => s && typeof s.ltp === 'number' && s.ltp > 0);
-        const sorted = [...valid].sort((a, b) => b.changePercent - a.changePercent);
-        return {
-          gainers: sorted.slice(0, count),
-          losers: [...sorted].reverse().slice(0, count)
-        };
+        console.warn('Top movers error:', e.message);
+        return { gainers: [], losers: [] };
       }
     });
   }
@@ -1264,8 +1491,10 @@ class SectorDataService {
     const matchingStocks = [];
     ALL_SECTORS.forEach(sector => {
       sector.stocks.forEach(stock => {
+        const symClean = stock.symbol.replace('.NS', '').replace('.BO', '').toLowerCase();
         if (
           stock.symbol.toLowerCase().includes(q) ||
+          symClean.includes(q) ||
           stock.name.toLowerCase().includes(q)
         ) {
           matchingStocks.push({

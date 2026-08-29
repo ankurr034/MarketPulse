@@ -118,13 +118,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Initialize simulation
-simulator.initialize(io);
-
-// Initialize Upstox Instruments and Market Data Streamer V3
-upstoxInstrumentService.initialize().then(() => {
-  upstoxMarketDataService.initializeWebSocket(io, ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'ITC.NS', 'SUNPHARMA.NS', '^NSEI', '^NSEBANK']);
-}).catch(err => console.warn('Upstox init warning:', err.message));
+// Initialize simulation only if explicitly enabled
+if (process.env.ENABLE_MARKET_SIMULATOR === 'true') {
+  simulator.initialize(io);
+}
 
 // Connect to MongoDB
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/trading-dashboard';

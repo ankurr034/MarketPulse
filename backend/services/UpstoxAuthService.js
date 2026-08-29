@@ -110,12 +110,17 @@ class UpstoxAuthService {
     const token = this.getValidToken();
     return {
       authenticated: !!token,
+      configured: !!token,
       isValidated: this.isValidated,
       validationError: this.validationError,
       hasCredentials: !!(config.apiKey && config.apiSecret),
       tokenExpiry: this.tokenExpiry ? this.tokenExpiry.toISOString() : null,
       source: this.accessToken ? (process.env.UPSTOX_ACCESS_TOKEN ? 'ENV' : 'OAUTH') : 'NONE'
     };
+  }
+
+  getStatus() {
+    return this.getAuthStatus();
   }
 }
 

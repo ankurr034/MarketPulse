@@ -1,15 +1,17 @@
 import express from 'express';
 import geminiAIService from '../services/GeminiAIService.js';
-import simulatorService from '../services/SimulatorService.js';
+import marketDataGateway from '../services/MarketDataGateway.js';
 
 const router = express.Router();
 
 // GET /api/ai/insights
 router.get('/insights', async (req, res) => {
   try {
+    const quotesRes = await marketDataGateway.getQuotes(['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS']);
+    const quotes = quotesRes.data || [];
     const marketState = {
-      indices: simulatorService.getIndices(),
-      stocks: simulatorService.getStocks()?.slice(0, 5)
+      indices: quotes.filter(q => q.symbol.startsWith('^')),
+      stocks: quotes.filter(q => !q.symbol.startsWith('^'))
     };
     const insights = await geminiAIService.generateMarketInsights(marketState);
     res.json(insights);
