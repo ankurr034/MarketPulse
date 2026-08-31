@@ -2,6 +2,7 @@ import express from 'express';
 import yahooFinanceService from '../services/YahooFinanceService.js';
 import marketDataGateway from '../services/MarketDataGateway.js';
 import sectorDataService from '../services/SectorDataService.js';
+import athBaseService from '../services/AthBaseService.js';
 
 const router = express.Router();
 
@@ -39,9 +40,38 @@ router.get('/:symbol', async (req, res) => {
   try {
     // Pure Authoritative Gateway (Yahoo Finance -> YAHOO_FINANCE_UNAVAILABLE)
     const stockRes = await marketDataGateway.getQuoteDetail(sym);
-    const stock = stockRes && stockRes.data ? stockRes.data : null;
+    let stock = stockRes && stockRes.data ? stockRes.data : null;
     
     if (stock && stock.dataStatus !== 'UNAVAILABLE' && stock.ltp !== null) {
+      try {
+        const yahooSym = yahooFinanceService.resolveYahooSymbol(sym);
+        const athBase = await athBaseService.getAthAndBaseMetrics(yahooSym, stock.ltp);
+        if (athBase) {
+          stock = {
+            ...stock,
+            week52Low: athBase.week52Low ?? athBase.baseLow ?? null,
+            week52LowDate: athBase.week52LowDate ?? athBase.baseLowDate ?? null,
+            allTimeHigh: athBase.allTimeHigh || null,
+            allTimeHighDate: athBase.allTimeHighDate || null,
+            ath: athBase.allTimeHigh || null,
+            pctFrom52WLow: athBase.pctFrom52WLow ?? athBase.recoveryFromBasePercent ?? null,
+            pctFromATH: athBase.pctFromATH ?? athBase.distanceFromATHPercent ?? null,
+            baseLow: athBase.week52Low ?? athBase.baseLow ?? null,
+            baseLowDate: athBase.week52LowDate ?? athBase.baseLowDate ?? null,
+            longTermBaseLow: athBase.week52Low ?? athBase.baseLow ?? null,
+            longTermBaseLowDate: athBase.week52LowDate ?? athBase.baseLowDate ?? null,
+            recoveryFromBasePercent: athBase.pctFrom52WLow ?? athBase.recoveryFromBasePercent ?? null,
+            distanceFromATHPercent: athBase.pctFromATH ?? athBase.distanceFromATHPercent ?? null,
+            baseStatus: athBase.baseStatus || 'WEEK_52_LOW',
+            positionDataSource: athBase.positionDataSource || 'YAHOO_FINANCE',
+            historicalAsOf: athBase.historicalAsOf || null,
+            athBaseMetrics: athBase
+          };
+        }
+      } catch (e) {
+        console.warn(`Could not attach athBaseMetrics for ${sym}:`, e.message);
+      }
+
       res.setHeader('X-Data-Source', stock.source || 'YAHOO_FINANCE');
       res.setHeader('X-Data-Status', stock.dataStatus || 'LIVE');
       return res.json(stock);

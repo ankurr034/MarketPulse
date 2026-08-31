@@ -323,6 +323,95 @@ export default function SectorHeatmap() {
     }
   };
 
+// Format date as DD MMM YYYY (e.g. 16 Jun 2023)
+const formatBaseAthDate = (dateStr) => {
+  if (!dateStr) return null;
+  try {
+    const raw = String(dateStr).split('T')[0];
+    const parts = raw.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parts[2].padStart(2, '0');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${day} ${monthNames[monthIdx]} ${year}`;
+      }
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = monthNames[d.getUTCMonth()];
+      const year = d.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+};
+
+  // Render % from 52W Low / % from ATH with (52W L: X on Date) (ATH: Y on Date)
+  const renderBaseAthMetrics = (item) => {
+    const recovery = item?.pctFrom52WLow ?? item?.recoveryFromBasePercent ?? null;
+    const athDist = item?.pctFromATH ?? item?.distanceFromATHPercent ?? null;
+    const hasRecovery = recovery !== null && typeof recovery === 'number' && !isNaN(recovery);
+    const hasAthDist = athDist !== null && typeof athDist === 'number' && !isNaN(athDist);
+
+    if (!hasRecovery && !hasAthDist) {
+      return <span className="text-slate-400">—</span>;
+    }
+
+    const recoveryText = hasRecovery ? `${recovery > 0 ? '+' : ''}${recovery.toFixed(2)}%` : '—';
+    const athDistText = hasAthDist ? `${athDist.toFixed(2)}%` : '—';
+
+    const low52Price = item?.week52Low ?? item?.longTermBaseLow ?? item?.baseLow ?? null;
+    const low52Date = formatBaseAthDate(item?.week52LowDate ?? item?.longTermBaseLowDate ?? item?.baseLowDate);
+    const athPrice = item?.allTimeHigh ?? null;
+    const athDate = formatBaseAthDate(item?.allTimeHighDate);
+
+    const hasLowSub = low52Price !== null && low52Date;
+    const hasAthSub = athPrice !== null && athDate;
+
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-0.5">
+        <div className="flex items-center justify-center font-mono font-bold text-xs">
+          <span className={
+            hasRecovery && recovery > 0
+              ? 'text-emerald-500'
+              : hasRecovery && recovery < 0
+              ? 'text-rose-500'
+              : 'text-slate-400'
+          }>
+            {recoveryText}
+          </span>
+          <span className="text-slate-400 dark:text-slate-500 mx-2 font-normal">/</span>
+          <span className={
+            hasAthDist && athDist < 0
+              ? 'text-rose-500'
+              : hasAthDist && athDist === 0
+              ? 'text-emerald-500'
+              : 'text-slate-400'
+          }>
+            {athDistText}
+          </span>
+        </div>
+        {(hasLowSub || hasAthSub) && (
+          <div className="text-[9.5px] text-slate-400 dark:text-slate-400 font-mono tracking-tight whitespace-nowrap mt-0.5 leading-tight">
+            {hasLowSub && (
+              <span>(52W L: {formatIndianNumber(low52Price, 2, 2)} on {low52Date})</span>
+            )}
+            {hasLowSub && hasAthSub && <span> </span>}
+            {hasAthSub && (
+              <span>(ATH: {formatIndianNumber(athPrice, 2, 2)} on {athDate})</span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Export CSV
   const handleExportCSV = () => {
     if (!sectors || sectors.length === 0) return;
@@ -330,18 +419,17 @@ export default function SectorHeatmap() {
     const headers = [
       '#',
       'Sector',
+      'Net Profit (Cr INR)',
       'Up Stocks',
       'Down Stocks',
       'Total Stocks',
-      '52W High',
-      '52W Low',
-      'Price (INR)',
       'Market Cap (Cr INR)',
+      'Base Recovery (%)',
+      'ATH Distance (%)',
+      'Price (INR)',
       'P/E',
       'EPS (INR)',
       'EBIT (Cr INR)',
-      'Net Profit (Cr INR)',
-      'Volume',
       '1W (%)',
       '1M (%)',
       '6M (%)',
@@ -353,21 +441,22 @@ export default function SectorHeatmap() {
 
     const rows = filteredSectors.map((s, index) => {
       const rets = getMultiPeriodReturns(s);
+      const rec = s.recoveryFromBasePercent !== null && s.recoveryFromBasePercent !== undefined ? `${s.recoveryFromBasePercent > 0 ? '+' : ''}${s.recoveryFromBasePercent.toFixed(2)}%` : '—';
+      const athDist = s.distanceFromATHPercent !== null && s.distanceFromATHPercent !== undefined ? `${s.distanceFromATHPercent.toFixed(2)}%` : '—';
       return [
         index + 1,
         `"${s.name || ''}"`,
+        s.netProfit ? s.netProfit.toFixed(2) : '—',
         s.advances || 0,
         s.declines || 0,
         s.totalStocks || s.stocks?.length || 0,
-        s.fiftyTwoWeekHigh || '—',
-        s.fiftyTwoWeekLow || '—',
-        s.indexPrice ? s.indexPrice.toFixed(2) : '—',
         s.totalMarketCap || '—',
+        rec,
+        athDist,
+        s.indexPrice ? s.indexPrice.toFixed(2) : '—',
         s.pe ? s.pe.toFixed(2) : '—',
         s.eps ? s.eps.toFixed(2) : '—',
         s.ebit ? s.ebit.toFixed(2) : '—',
-        s.netProfit ? s.netProfit.toFixed(2) : '—',
-        s.totalVolume || '—',
         rets['1W'] !== null ? `${rets['1W']}%` : '—',
         rets['1M'] !== null ? `${rets['1M']}%` : '—',
         rets['6M'] !== null ? `${rets['6M']}%` : '—',
@@ -583,15 +672,21 @@ export default function SectorHeatmap() {
               <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-3 w-8 text-center">#</th>
                 <th className="py-3 px-3">Sector</th>
+                <th className="py-3 px-3 text-right">Net Profit (₹ Cr)</th>
                 <th className="py-3 px-3 text-center">Up / Down / Total</th>
-                <th className="py-3 px-3 text-center">52W High / Low</th>
-                <th className="py-3 px-3 text-right">Price (₹)</th>
                 <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
+                <th className="py-2.5 px-3 text-center">
+                  <div className="font-bold text-slate-700 dark:text-slate-200">
+                    52W H/L %
+                  </div>
+                  <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
+                    (Up from 52W Low / Down from ATH)
+                  </div>
+                </th>
+                <th className="py-3 px-3 text-right">Price (₹)</th>
                 <th className="py-3 px-3 text-right">P/E</th>
                 <th className="py-3 px-3 text-right">EPS (₹)</th>
                 <th className="py-3 px-3 text-right">EBIT (₹ Cr)</th>
-                <th className="py-3 px-3 text-right">Net Profit (₹ Cr)</th>
-                <th className="py-3 px-3 text-right">Volume</th>
                 
                 {/* Performance Header with Subcolumns */}
                 <th colSpan={7} className="py-1 px-3 text-center border-l border-slate-200 dark:border-slate-800">
@@ -662,6 +757,11 @@ export default function SectorHeatmap() {
                           </div>
                         </td>
 
+                        {/* Net Profit (₹ Cr) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {sector.netProfit ? formatIndianNumber(sector.netProfit, 0, 0) : '—'}
+                        </td>
+
                         {/* Up / Down / Total */}
                         <td className="py-3 px-3 text-center font-mono">
                           <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{sector.advances || 0}</span>
@@ -671,25 +771,19 @@ export default function SectorHeatmap() {
                           <span className="text-slate-700 dark:text-slate-300 font-semibold">{sector.totalStocks || constituentList.length || 0}</span>
                         </td>
 
-                        {/* 52W High / Low */}
+                        {/* Market Cap (₹ Cr) */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                          {sector.totalMarketCap ? formatIndianNumber(sector.totalMarketCap, 0, 0) : '—'}
+                        </td>
+
+                        {/* 52W High / Low (Base Recovery % / Distance from ATH %) */}
                         <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-700 dark:text-slate-300">
-                          {sector.fiftyTwoWeekHigh && sector.fiftyTwoWeekLow ? (
-                            <span>
-                              {formatIndianNumber(sector.fiftyTwoWeekHigh, 2, 2)}
-                              <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
-                              {formatIndianNumber(sector.fiftyTwoWeekLow, 2, 2)}
-                            </span>
-                          ) : '—'}
+                          {renderBaseAthMetrics(sector)}
                         </td>
 
                         {/* Price (₹) */}
                         <td className="py-3 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
                           {sector.indexPrice ? formatIndianNumber(sector.indexPrice, 2, 2) : '—'}
-                        </td>
-
-                        {/* Market Cap (₹ Cr) */}
-                        <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                          {sector.totalMarketCap ? formatIndianNumber(sector.totalMarketCap, 0, 0) : '—'}
                         </td>
 
                         {/* P/E */}
@@ -705,16 +799,6 @@ export default function SectorHeatmap() {
                         {/* EBIT (₹ Cr) */}
                         <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
                           {sector.ebit ? formatIndianNumber(sector.ebit, 0, 0) : '—'}
-                        </td>
-
-                        {/* Net Profit (₹ Cr) */}
-                        <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                          {sector.netProfit ? formatIndianNumber(sector.netProfit, 0, 0) : '—'}
-                        </td>
-
-                        {/* Volume */}
-                        <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                          {formatVolumeValue(sector.totalVolume)}
                         </td>
 
                         {/* Multi-Period Performance Subcolumns */}
@@ -740,7 +824,7 @@ export default function SectorHeatmap() {
                       {/* ── INLINE ACCORDION EXPANDED SECTOR STOCKS VIEW ── */}
                       {isExpanded && (
                         <tr className="bg-slate-50/70 dark:bg-slate-900/90 border-t border-b border-slate-200 dark:border-slate-800">
-                          <td colSpan={18} className="p-3 sm:p-5">
+                          <td colSpan={17} className="p-3 sm:p-5">
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
                               {/* Subheader: Sector Title + Filter Tabs + Search */}
                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -755,7 +839,6 @@ export default function SectorHeatmap() {
                                       { key: 'all', label: 'All Stocks' },
                                       { key: 'gainers', label: 'Top Gainers' },
                                       { key: 'losers', label: 'Top Losers' },
-                                      { key: 'volume', label: 'By Volume' },
                                       { key: 'marketCap', label: 'By Market Cap' }
                                     ].map(tab => (
                                       <button
@@ -810,14 +893,20 @@ export default function SectorHeatmap() {
                                       <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                                         <th className="py-2.5 px-3 w-8 text-center">#</th>
                                         <th className="py-2.5 px-3">Stock</th>
-                                        <th className="py-2.5 px-3 text-right">Price (₹)</th>
+                                        <th className="py-2.5 px-3 text-right">Net Profit (₹ Cr)</th>
                                         <th className="py-2.5 px-3 text-right">Market Cap (₹ Cr)</th>
-                                        <th className="py-2.5 px-3 text-center">52W High / Low</th>
+                                        <th className="py-2 px-3 text-center">
+                                          <div className="font-bold text-slate-700 dark:text-slate-200">
+                                            52W H/L %
+                                          </div>
+                                          <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
+                                            (Up from 52W Low / Down from ATH)
+                                          </div>
+                                        </th>
+                                        <th className="py-2.5 px-3 text-right">Price (₹)</th>
                                         <th className="py-2.5 px-3 text-right">P/E</th>
                                         <th className="py-2.5 px-3 text-right">EPS (₹)</th>
                                         <th className="py-2.5 px-3 text-right">EBIT (₹ Cr)</th>
-                                        <th className="py-2.5 px-3 text-right">Net Profit (₹ Cr)</th>
-                                        <th className="py-2.5 px-3 text-right">Volume</th>
                                         
                                         {/* Performance Subcolumns */}
                                         <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
@@ -845,7 +934,7 @@ export default function SectorHeatmap() {
                                         if (displayedStocks.length === 0) {
                                           return (
                                             <tr>
-                                              <td colSpan={18} className="py-8 text-center text-slate-400 italic">
+                                              <td colSpan={17} className="py-8 text-center text-slate-400 italic">
                                                 No stocks found matching the criteria.
                                               </td>
                                             </tr>
@@ -887,9 +976,9 @@ export default function SectorHeatmap() {
                                                 </div>
                                               </td>
 
-                                              {/* Price (₹) */}
-                                              <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
-                                                {stock.ltp ? formatIndianNumber(stock.ltp, 2, 2) : '—'}
+                                              {/* Net Profit (₹ Cr) */}
+                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                                {stock.netProfit ? formatIndianNumber(stock.netProfit, 0, 0) : '—'}
                                               </td>
 
                                               {/* Market Cap (₹ Cr) */}
@@ -897,15 +986,14 @@ export default function SectorHeatmap() {
                                                 {stock.marketCap ? formatIndianNumber(stock.marketCap, 0, 0) : '—'}
                                               </td>
 
-                                              {/* 52W High / Low */}
+                                              {/* Base / ATH Metrics */}
                                               <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-700 dark:text-slate-300">
-                                                {stock.high52 && stock.low52 ? (
-                                                  <span>
-                                                    {formatIndianNumber(stock.high52, 2, 2)}
-                                                    <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
-                                                    {formatIndianNumber(stock.low52, 2, 2)}
-                                                  </span>
-                                                ) : '—'}
+                                                {renderBaseAthMetrics(stock)}
+                                              </td>
+
+                                              {/* Price (₹) */}
+                                              <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
+                                                {stock.ltp ? formatIndianNumber(stock.ltp, 2, 2) : '—'}
                                               </td>
 
                                               {/* P/E */}
@@ -921,16 +1009,6 @@ export default function SectorHeatmap() {
                                               {/* EBIT (₹ Cr) */}
                                               <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
                                                 {stock.ebit ? formatIndianNumber(stock.ebit, 0, 0) : '—'}
-                                              </td>
-
-                                              {/* Net Profit (₹ Cr) */}
-                                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                                                {stock.netProfit ? formatIndianNumber(stock.netProfit, 0, 0) : '—'}
-                                              </td>
-
-                                              {/* Volume */}
-                                              <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                                                {formatVolumeValue(stock.volume)}
                                               </td>
 
                                               {/* Multi-Period Performance Subcolumns */}

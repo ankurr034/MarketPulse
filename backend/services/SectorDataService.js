@@ -1,5 +1,6 @@
 import yahooFinanceService from './YahooFinanceService.js';
 import marketDataGateway from './MarketDataGateway.js';
+import athBaseService from './AthBaseService.js';
 import { getIndianMarketSession } from './MarketDataValidator.js';
 
 // INDIAN SECTORS (13 Nifty sectors)
@@ -773,9 +774,11 @@ class SectorDataService {
     const chunkPromises = chunks.map(async (chunk) => {
       try {
         const quotesRes = await marketDataGateway.getQuotes(chunk);
-        if (quotesRes && quotesRes.available && quotesRes.data) {
+        if (quotesRes && quotesRes.data) {
           for (const q of quotesRes.data) {
-            this.symbolCache.set(q.symbol, { data: q, timestamp: now });
+            if (q && typeof q.ltp === 'number' && q.ltp > 0 && q.dataStatus !== 'UNAVAILABLE') {
+              this.symbolCache.set(q.symbol, { data: q, timestamp: now });
+            }
             resultsMap.set(q.symbol, q);
           }
         }
@@ -797,7 +800,9 @@ class SectorDataService {
       return cached.data;
     }
     const data = await fetchFn();
-    this.cache.set(cacheKey, { data, timestamp: Date.now() });
+    if (data && (!Array.isArray(data) || data.some(s => s.indexPrice !== null || s.validStocks > 0))) {
+      this.cache.set(cacheKey, { data, timestamp: Date.now() });
+    }
     return data;
   }
 
@@ -873,11 +878,40 @@ class SectorDataService {
       }
     }
 
+    // Fetch ATH & Base metrics for constituent stocks if requested or cached
+    const athBaseMap = new Map();
+    if (fetchReturns) {
+      const stockAthBaseList = await Promise.allSettled(
+        symbols.map(sym => athBaseService.getAthAndBaseMetrics(sym, quoteMap.get(sym)?.ltp))
+      );
+      symbols.forEach((sym, idx) => {
+        if (stockAthBaseList[idx].status === 'fulfilled' && stockAthBaseList[idx].value) {
+          athBaseMap.set(sym, stockAthBaseList[idx].value);
+          if (sym.endsWith('.NS')) {
+            athBaseMap.set(sym.replace('.NS', ''), stockAthBaseList[idx].value);
+          }
+        }
+      });
+    } else {
+      symbols.forEach(sym => {
+        const resolved = sym.endsWith('.NS') ? sym : `${sym}.NS`;
+        const cached = athBaseService.cache?.get(`ATH_52W_V5:${sym.toUpperCase()}`)?.data ||
+                       athBaseService.cache?.get(`ATH_52W_V5:${resolved.toUpperCase()}`)?.data;
+        if (cached) {
+          athBaseMap.set(sym, cached);
+          if (sym.endsWith('.NS')) {
+            athBaseMap.set(sym.replace('.NS', ''), cached);
+          }
+        }
+      });
+    }
+
     // Return enriched stock data, preserving sector stock metadata and strict provenance
     return sector.stocks.map(stock => {
       const quote = quoteMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? quoteMap.get(stock.symbol.replace('.NS', '')) : null);
       const stockRets = returnsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? returnsMap.get(stock.symbol.replace('.NS', '')) : null) || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
       const stockFin = financialsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? financialsMap.get(stock.symbol.replace('.NS', '')) : null);
+      const stockAthBase = athBaseMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? athBaseMap.get(stock.symbol.replace('.NS', '')) : null);
 
       const resolvedEbit = isFinancialSector ? null : (stockFin?.ebit ?? quote?.ebit ?? null);
       const resolvedNetProfit = stockFin?.netProfit ?? quote?.netProfit ?? null;
@@ -893,6 +927,23 @@ class SectorDataService {
           returns: stockRets,
           ebit: resolvedEbit,
           netProfit: resolvedNetProfit,
+          week52Low: stockAthBase?.week52Low ?? stockAthBase?.baseLow ?? null,
+          week52LowDate: stockAthBase?.week52LowDate ?? stockAthBase?.baseLowDate ?? null,
+          allTimeHigh: stockAthBase?.allTimeHigh || null,
+          allTimeHighDate: stockAthBase?.allTimeHighDate || null,
+          ath: stockAthBase?.allTimeHigh || null,
+          pctFrom52WLow: stockAthBase?.pctFrom52WLow ?? stockAthBase?.recoveryFromBasePercent ?? null,
+          pctFromATH: stockAthBase?.pctFromATH ?? stockAthBase?.distanceFromATHPercent ?? null,
+          baseLow: stockAthBase?.week52Low ?? stockAthBase?.baseLow ?? null,
+          baseLowDate: stockAthBase?.week52LowDate ?? stockAthBase?.baseLowDate ?? null,
+          longTermBaseLow: stockAthBase?.week52Low ?? stockAthBase?.baseLow ?? null,
+          longTermBaseLowDate: stockAthBase?.week52LowDate ?? stockAthBase?.baseLowDate ?? null,
+          recoveryFromBasePercent: stockAthBase?.pctFrom52WLow ?? stockAthBase?.recoveryFromBasePercent ?? null,
+          distanceFromATHPercent: stockAthBase?.pctFromATH ?? stockAthBase?.distanceFromATHPercent ?? null,
+          baseStatus: stockAthBase?.baseStatus || 'WEEK_52_LOW',
+          positionDataSource: stockAthBase?.positionDataSource || quote.source || 'YAHOO_FINANCE',
+          historicalAsOf: stockAthBase?.historicalAsOf || null,
+          athBaseMetrics: stockAthBase || null,
           changePercent,
           source: quote.source || "YAHOO_FINANCE",
           sourceType: quote.sourceType || "YAHOO_QUOTE",
@@ -915,6 +966,17 @@ class SectorDataService {
         dayLow: null,
         high52: null,
         low52: null,
+        allTimeHigh: null,
+        allTimeHighDate: null,
+        baseLow: null,
+        baseLowDate: null,
+        baseDurationDays: null,
+        baseDurationYears: null,
+        declineFromPeakPercent: null,
+        recoveryFromBasePercent: null,
+        distanceFromATHPercent: null,
+        baseStatus: 'UNAVAILABLE',
+        athBaseMetrics: null,
         volume: null,
         marketCap: null,
         pe: null,
@@ -1029,18 +1091,34 @@ class SectorDataService {
       primaryQuotes.forEach(q => primaryQuoteMap.set(q.symbol, q));
 
       // ──────────────────────────────────────────────────────
-      // STEP 3: Fetch index historical returns for all primary tickers in parallel
+      // STEP 3: Fetch index historical returns & ATH/Base metrics for all primary tickers in parallel
       // ──────────────────────────────────────────────────────
-      const indexReturnsResults = await Promise.allSettled(
-        uniquePrimaryTickers.map(async (ticker) => ({
-          ticker,
-          rets: await yahooFinanceService.getHistoricalReturns(ticker)
-        }))
-      );
+      const [indexReturnsResults, indexAthBaseResults] = await Promise.all([
+        Promise.allSettled(
+          uniquePrimaryTickers.map(async (ticker) => ({
+            ticker,
+            rets: await yahooFinanceService.getHistoricalReturns(ticker)
+          }))
+        ),
+        Promise.allSettled(
+          uniquePrimaryTickers.map(async (ticker) => ({
+            ticker,
+            metrics: await athBaseService.getAthAndBaseMetrics(ticker, primaryQuoteMap.get(ticker)?.ltp)
+          }))
+        )
+      ]);
+
       const indexReturnsMap = new Map();
       indexReturnsResults.forEach(res => {
         if (res.status === 'fulfilled' && res.value && res.value.rets) {
           indexReturnsMap.set(res.value.ticker, res.value.rets);
+        }
+      });
+
+      const indexAthBaseMap = new Map();
+      indexAthBaseResults.forEach(res => {
+        if (res.status === 'fulfilled' && res.value && res.value.metrics) {
+          indexAthBaseMap.set(res.value.ticker, res.value.metrics);
         }
       });
 
@@ -1134,6 +1212,7 @@ class SectorDataService {
           const primaryTicker = primaryTickerMap.get(sector.id) || null;
           const indexQuote = primaryTicker ? primaryQuoteMap.get(primaryTicker) : null;
           const indexReturns = primaryTicker ? indexReturnsMap.get(primaryTicker) : null;
+          const athBase = primaryTicker ? indexAthBaseMap.get(primaryTicker) : null;
 
           // Index price — exclusively from the index instrument, no fallback
           const indexPrice = (indexQuote && typeof indexQuote.ltp === 'number' && indexQuote.ltp > 0) ? indexQuote.ltp : null;
@@ -1213,7 +1292,28 @@ class SectorDataService {
             dayHigh,
             dayLow,
             fiftyTwoWeekHigh,
-            fiftyTwoWeekLow,
+            fiftyTwoWeekHigh: athBase?.allTimeHigh || fiftyTwoWeekHigh || null,
+            fiftyTwoWeekLow: athBase?.week52Low || fiftyTwoWeekLow || null,
+
+            // ── ATH & 52W Low Metrics (Authentic Yahoo Finance Historical Calculation) ──
+            week52Low: athBase?.week52Low ?? athBase?.baseLow ?? null,
+            week52LowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+            allTimeHigh: athBase?.allTimeHigh || null,
+            allTimeHighDate: athBase?.allTimeHighDate || null,
+            ath: athBase?.allTimeHigh || null,
+            pctFrom52WLow: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
+            pctFromATH: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
+            baseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
+            baseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+            longTermBaseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
+            longTermBaseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+            recoveryFromBasePercent: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
+            distanceFromATHPercent: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
+            baseStatus: athBase?.baseStatus || 'WEEK_52_LOW',
+            positionDataSource: athBase?.positionDataSource || 'YAHOO_FINANCE',
+            historicalAsOf: athBase?.historicalAsOf || null,
+            athBaseMetrics: athBase || null,
+
             pe: indexPe,
             eps: indexEps,
             totalVolume: indexVolume,
@@ -1259,6 +1359,17 @@ class SectorDataService {
             dayLow: null,
             fiftyTwoWeekHigh: null,
             fiftyTwoWeekLow: null,
+            allTimeHigh: null,
+            allTimeHighDate: null,
+            baseLow: null,
+            baseLowDate: null,
+            baseDurationDays: null,
+            baseDurationYears: null,
+            declineFromPeakPercent: null,
+            recoveryFromBasePercent: null,
+            distanceFromATHPercent: null,
+            baseStatus: 'UNAVAILABLE',
+            athBaseMetrics: null,
             pe: null,
             eps: null,
             totalVolume: null,
@@ -1412,14 +1523,40 @@ class SectorDataService {
       const totalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
       const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
 
+      let athBase = null;
+      if (primaryTicker) {
+        try {
+          athBase = await athBaseService.getAthAndBaseMetrics(primaryTicker, indexPrice);
+        } catch (e) {
+          console.warn(`Failed to fetch ATH/Base metrics for index ${primaryTicker}:`, e.message);
+        }
+      }
+
       return {
         id: sector.id,
         name: sector.name,
         region: sector.region,
         indexSymbol: primaryTicker,
         indexPrice,
-        fiftyTwoWeekHigh,
-        fiftyTwoWeekLow,
+        fiftyTwoWeekHigh: athBase?.allTimeHigh || fiftyTwoWeekHigh || null,
+        fiftyTwoWeekLow: athBase?.week52Low || fiftyTwoWeekLow || null,
+        week52Low: athBase?.week52Low ?? athBase?.baseLow ?? null,
+        week52LowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+        allTimeHigh: athBase?.allTimeHigh || null,
+        allTimeHighDate: athBase?.allTimeHighDate || null,
+        ath: athBase?.allTimeHigh || null,
+        pctFrom52WLow: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
+        pctFromATH: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
+        baseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
+        baseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+        longTermBaseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
+        longTermBaseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
+        recoveryFromBasePercent: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
+        distanceFromATHPercent: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
+        baseStatus: athBase?.baseStatus || 'WEEK_52_LOW',
+        positionDataSource: athBase?.positionDataSource || 'YAHOO_FINANCE',
+        historicalAsOf: athBase?.historicalAsOf || null,
+        athBaseMetrics: athBase || null,
         pe: indexPe,
         eps: indexEps,
         changePercent: sectorChangePercent,

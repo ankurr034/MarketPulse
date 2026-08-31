@@ -1,5 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
 import { getIndianMarketSession } from './MarketDataValidator.js';
+import athBaseService from './AthBaseService.js';
 
 export const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 try {
@@ -21,7 +22,7 @@ const KNOWN_GLOBAL_SYMBOLS = new Set([
   'XLK', 'XLV', 'XLF', 'XLE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC', 'SPY', 'QQQ', 'DIA', 'IWM', 'VGHCX', 'FSPHX'
 ]);
 
-const withTimeout = (promise, ms = 4000, fallbackValue = null) => {
+const withTimeout = (promise, ms = 10000, fallbackValue = null) => {
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => resolve(fallbackValue), ms))
@@ -91,12 +92,12 @@ class YahooFinanceService {
         const [dailyChart, monthlyChart] = await Promise.all([
           withTimeout(
             yahooFinance.chart(yahooSym, { period1: p5yDate, period2: now, interval: '1d' }).catch(() => ({ quotes: [] })),
-            4000,
+            10000,
             { quotes: [] }
           ),
           withTimeout(
             yahooFinance.chart(yahooSym, { period1: 0, period2: now, interval: '1mo' }).catch(() => ({ quotes: [] })),
-            4000,
+            10000,
             { quotes: [] }
           )
         ]);
@@ -128,7 +129,7 @@ class YahooFinanceService {
             'ALL': buildEmptyMeta('ALL')
           }
         };
-        this.returnsCache.set(yahooSym, { data: emptyReturns, timestamp: Date.now() });
+        // Do NOT cache empty failures for 1 hour - allow prompt retry
         return emptyReturns;
       }
 
@@ -247,6 +248,17 @@ class YahooFinanceService {
       };
 
       this.returnsCache.set(yahooSym, { data: returns, timestamp: Date.now() });
+
+      // Automatically compute & cache ATH / Base metrics from the same historical OHLC series
+      try {
+        const athBaseResult = athBaseService.computeAthAndBase(dQuotes, mQuotes, latestPrice, yahooSym);
+        if (athBaseResult && athBaseResult.allTimeHigh !== null) {
+          athBaseService.cache.set(`ATH_52W_V5:${yahooSym.toUpperCase()}`, { data: athBaseResult, timestamp: Date.now() });
+        }
+      } catch (athErr) {
+        console.warn(`Could not compute ATH/Base during historical returns for ${yahooSym}:`, athErr.message);
+      }
+
       return returns;
     } catch (e) {
       console.warn(`YahooFinanceService: Historical returns error for ${yahooSym}:`, e.message);
@@ -273,7 +285,7 @@ class YahooFinanceService {
           'ALL': buildEmptyMeta('ALL')
         }
       };
-      this.returnsCache.set(yahooSym, { data: fallbackReturns, timestamp: Date.now() });
+      // Do not cache error results for 1 hour so retry can succeed
       return fallbackReturns;
     } finally {
       this.inFlightReturns.delete(yahooSym);
@@ -303,7 +315,7 @@ class YahooFinanceService {
           yahooFinance.quoteSummary(yahooSym, {
             modules: ['financialData', 'defaultKeyStatistics', 'assetProfile']
           }).catch(() => ({})),
-          4000,
+          10000,
           {}
         );
 
@@ -379,7 +391,6 @@ class YahooFinanceService {
         return res;
       } catch (e) {
         const fallback = { ebit: null, netProfit: null, ebitSource: '—', ebitType: '—', netProfitSource: '—', reportingPeriod: 'TTM' };
-        this.financialsCache.set(yahooSym, { data: fallback, timestamp: Date.now() });
         return fallback;
       } finally {
         this.inFlightFinancials.delete(yahooSym);
@@ -423,7 +434,7 @@ class YahooFinanceService {
       const session = getIndianMarketSession();
 
       const chunkResults = await Promise.allSettled(
-        chunks.map(chunk => withTimeout(yahooFinance.quote(chunk), 5000, []).catch(() => []))
+        chunks.map(chunk => withTimeout(yahooFinance.quote(chunk), 10000, []).catch(() => []))
       );
 
       for (const chunkRes of chunkResults) {
@@ -432,7 +443,8 @@ class YahooFinanceService {
           const quotesList = Array.isArray(rawQuotes) ? rawQuotes : (rawQuotes ? [rawQuotes] : []);
 
           for (const q of quotesList) {
-            if (!q || typeof q.regularMarketPrice !== 'number') continue;
+            const price = typeof q?.regularMarketPrice === 'number' ? q.regularMarketPrice : (typeof q?.currentPrice === 'number' ? q.currentPrice : (typeof q?.price === 'number' ? q.price : null));
+            if (!q || price === null) continue;
             const sym = q.symbol;
             const rawMarketCap = q.marketCap || 0;
             const marketCapCr = rawMarketCap ? Math.floor(rawMarketCap / 10000000) : null;
@@ -450,7 +462,7 @@ class YahooFinanceService {
 
             let returns = this.returnsCache.get(sym)?.data || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
 
-            const ltp = q.regularMarketPrice;
+            const ltp = price;
             const previousClose = typeof q.regularMarketPreviousClose === 'number' ? q.regularMarketPreviousClose : ltp;
             const change = parseFloat((ltp - previousClose).toFixed(4));
             const changePercent = previousClose > 0 ? parseFloat((((ltp - previousClose) / previousClose) * 100).toFixed(4)) : 0;

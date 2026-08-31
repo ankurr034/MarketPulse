@@ -18,8 +18,8 @@ const INDEX_MAP = {
   '^FTSE': 'FTSE 100',
   '^N225': 'NIKKEI 225',
   '^CNX100': 'NIFTY 100',
-  'JUNIORBEES.NS': 'NIFTY NEXT 50',
-  '^CNX500': 'NIFTY 500'
+  '^NSMIDCP': 'NIFTY NEXT 50',
+  '^CRSLDX': 'NIFTY 500'
 };
 
 // Get indices values from authoritative gateway (Yahoo Finance sole provider)
