@@ -1,7 +1,8 @@
+// backend/services/IndianMfSectorService.js
 import sectorBasket from '../config/sectorBasket.js';
 import unifiedAssetService from './UnifiedAssetService.js';
 import amfiImportService from './AmfiImportService.js';
-
+import indianMfRankingService from './IndianMfRankingService.js';
 
 class IndianMfSectorService {
   constructor() {
@@ -38,6 +39,9 @@ class IndianMfSectorService {
       return this.sectorsCache;
     }
 
+    const activeSchemes = await amfiImportService.getActiveSchemes() || [];
+    const globalRankMap = indianMfRankingService.computeGlobalMfRankings(activeSchemes);
+
     // Only process the original 6 sectors for now as per constraints
     const sectorsToProcess = ['Technology', 'Financials', 'Healthcare', 'Infrastructure', 'Energy', 'Consumption'];
 
@@ -48,25 +52,39 @@ class IndianMfSectorService {
       const indiaFunds = data.funds.filter(f => f.region === 'india');
 
       const topFunds = await Promise.all(indiaFunds.map(async (fund) => {
+        const codeStr = String(fund.id).trim();
+        const globalRank = globalRankMap.get(codeStr) ?? null;
+        const rankObj = globalRankMap.get(`OBJ_${codeStr}`) || {};
+
         try {
           const summary = await unifiedAssetService.getAssetSummary('mf', fund.id, 'india');
           if (summary) {
+            const cleanAum = (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0)
+              ? Number(summary.aum)
+              : null;
             return {
               ...summary,
-              id: String(fund.id),
-              schemeCode: String(fund.id),
+              id: codeStr,
+              schemeCode: codeStr,
               name: summary.schemeName || summary.name || fund.name,
               schemeName: summary.schemeName || summary.name || fund.name,
               amc: summary.amc || summary.family || fund.family,
               family: summary.family || summary.amc || fund.family,
               fundHouse: summary.fundHouse || summary.amc || fund.family,
-              aum: (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0) ? Number(summary.aum) : null,
-              aumCr: (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0) ? Number(summary.aum) : null
+              aum: cleanAum,
+              aumCr: cleanAum,
+              indiaMfRank: globalRank,
+              globalMfRank: globalRank,
+              rank: globalRank,
+              overallRank: globalRank,
+              indiaMfCategoryRank: rankObj.indiaMfCategoryRank ?? summary.indiaMfCategoryRank ?? null,
+              indiaMfSubcategoryRank: rankObj.indiaMfSubcategoryRank ?? summary.indiaMfSubcategoryRank ?? null,
+              indiaMfSectorRank: rankObj.indiaMfSectorRank ?? null
             };
           } else {
             return {
-              id: String(fund.id),
-              schemeCode: String(fund.id),
+              id: codeStr,
+              schemeCode: codeStr,
               name: fund.name,
               schemeName: fund.name,
               family: fund.family,
@@ -75,14 +93,21 @@ class IndianMfSectorService {
               currency: fund.currency,
               currentPrice_or_nav: null,
               oneYearChangePct: null,
-              navAvailable: false
+              navAvailable: false,
+              indiaMfRank: globalRank,
+              globalMfRank: globalRank,
+              rank: globalRank,
+              overallRank: globalRank,
+              indiaMfCategoryRank: rankObj.indiaMfCategoryRank ?? null,
+              indiaMfSubcategoryRank: rankObj.indiaMfSubcategoryRank ?? null,
+              indiaMfSectorRank: rankObj.indiaMfSectorRank ?? null
             };
           }
         } catch (err) {
           console.error(`Error fetching summary for fund ${fund.id}:`, err.message);
           return {
-            id: String(fund.id),
-            schemeCode: String(fund.id),
+            id: codeStr,
+            schemeCode: codeStr,
             name: fund.name,
             schemeName: fund.name,
             family: fund.family,
@@ -91,7 +116,14 @@ class IndianMfSectorService {
             currency: fund.currency,
             currentPrice_or_nav: null,
             oneYearChangePct: null,
-            navAvailable: false
+            navAvailable: false,
+            indiaMfRank: globalRank,
+            globalMfRank: globalRank,
+            rank: globalRank,
+            overallRank: globalRank,
+            indiaMfCategoryRank: rankObj.indiaMfCategoryRank ?? null,
+            indiaMfSubcategoryRank: rankObj.indiaMfSubcategoryRank ?? null,
+            indiaMfSectorRank: rankObj.indiaMfSectorRank ?? null
           };
         }
       }));
@@ -99,7 +131,18 @@ class IndianMfSectorService {
       const totalSchemeCount = await this._getSchemeCount(sectorName);
 
       // Sort funds by AUM descending (largest first); null AUM goes to bottom
-      topFunds.sort((a, b) => (Number(b.aum) || 0) - (Number(a.aum) || 0));
+      topFunds.sort((a, b) => (Number(b.aumCr || b.aum) || 0) - (Number(a.aumCr || a.aum) || 0));
+
+      // Assign sequential local sector rank 1..M for valid AUM funds
+      let sectorRankCounter = 1;
+      topFunds.forEach(fund => {
+        const hasAum = (fund.aumCr != null && fund.aumCr > 0) || (fund.aum != null && fund.aum > 0);
+        if (hasAum) {
+          fund.indiaMfSectorRank = sectorRankCounter++;
+        } else {
+          fund.indiaMfSectorRank = null;
+        }
+      });
 
       return {
         sectorId: sectorName.toLowerCase(),
@@ -117,23 +160,6 @@ class IndianMfSectorService {
       this.sectorsCacheTime = Date.now();
     }
     return filtered;
-  }
-
-  async getAllFundsFlat() {
-    const sectors = await this.getAllSectorsWithFunds();
-    let flatFunds = [];
-    
-    for (const sector of sectors) {
-      for (const fund of sector.topFunds) {
-        flatFunds.push({
-          ...fund,
-          sectorName: sector.sectorName,
-          sectorId: sector.sectorId
-        });
-      }
-    }
-    
-    return flatFunds;
   }
 }
 

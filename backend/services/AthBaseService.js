@@ -212,6 +212,10 @@ export class AthBaseService {
       allTimeHigh: cleanAth,
       allTimeHighDate: athDate,
       ath: cleanAth,
+      ATH: cleanAth,
+      ATHDate: athDate,
+      percentFrom52WLow: pctFrom52WLow !== null ? parseFloat(pctFrom52WLow.toFixed(2)) : null,
+      percentFromATH: pctFromATH !== null ? parseFloat(pctFromATH.toFixed(2)) : null,
       pctFrom52WLow: pctFrom52WLow !== null ? parseFloat(pctFrom52WLow.toFixed(2)) : null,
       pctFromATH: pctFromATH !== null ? parseFloat(pctFromATH.toFixed(2)) : null,
       
@@ -270,9 +274,13 @@ export class AthBaseService {
           currentPrice: parseFloat(currentPrice.toFixed(2)),
           allTimeHigh: parseFloat(ath.toFixed(2)),
           ath: parseFloat(ath.toFixed(2)),
+          ATH: parseFloat(ath.toFixed(2)),
+          ATHDate: cached.data.allTimeHighDate,
           week52Low: low52 ? parseFloat(low52.toFixed(2)) : cached.data.week52Low,
           pctFromATH: pctAth,
           pctFrom52WLow: pctLow52,
+          percentFromATH: pctAth,
+          percentFrom52WLow: pctLow52,
           distanceFromATHPercent: pctAth,
           recoveryFromBasePercent: pctLow52
         };

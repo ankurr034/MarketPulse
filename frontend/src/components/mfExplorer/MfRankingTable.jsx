@@ -5,6 +5,7 @@ import {
   Network, FileText, Banknote, LineChart, GitMerge, Globe, Coins, LayoutGrid, 
   Layers, PieChart, Sparkles, Target, Activity, TrendingUp, Award, Shield 
 } from 'lucide-react';
+import { getDisplayedMfRank } from '../../utils/rankMutualFunds';
 
 // Star Hover Tooltip Component with explicit hover state & non-clipping position
 function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortinoRange }) {
@@ -386,8 +387,11 @@ export default function MfRankingTable({
 
     if (rankMode === 'aum') {
       sorted.sort((a, b) => {
-        const aVal = a.aum != null ? Number(a.aum) : null;
-        const bVal = b.aum != null ? Number(b.aum) : null;
+        if (a.indiaMfRank != null && b.indiaMfRank != null) return a.indiaMfRank - b.indiaMfRank;
+        if (a.indiaMfRank != null) return -1;
+        if (b.indiaMfRank != null) return 1;
+        const aVal = (a.aumCr ?? a.aum) != null ? Number(a.aumCr ?? a.aum) : null;
+        const bVal = (b.aumCr ?? b.aum) != null ? Number(b.aumCr ?? b.aum) : null;
         if (aVal == null && bVal == null) return 0;
         if (aVal == null) return 1;
         if (bVal == null) return -1;
@@ -406,11 +410,14 @@ export default function MfRankingTable({
 
     let currentRank = 1;
     return sorted.map(f => {
-      const hasMetric = rankMode === 'aum' ? (f.aum != null && Number(f.aum) > 0) : (f.compositeScore != null);
-      const rankNum = hasMetric ? currentRank++ : null;
+      const canonicalRank = f.indiaMfRank ?? f.globalMfRank ?? f.rank;
+      const rankNum = canonicalRank != null
+        ? canonicalRank
+        : (rankMode === 'aum' ? ((f.aumCr ?? f.aum) > 0 ? currentRank++ : null) : (f.compositeScore != null ? currentRank++ : null));
       return {
         ...f,
         calculatedRank: rankNum,
+        indiaMfRank: rankNum,
         isStarred: f.isStarred === true,
         starred: f.isStarred === true || f.starred === true,
         isTop3: f.isStarred === true || f.isTop3 === true,
@@ -492,16 +499,12 @@ export default function MfRankingTable({
     const getSharpe = (f) => f.sharpeRatio;
     const getSortino = (f) => f.sortinoRatio;
 
-    // Sort subcategory funds by existing 5Y CAGR order (with AUM tie-break) as base list
+    // Base list sorted strictly by AUM DESC across the subcategory universe
     const list = [...subFunds].sort((a, b) => {
-      const a5Y = get5Y(a);
-      const b5Y = get5Y(b);
-      if (a5Y != null && b5Y != null && a5Y !== b5Y) return b5Y - a5Y;
-      if (a5Y == null && b5Y != null) return 1;
-      if (a5Y != null && b5Y == null) return -1;
       const aAum = getAum(a) || 0;
       const bAum = getAum(b) || 0;
-      return bAum - aAum;
+      if (bAum !== aAum) return bAum - aAum;
+      return String(a.name || a.schemeName || '').localeCompare(String(b.name || b.schemeName || ''));
     });
 
     const getFundKey = (f) => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim();
@@ -575,8 +578,8 @@ export default function MfRankingTable({
   };
 
   // Render individual fund row
-  const renderFundRow = (fund, index, customRank = null, categorySharpeRange = null, categorySortinoRange = null) => {
-    const rankDisplay = customRank != null ? customRank : fund.calculatedRank;
+  const renderFundRow = (fund, index, customRank = null, categorySharpeRange = null, categorySortinoRange = null, context = 'all') => {
+    const rankDisplay = getDisplayedMfRank(fund, isAllFundsMode ? 'all' : context) ?? customRank;
     const isStarred = fund.isStarred === true || fund.starred === true;
     const navSparkline = Array.isArray(fund.navHistory) && fund.navHistory.length >= 5 ? fund.navHistory : null;
 
@@ -586,12 +589,10 @@ export default function MfRankingTable({
         onClick={() => onSelectFund && onSelectFund(fund)}
         className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors cursor-pointer group"
       >
-        {/* Numerical Rank # Column (ONLY in All Funds Mode) */}
-        {isAllFundsMode && (
-          <td className="py-2.5 px-3 text-center align-middle font-mono text-[11px] font-medium text-slate-500 dark:text-slate-400 w-8 shrink-0">
-            {rankDisplay != null ? rankDisplay : '—'}
-          </td>
-        )}
+        {/* Numerical Rank # Column */}
+        <td className="py-2.5 px-3 text-center align-middle font-mono text-[11px] font-medium text-slate-500 dark:text-slate-400 w-8 shrink-0">
+          {rankDisplay != null ? rankDisplay : '—'}
+        </td>
 
         {/* Fund Name Column */}
         <td className="py-2.5 px-3 min-w-[240px] max-w-[340px] align-middle overflow-visible relative">
@@ -635,7 +636,7 @@ export default function MfRankingTable({
         <td className="py-2.5 px-2 text-center text-xs text-slate-400 font-mono">—</td>
 
         {/* AUM */}
-        <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">
+        <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
           {formatAUM(fund.aum)}
         </td>
 
@@ -708,8 +709,7 @@ export default function MfRankingTable({
         <table className="w-full text-left border-collapse min-w-[1100px]">
           <thead className="bg-slate-100/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10.5px]">
             <tr>
-              {/* Mandatory Correction 4: Category rows NEVER display rank numbers (#). # column only in All Funds Mode */}
-              {isAllFundsMode && <th className="py-3 px-3 text-center text-slate-500 dark:text-slate-400 font-normal w-8">#</th>}
+              <th className="py-3 px-3 text-center text-slate-500 dark:text-slate-400 font-normal w-8">#</th>
               {renderSortHeader('FUND / CATEGORY', 'name', 'text-left')}
               <th className="py-3 px-2 text-center font-bold text-[10.5px] text-slate-500 dark:text-slate-400 uppercase">FUNDS</th>
               {renderSortHeader('AUM (₹ Cr)', 'aum', 'text-right')}
@@ -748,7 +748,7 @@ export default function MfRankingTable({
                       onClick={() => toggleParentCollapse(parentKey)}
                       className="bg-slate-50 dark:bg-slate-900/90 hover:bg-slate-100 dark:hover:bg-slate-900 border-y border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none font-bold"
                     >
-                      <td className="py-3 px-3">
+                      <td colSpan={2} className="py-3 px-3">
                         <div className="flex items-center gap-2">
                           <span className="text-slate-500 dark:text-slate-400">
                             {isParentCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
@@ -806,7 +806,7 @@ export default function MfRankingTable({
                             onClick={() => toggleSubCollapse(fullSubKey)}
                             className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none"
                           >
-                            <td className="py-2.5 px-3 pl-8">
+                            <td colSpan={2} className="py-2.5 px-3 pl-8">
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-400">
                                   {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -839,12 +839,12 @@ export default function MfRankingTable({
                           </tr>
 
                           {/* LEVEL 3: Individual Fund Rows (rendered when Subcategory is expanded) */}
-                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.categoryRank, sharpeRange, sortinoRange))}
+                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfRank, sharpeRange, sortinoRange, 'all'))}
 
                           {/* View All / Show Top 5 Inline Button */}
                           {!isSubCollapsed && subFunds.length > 5 && (
                             <tr className="bg-slate-50/50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
-                              <td colSpan={15} className="py-2 px-8 text-left">
+                              <td colSpan={16} className="py-2 px-8 text-left">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();

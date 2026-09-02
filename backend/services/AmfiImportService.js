@@ -8,6 +8,7 @@ import mfapiCacheService from './MfapiCacheService.js';
 import liveMfAnalyticsService from './LiveMfAnalyticsService.js';
 import macroDataService from './MacroDataService.js';
 import holdingsFallbackService from './HoldingsFallbackService.js';
+import indianMfRankingService from './IndianMfRankingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -116,9 +117,10 @@ class AmfiImportService {
               aumProvenance: cachedAum || s.aumProvenance || { value: aumVal, aumCr: aumVal, source: aumVal ? 'Upvaly FinAPI Disclosure' : null, status: aumVal ? 'PROVIDER_REPORTED' : 'UNAVAILABLE', asOf: aumAsOfVal }
             };
           });
+          this.activeSchemesCache = indianMfRankingService.rankMutualFundsByAUM(this.activeSchemesCache);
           this.lastAuditReport = parsed.auditReport || null;
           this.lastImportMetadata = parsed.metadata || null;
-          console.log(`⚡ Loaded ${parsed.schemes.length} active Direct Growth schemes from disk snapshot in 0ms`);
+          console.log(`⚡ Loaded and ranked ${this.activeSchemesCache.length} active Direct Growth schemes from disk snapshot in 0ms`);
           return;
         }
       }
@@ -414,11 +416,12 @@ class AmfiImportService {
       // Step 6: Rapid Enrichment with NAV history returns & metrics from L1/L2 caches
       await this._enrichSchemesWithMetrics(filteredSchemes);
 
-      // Atomic Swap
-      this.activeSchemesCache = filteredSchemes;
+      // Atomic Swap with canonical AUM ranking
+      const rankedSchemes = indianMfRankingService.rankMutualFundsByAUM(filteredSchemes);
+      this.activeSchemesCache = rankedSchemes;
 
       // Save disk snapshot for instant subsequent boots
-      this._saveDiskSnapshot(filteredSchemes, auditReport, this.lastImportMetadata);
+      this._saveDiskSnapshot(rankedSchemes, auditReport, this.lastImportMetadata);
 
       console.log('✅ Atomic AMFI Import & Metric Pre-computation Completed Successfully!');
       console.log(`📊 Active Direct Growth Schemes Ingested: ${filteredSchemes.length}`);

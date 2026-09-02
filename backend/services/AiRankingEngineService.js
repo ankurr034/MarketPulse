@@ -106,7 +106,7 @@ class AiRankingEngineService {
   }
 
   /**
-   * Compute Category Percentiles and Category Averages
+   * Compute Category Percentiles and Category Averages without mutating input order
    */
   computeCategoryMetrics(fundsList) {
     if (!Array.isArray(fundsList) || fundsList.length === 0) return [];
@@ -118,8 +118,7 @@ class AiRankingEngineService {
       categoryGroups.get(cat).push(f);
     });
 
-    const enrichedFunds = [];
-
+    const categoryStats = new Map();
     categoryGroups.forEach((group, catName) => {
       const groupCount = group.length;
 
@@ -137,27 +136,37 @@ class AiRankingEngineService {
         return rB - rA;
       });
 
+      const fundRankMap = new Map();
       sortedByReturn.forEach((fund, index) => {
         const rank = index + 1;
         const percentile = parseFloat(((1 - (rank - 1) / Math.max(1, groupCount)) * 100).toFixed(1));
         const topPct = Math.max(1, Math.round((rank / groupCount) * 100));
         const percentileLabel = `Top ${topPct}% in ${catName}`;
-
-        enrichedFunds.push({
-          ...fund,
+        fundRankMap.set(fund.id || fund.schemeCode, {
           categoryRank: `${rank} of ${groupCount}`,
           categoryPercentile: percentile,
-          percentileLabel,
-          categoryAverages: {
-            avgSharpe,
-            avgSortino,
-            avgReturn
-          }
+          percentileLabel
         });
       });
+
+      categoryStats.set(catName, { avgSharpe, avgSortino, avgReturn, fundRankMap });
     });
 
-    return enrichedFunds;
+    return fundsList.map(fund => {
+      const catName = fund.category || fund.sector || 'General';
+      const stats = categoryStats.get(catName);
+      const catRankInfo = stats?.fundRankMap?.get(fund.id || fund.schemeCode) || {};
+
+      return {
+        ...fund,
+        ...catRankInfo,
+        categoryAverages: {
+          avgSharpe: stats?.avgSharpe ?? null,
+          avgSortino: stats?.avgSortino ?? null,
+          avgReturn: stats?.avgReturn ?? null
+        }
+      };
+    });
   }
 }
 

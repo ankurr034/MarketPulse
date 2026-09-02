@@ -273,7 +273,9 @@ export default function SectorDetail() {
                     className="cursor-pointer"
                     style={isUp ? { background: 'var(--gain-bg)' } : isDown ? { background: 'var(--loss-bg)' } : {}}
                   >
-                    <td className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
+                    <td className="font-mono text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                      {stock.globalRank !== null && stock.globalRank !== undefined ? `#${stock.globalRank}` : i + 1}
+                    </td>
                     <td>
                       <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{stock.symbol}</div>
                       <div className="text-xs truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{stock.name}</div>

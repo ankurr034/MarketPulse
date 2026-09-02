@@ -39,7 +39,7 @@
  *    - Insufficient Data: Schemes with fewer than 2 valid components remain Unranked (compositeScore = null).
  */
 
-import { RISK_FREE_RATE_CONFIG } from '../config/riskFreeRate';
+import { RISK_FREE_RATE_CONFIG } from '../config/riskFreeRate.js';
 
 function minMaxNormalize(value, min, max) {
   if (value == null || isNaN(value)) return null;
@@ -198,8 +198,13 @@ export function calculateFundRankings(funds = []) {
     });
   });
 
-  // Overall sort by composite score for top-level listing
+  // Overall sort by composite score or existing AUM ranking
   rankedFunds.sort((a, b) => {
+    if (a.indiaMfRank != null && b.indiaMfRank != null) {
+      return a.indiaMfRank - b.indiaMfRank;
+    }
+    if (a.indiaMfRank != null) return -1;
+    if (b.indiaMfRank != null) return 1;
     if (a.compositeScore == null && b.compositeScore == null) return 0;
     if (a.compositeScore == null) return 1;
     if (b.compositeScore == null) return -1;
@@ -207,7 +212,23 @@ export function calculateFundRankings(funds = []) {
   });
 
   rankedFunds.forEach((fund, idx) => {
-    fund.overallRank = fund.compositeScore != null ? idx + 1 : null;
+    if (fund.indiaMfRank != null) {
+      fund.overallRank = fund.indiaMfRank;
+      fund.rank = fund.indiaMfRank;
+    } else {
+      const getAumVal = (f) => {
+        const val = f.aumCr ?? f.aum;
+        return val != null && !isNaN(val) && Number(val) > 0 ? Number(val) : 0;
+      };
+      const aum = getAumVal(fund);
+      if (aum > 0) {
+        fund.indiaMfRank = idx + 1;
+        fund.overallRank = idx + 1;
+        fund.rank = idx + 1;
+      } else {
+        fund.overallRank = fund.compositeScore != null ? idx + 1 : null;
+      }
+    }
   });
 
   return rankedFunds;
@@ -231,4 +252,13 @@ export function groupFundsBySubCategory(funds = [], limitPerGroup = 5) {
   });
 
   return result;
+}
+
+/**
+ * UI rank resolver function.
+ * Returns total funds global rank (indiaMfRank) for all contexts.
+ */
+export function getDisplayedMfRank(fund, context = 'all') {
+  if (!fund) return null;
+  return fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
 }

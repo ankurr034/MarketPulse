@@ -198,6 +198,11 @@ export default function ExpandableAssetRow({ asset, region = 'all', onToggle, sh
         className="flex justify-between items-center py-4 px-4 hover:bg-[var(--bg-secondary)]/50 cursor-pointer transition-colors"
       >
         <div className="flex items-center gap-3">
+          {(asset.indiaMfSectorRank || asset.indiaMfCategoryRank || asset.indiaMfRank || asset.rank) && (
+            <span className="font-mono text-xs font-bold text-slate-400 bg-slate-800/40 px-2 py-0.5 rounded border border-slate-700/40">
+              #{asset.indiaMfSectorRank || asset.indiaMfCategoryRank || asset.indiaMfRank || asset.rank}
+            </span>
+          )}
           <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
             asset.type === 'stock' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
           }`}>

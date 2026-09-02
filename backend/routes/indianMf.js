@@ -8,6 +8,7 @@ import amfiImportService from '../services/AmfiImportService.js';
 import mfapiCacheService from '../services/MfapiCacheService.js';
 import holdingsFallbackService from '../services/HoldingsFallbackService.js';
 import unifiedAssetService from '../services/UnifiedAssetService.js';
+import indianMfRankingService from '../services/IndianMfRankingService.js';
 import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity, resolveSchemeClassification } from '../utils/schemeFilterUtil.js';
 
 const router = express.Router();
@@ -128,6 +129,10 @@ router.get('/sectors/flat', async (req, res) => {
           ...fund,
           aum: cleanAum,
           aumCr: cleanAum,
+          indiaMfRank: fund.indiaMfRank ?? null,
+          globalMfRank: fund.indiaMfRank ?? null,
+          rank: fund.indiaMfRank ?? null,
+          overallRank: fund.indiaMfRank ?? null,
           launchYear: launchYearVal,
           inceptionYear: launchYearVal,
           launchDate: fund.launchDate ?? null,
@@ -321,6 +326,10 @@ router.get('/all-direct-schemes', async (req, res) => {
         performanceAsOfDate: s.navDate || s.date || null,
         aum: cleanAum,
         aumCr: cleanAum,
+        indiaMfRank: s.indiaMfRank ?? null,
+        globalMfRank: s.indiaMfRank ?? null,
+        rank: s.indiaMfRank ?? null,
+        overallRank: s.indiaMfRank ?? null,
         aumProvenance: s.aumProvenance || { value: cleanAum, aumCr: cleanAum, source: cleanAum ? 'Upvaly FinAPI Disclosure' : null, status: cleanAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE', asOf: s.aumProvenance?.asOf || (cleanAum ? '30 Jun 2026' : null) },
         oneWeekChangePct: s.oneWeekChangePct ?? null,
         oneMonthChangePct: s.oneMonthChangePct ?? null,
@@ -445,6 +454,17 @@ router.get('/all-schemes', async (req, res) => {
   } catch (err) {
     console.error('Error fetching all schemes:', err);
     res.status(500).json({ error: 'Failed to fetch all schemes directory' });
+  }
+});
+
+router.get('/all-ranked-funds', async (req, res) => {
+  try {
+    const activeList = await amfiImportService.getActiveSchemes() || [];
+    const ranked = indianMfRankingService.rankMutualFundsByAUM(activeList);
+    res.json(ranked);
+  } catch (err) {
+    console.error('Error fetching all ranked funds:', err);
+    res.status(500).json({ error: 'Failed to fetch all ranked funds', details: err.message });
   }
 });
 

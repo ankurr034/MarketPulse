@@ -1,6 +1,8 @@
+// backend/services/AllFundsDirectoryService.js
 import amfiImportService from './AmfiImportService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
 import aiRankingEngineService from './AiRankingEngineService.js';
+import indianMfRankingService from './IndianMfRankingService.js';
 import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
 
 class AllFundsDirectoryService {
@@ -14,67 +16,7 @@ class AllFundsDirectoryService {
       const result = await amfiImportService.runAtomicImport();
       activeList = await amfiImportService.getActiveSchemes();
     }
-    return activeList;
-  }
-
-  async _getNavAndChange(schemeCode, timeframe = '1y') {
-    try {
-      const holdingsRes = await mfDataAggregatorService.getSchemeHoldings(schemeCode, 'max');
-      if (holdingsRes && holdingsRes.available) {
-        return {
-          currentPrice_or_nav: holdingsRes.nav,
-          nav: holdingsRes.nav,
-          oneWeekChangePct: holdingsRes.oneWeekChangePct ?? null,
-          oneMonthChangePct: holdingsRes.oneMonthChangePct ?? null,
-          threeMonthChangePct: holdingsRes.threeMonthChangePct ?? null,
-          sixMonthChangePct: holdingsRes.sixMonthChangePct ?? null,
-          oneYearChangePct: holdingsRes.oneYearChangePct ?? holdingsRes.cagr,
-          threeYearCagr: holdingsRes.threeYearCagr ?? null,
-          fiveYearCagr: holdingsRes.fiveYearCagr ?? null,
-          inceptionCagr: holdingsRes.inceptionCagr ?? null,
-          returns: holdingsRes.returns ?? null,
-          cumulativeReturn: holdingsRes.cumulativeReturn ?? null,
-          sharpeRatio: holdingsRes.sharpeRatio ?? null,
-          aum: (holdingsRes.aum !== null && holdingsRes.aum !== undefined && !isNaN(holdingsRes.aum) && Number(holdingsRes.aum) > 0) ? Number(holdingsRes.aum) : null,
-          aumCr: (holdingsRes.aum !== null && holdingsRes.aum !== undefined && !isNaN(holdingsRes.aum) && Number(holdingsRes.aum) > 0) ? Number(holdingsRes.aum) : null,
-          aumAsOf: holdingsRes.aumAsOf ?? null,
-          aumSource: holdingsRes.aumSource ?? null,
-          aumReason: holdingsRes.aumReason ?? null,
-          expenseRatio: holdingsRes.expenseRatio ?? null,
-          high52: holdingsRes.high52 ?? null,
-          low52: holdingsRes.low52 ?? null,
-          navAvailable: holdingsRes.nav !== null,
-          launchYear: holdingsRes.launchYear ?? null,
-          inceptionYear: holdingsRes.inceptionYear ?? null,
-          launchDate: holdingsRes.launchDate ?? null,
-          launchSource: holdingsRes.launchSource ?? null
-        };
-      }
-    } catch (e) {
-      console.warn(`Failed to fetch NAV history for ${schemeCode}: ${e.message}`);
-    }
-
-    return {
-      currentPrice_or_nav: null,
-      nav: null,
-      oneWeekChangePct: null,
-      oneMonthChangePct: null,
-      threeMonthChangePct: null,
-      sixMonthChangePct: null,
-      oneYearChangePct: null,
-      threeYearCagr: null,
-      fiveYearCagr: null,
-      inceptionCagr: null,
-      returns: null,
-      cumulativeReturn: null,
-      sharpeRatio: null,
-      sortinoRatio: null,
-      aum: null,
-      expenseRatio: null,
-      high52: null,
-      low52: null,
-      navAvailable: false
-    };
+    return indianMfRankingService.rankMutualFundsByAUM(activeList);
   }
 
   async getAllSchemes(page = 1, pageSize = 20, filters = {}) {
@@ -83,39 +25,42 @@ class AllFundsDirectoryService {
     // Strict direct-growth verification
     let filtered = allSchemes.filter(s => isStrictDirectGrowth(s.schemeName));
     
+    // Filter by search term
     if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase();
+      const term = filters.searchTerm.toLowerCase().trim();
       filtered = filtered.filter(s => 
         (s.schemeName && s.schemeName.toLowerCase().includes(term)) ||
-        (s.schemeCode && String(s.schemeCode).includes(term))
+        (s.schemeCode && String(s.schemeCode).includes(term)) ||
+        (s.amc && s.amc.toLowerCase().includes(term)) ||
+        (s.category && s.category.toLowerCase().includes(term))
       );
     }
     
+    // Filter by AMC
     if (filters.amc) {
-      const amc = filters.amc.toLowerCase();
+      const amc = filters.amc.toLowerCase().trim();
       filtered = filtered.filter(s => 
         (s.schemeName && s.schemeName.toLowerCase().includes(amc)) ||
-        (s.amc && s.amc.toLowerCase().includes(amc))
+        (s.amc && s.amc.toLowerCase().includes(amc)) ||
+        (s.fundHouse && s.fundHouse.toLowerCase().includes(amc))
       );
     }
     
+    // Filter by Category
     if (filters.category) {
-      const cat = filters.category.toLowerCase();
+      const cat = filters.category.toLowerCase().trim();
       filtered = filtered.filter(s => s.category && s.category.toLowerCase().includes(cat));
     }
 
     const totalCount = filtered.length;
-    
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    
-    const slice = filtered.slice(startIndex, endIndex);
 
     // Fast mapping from precomputed scheme objects (O(1) memory lookup)
-    const rawSchemes = slice.map(s => {
+    const mappedSchemes = filtered.map(s => {
       const returns = s.returns || {};
       const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
-      const cleanAum = (s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null;
+      const cleanAum = (s.aumCr !== null && s.aumCr !== undefined && !isNaN(s.aumCr) && Number(s.aumCr) > 0)
+        ? Number(s.aumCr)
+        : ((s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null);
       const resolvedAmc = s.amc || s.fundHouse || s.family || resolveAmcName(s.schemeName);
       const { plan, option } = resolvePlanAndOption(s.schemeName);
       const isin = s.isinGrowth || s.isin || null;
@@ -139,12 +84,19 @@ class AllFundsDirectoryService {
         type: 'mf',
         currency: 'INR',
         region: 'india',
+        indiaMfRank: s.indiaMfRank ?? null,
+        indiaMfCategoryRank: s.indiaMfCategoryRank ?? null,
+        indiaMfSubcategoryRank: s.indiaMfSubcategoryRank ?? null,
+        indiaMfSectorRank: s.indiaMfSectorRank ?? null,
+        globalMfRank: s.indiaMfRank ?? null,
+        rank: s.indiaMfRank ?? null,
+        overallRank: s.indiaMfRank ?? null,
         currentPrice_or_nav: s.nav ?? null,
         nav: s.nav ?? null,
         navDate: s.navDate || s.date || 'Data Unavailable',
         asOfDate: s.navDate || s.date || null,
         navAsOfDate: s.navDate || s.date || null,
-        aumAsOfDate: s.aumProvenance?.asOf || s.aumAsOf || (cleanAum ? '30 Jun 2026' : null),
+        aumAsOfDate: s.aumProvenance?.asOf || s.aumAsOf || s.aumAsOfDate || (cleanAum ? '30 Jun 2026' : null),
         performanceAsOfDate: s.navDate || s.date || null,
         oneWeekChangePct: s.oneWeekChangePct ?? returns['1W'] ?? null,
         oneMonthChangePct: s.oneMonthChangePct ?? returns['1M'] ?? null,
@@ -184,22 +136,32 @@ class AllFundsDirectoryService {
       };
     });
 
-    // Sort schemes if requested by user (1Y Return, AUM, Sharpe, Sortino, NAV)
-    const sortBy = filters.sortBy || '1Y';
-    if (sortBy === '1Y') {
-      rawSchemes.sort((a, b) => (b.oneYearChangePct || b.cumulativeReturn || -999) - (a.oneYearChangePct || a.cumulativeReturn || -999));
-    } else if (sortBy === 'AUM') {
-      rawSchemes.sort((a, b) => (b.aum || -999) - (a.aum || -999));
+    // Global sort BEFORE pagination: default AUM DESC (indiaMfRank ASC)
+    const sortBy = filters.sortBy || 'AUM';
+    if (sortBy === 'AUM') {
+      mappedSchemes.sort((a, b) => {
+        if (a.indiaMfRank !== null && b.indiaMfRank !== null) return a.indiaMfRank - b.indiaMfRank;
+        if (a.indiaMfRank !== null) return -1;
+        if (b.indiaMfRank !== null) return 1;
+        return (Number(b.aumCr) || 0) - (Number(a.aumCr) || 0);
+      });
+    } else if (sortBy === '1Y') {
+      mappedSchemes.sort((a, b) => (b.oneYearChangePct || b.cumulativeReturn || -999) - (a.oneYearChangePct || a.cumulativeReturn || -999));
     } else if (sortBy === 'Sharpe') {
-      rawSchemes.sort((a, b) => (b.sharpeRatio || -999) - (a.sharpeRatio || -999));
+      mappedSchemes.sort((a, b) => (b.sharpeRatio || -999) - (a.sharpeRatio || -999));
     } else if (sortBy === 'Sortino') {
-      rawSchemes.sort((a, b) => (b.sortinoRatio || -999) - (a.sortinoRatio || -999));
+      mappedSchemes.sort((a, b) => (b.sortinoRatio || -999) - (a.sortinoRatio || -999));
     } else if (sortBy === 'NAV') {
-      rawSchemes.sort((a, b) => (b.currentPrice_or_nav || -999) - (a.currentPrice_or_nav || -999));
+      mappedSchemes.sort((a, b) => (b.currentPrice_or_nav || -999) - (a.currentPrice_or_nav || -999));
     }
 
+    // Paginate slice
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const rawSlice = mappedSchemes.slice(startIndex, endIndex);
+
     // Compute Category Percentiles and Category Averages
-    const schemes = aiRankingEngineService.computeCategoryMetrics(rawSchemes);
+    const schemes = aiRankingEngineService.computeCategoryMetrics(rawSlice);
 
     return {
       schemes,

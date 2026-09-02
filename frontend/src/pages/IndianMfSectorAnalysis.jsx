@@ -273,7 +273,7 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
         onClick={handleRowClick}
         className={`border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors cursor-pointer ${expanded ? 'bg-slate-800/25' : ''}`}
       >
-        <td className="py-2 px-1 font-mono text-[10px] font-bold text-slate-500 text-center w-5 align-middle">{rank}</td>
+        <td className="py-2 px-1 font-mono text-[10px] font-bold text-slate-500 text-center w-5 align-middle">{fund.indiaMfSectorRank ?? fund.indiaMfRank ?? fund.rank ?? rank}</td>
         <td className="py-2 px-1 align-middle overflow-hidden">
           <div className="flex items-start gap-1">
             <span className="text-[8px] text-slate-500 shrink-0 mt-0.5">{expanded ? '▼' : '▶'}</span>

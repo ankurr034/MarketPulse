@@ -1,7 +1,14 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import yahooFinanceService from './YahooFinanceService.js';
 import marketDataGateway from './MarketDataGateway.js';
 import athBaseService from './AthBaseService.js';
 import { getIndianMarketSession } from './MarketDataValidator.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const MASTER_PATH = path.join(__dirname, '../data/indian_equity_master.json');
 
 // INDIAN SECTORS (13 Nifty sectors)
 const INDIAN_SECTORS = [
@@ -730,17 +737,138 @@ const GLOBAL_MUTUAL_FUNDS = [
 
 const ALL_SECTORS = [...INDIAN_SECTORS, ...GLOBAL_SECTORS, ...INDIAN_MUTUAL_FUNDS, ...GLOBAL_MUTUAL_FUNDS];
 
+/**
+ * SINGLE SOURCE OF TRUTH: Pure Indian NSE/BSE Stock Universe
+ * Strictly contains Indian listed equity constituents.
+ * Excludes foreign stocks, ETFs, mutual funds, and index tickers.
+ */
+function buildIndianStockUniverse() {
+  const stockMap = new Map();
+
+  // Priority set of top Indian equity symbols for deterministic prioritization
+  const prioritySymbols = [
+    'RELIANCE', 'BHARTIARTL', 'HDFCBANK', 'ICICIBANK', 'SBIN',
+    'TCS', 'BAJFINANCE', 'LT', 'HINDUNILVR', 'SUNPHARMA',
+    'INFY', 'TITAN', 'KOTAKBANK', 'ADANIENT', 'MARUTI',
+    'AXISBANK', 'ADANIPORTS', 'M&M', 'HCLTECH', 'ITC',
+    'ULTRACEMCO', 'BAJAJ-AUTO', 'HAL', 'NTPC', 'JSWSTEEL',
+    'POWERGRID', 'ONGC', 'COALINDIA', 'TATASTEEL', 'TMCV', 'TMPV',
+    'WIPRO', 'TECHM', 'NESTLEIND', 'BRITANNIA', 'GRASIM',
+    'HINDALCO', 'DRREDDY', 'CIPLA', 'DIVISLAB', 'APOLLOHOSP',
+    'EICHERMOT', 'HEROMOTOCO', 'VEDL', 'INDUSINDBK', 'BANKBARODA',
+    'PNB', 'IDFCFIRSTB', 'FEDERALBNK', 'GODREJPROP', 'OBEROIRLTY',
+    'PRESTIGE', 'PHOENIXLTD', 'BRIGADE', 'SOBHA', 'TATAPOWER',
+    'ADANIGREEN', 'GAIL', 'SIEMENS', 'LUPIN', 'AUROPHARMA',
+    'BIOCON', 'MANKIND', 'ZYDUSLIFE', 'GODREJCP', 'DABUR',
+    'MARICO', 'COLPAL', 'TATACONSUM', 'VBL', 'PERSISTENT',
+    'COFORGE', 'MPHASIS', 'LTTS', 'TATAELXSI', 'BALKRISIND',
+    'ASHOKLEY', 'TVSMOTOR', 'NMDC', 'SAIL', 'NATIONALUM',
+    'JINDALSTEL', 'BPCL', 'IOC', 'CANBK', 'UNIONBANK',
+    'IOB', 'INDIANB', 'MAHABANK', 'BAJAJFINSV', 'SBILIFE',
+    'HDFCLIFE', 'CHOLAFIN', 'MUTHOOTFIN', 'ZEEL', 'PVRINOX',
+    'SUNTV', 'NETWORK18', 'HAVELLS', 'VOLTAS', 'WHIRLPOOL',
+    'BLUESTARCO', 'CROMPTON', 'BATAINDIA', 'DIXON', 'KALYANKJIL',
+    'LTIM', 'SHRIRAMFIN', 'DISHTV', 'TV18BRDCST', 'ZOMATO',
+    'PAYTM', 'POLICYBZR', 'NYKAA', 'DMART', 'BEL', 'MAZDOCK',
+    'COCHINSHIP', 'BSE', 'CDSL', 'ANGELONE', 'TRENT', 'SUZLON',
+    'IRFC', 'RVNL', 'IRCON', 'RECLTD', 'IRCTC', 'RAILTEL',
+    'SJVN', 'NHPC', 'IREDA', 'HUDCO', 'BOMDYEING', 'SEJALLTD',
+    'CENTRALBK', 'UCOBANK', 'PSB', 'DELHIVERY', 'IDEA'
+  ];
+
+  // 1. Populate sector constituent stocks
+  INDIAN_SECTORS.forEach(sector => {
+    if ((sector.assetClass || 'stocks') === 'stocks') {
+      sector.stocks.forEach(stock => {
+        const sym = stock.symbol;
+        if (
+          sym &&
+          !sym.startsWith('^') &&
+          !sym.startsWith('0P') &&
+          !sym.endsWith('BEES.NS') &&
+          !sym.endsWith('ETF.NS') &&
+          !sym.endsWith('BEES.BO') &&
+          !sym.endsWith('ETF.BO')
+        ) {
+          const canonical = sym.replace(/\.(NS|BO)$/i, '').toUpperCase();
+          stockMap.set(sym, {
+            symbol: sym,
+            canonicalSymbol: canonical,
+            bareSymbol: canonical,
+            name: stock.name,
+            companyName: stock.name,
+            sectorId: sector.id,
+            sectorName: sector.name,
+            region: 'india',
+            exchange: sym.endsWith('.BO') ? 'BSE' : 'NSE'
+          });
+        }
+      });
+    }
+  });
+
+  // 2. Load authoritative master from disk if available
+  try {
+    if (fs.existsSync(MASTER_PATH)) {
+      const rawMaster = JSON.parse(fs.readFileSync(MASTER_PATH, 'utf8'));
+      if (Array.isArray(rawMaster)) {
+        rawMaster.forEach(item => {
+          if (!item || !item.symbol) return;
+          const sym = item.symbol;
+          if (
+            sym.startsWith('^') ||
+            sym.startsWith('0P') ||
+            sym.endsWith('BEES.NS') ||
+            sym.endsWith('ETF.NS') ||
+            sym.endsWith('BEES.BO') ||
+            sym.endsWith('ETF.BO')
+          ) return;
+
+          const canonical = item.canonicalSymbol || item.bareSymbol || sym.replace(/\.(NS|BO)$/i, '').toUpperCase();
+          if (!stockMap.has(sym)) {
+            stockMap.set(sym, {
+              symbol: sym,
+              canonicalSymbol: canonical,
+              bareSymbol: canonical,
+              name: item.name || canonical,
+              companyName: item.companyName || item.name || canonical,
+              isin: item.isin,
+              sectorId: item.sectorId || 'general',
+              sectorName: item.sectorName || 'General',
+              region: 'india',
+              exchange: item.exchange || (sym.endsWith('.BO') ? 'BSE' : 'NSE')
+            });
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('SectorDataService: Note loading master universe:', err.message);
+  }
+
+  const prioritySet = new Set(prioritySymbols.map(s => `${s}.NS`));
+
+  // Sort with prominent NSE equities first
+  const list = Array.from(stockMap.values());
+  list.sort((a, b) => {
+    const aPri = prioritySet.has(a.symbol) ? 0 : (a.exchange === 'NSE' ? 1 : 2);
+    const bPri = prioritySet.has(b.symbol) ? 0 : (b.exchange === 'NSE' ? 1 : 2);
+    if (aPri !== bPri) return aPri - bPri;
+    return a.canonicalSymbol.localeCompare(b.canonicalSymbol);
+  });
+
+  return list;
+}
+
+export const INDIAN_NSE_BSE_STOCK_UNIVERSE = buildIndianStockUniverse();
+export const INDIAN_NSE_BSE_SYMBOLS = INDIAN_NSE_BSE_STOCK_UNIVERSE.map(s => s.symbol);
+
 class SectorDataService {
   constructor() {
     this.cache = new Map();
     this.symbolCache = new Map();
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     this.SYMBOL_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-
-    // Automatically pre-warm cache in background on server startup
-    setTimeout(() => {
-      this.getAllSectors('all', '1D', 'stocks').catch(e => console.error('Cache warm error:', e.message));
-    }, 100);
   }
 
   /**
@@ -807,9 +935,171 @@ class SectorDataService {
   }
 
   /**
+   * Returns all Indian NSE/BSE equity symbols across the complete Indian equity universe.
+   * Strictly excludes:
+   * - Foreign/global stocks
+   * - Index tickers (^NSEI, ^NSEBANK, etc.)
+   * - Mutual funds (0P...)
+   * - ETFs (BANKBEES.NS, etc.)
+   */
+  getAllIndianSymbols() {
+    return INDIAN_NSE_BSE_SYMBOLS;
+  }
+
+  /**
+   * Helper to extract canonical company identifier to deduplicate NSE/BSE dual listings.
+   * e.g., RELIANCE.NS -> RELIANCE, RELIANCE.BO -> RELIANCE
+   */
+  getCanonicalSymbol(sym) {
+    if (!sym) return '';
+    return String(sym).trim().replace(/\.(NS|BO)$/i, '').toUpperCase();
+  }
+
+  /**
+   * Helper to determine if a symbol belongs to the Indian NSE/BSE equity universe.
+   */
+  isIndianStock(sym) {
+    if (!sym || typeof sym !== 'string') return false;
+    const clean = sym.trim().toUpperCase();
+    if (clean.startsWith('^') || clean.startsWith('0P') || clean.endsWith('BEES.NS') || clean.endsWith('ETF.NS') || clean.endsWith('BEES.BO') || clean.endsWith('ETF.BO')) {
+      return false;
+    }
+    if (clean.endsWith('.NS') || clean.endsWith('.BO')) {
+      return true;
+    }
+    const canonical = this.getCanonicalSymbol(clean);
+    return INDIAN_NSE_BSE_STOCK_UNIVERSE.some(s => s.canonicalSymbol === canonical || s.bareSymbol === canonical);
+  }
+
+  /**
+   * Computes deterministic global market-cap ranking across the Indian NSE/BSE stock universe.
+   * Sorts strictly by marketCap DESC, with deterministic secondary sort by canonicalSymbol ASC.
+   * Sequential unique ranks 1..N for valid Indian companies.
+   * Invalid stocks (marketCap null/<=0/NaN/undefined) receive globalRank = null.
+   * Excludes foreign stocks, ETFs, mutual funds, and index rows.
+   * Deduplicates dual NSE/BSE company listings into ONE canonical company rank.
+   * @param {Array<string>} [symbols] - Optional universe symbols
+   * @param {Map<string, Object>|Array<Object>} [quotesMapOrList] - Optional quotes
+   * @returns {Map<string, number|null>} Map of symbol -> globalRank
+   */
+  _computeGlobalRankings(symbols = null, quotesMapOrList = null) {
+    const universeSymbols = symbols && symbols.length > 0 ? symbols : this.getAllIndianSymbols();
+    
+    // Normalize quotes lookup with global quoteCache fallback
+    const quoteLookup = (sym) => {
+      let q = null;
+      if (quotesMapOrList instanceof Map) {
+        q = quotesMapOrList.get(sym) || 
+            (sym.endsWith('.NS') ? quotesMapOrList.get(sym.replace('.NS', '')) : null) ||
+            (sym.endsWith('.BO') ? quotesMapOrList.get(sym.replace('.BO', '')) : null);
+      }
+      if (!q && Array.isArray(quotesMapOrList)) {
+        q = quotesMapOrList.find(item => item && (
+          item.symbol === sym || 
+          (sym.endsWith('.NS') && item.symbol === sym.replace('.NS', '')) ||
+          (sym.endsWith('.BO') && item.symbol === sym.replace('.BO', ''))
+        ));
+      }
+      if (!q) {
+        const symClean = sym.replace(/\.(NS|BO)$/i, '');
+        q = this.symbolCache?.get(sym)?.data || 
+            this.symbolCache?.get(`${symClean}.NS`)?.data || 
+            this.symbolCache?.get(`${symClean}.BO`)?.data || 
+            yahooFinanceService.quoteCache?.get(sym)?.data || 
+            yahooFinanceService.quoteCache?.get(`${symClean}.NS`)?.data ||
+            yahooFinanceService.quoteCache?.get(`${symClean}.BO`)?.data;
+      }
+      return q;
+    };
+
+    // Group by Canonical Company Identity to prevent duplicate NSE/BSE ranking
+    const companyMap = new Map(); // canonicalSymbol -> { canonicalSymbol, symbols: Set, marketCap }
+
+    for (const sym of universeSymbols) {
+      // Exclude foreign stocks, ETFs, mutual funds, indices
+      if (!this.isIndianStock(sym)) {
+        continue;
+      }
+      
+      const canonicalSymbol = this.getCanonicalSymbol(sym);
+      const q = quoteLookup(sym);
+      const mCap = (q && typeof q.marketCap === 'number' && q.marketCap > 0 && !isNaN(q.marketCap))
+        ? q.marketCap
+        : null;
+
+      if (!companyMap.has(canonicalSymbol)) {
+        companyMap.set(canonicalSymbol, {
+          canonicalSymbol,
+          symbols: new Set([sym]),
+          marketCap: mCap
+        });
+      } else {
+        const existing = companyMap.get(canonicalSymbol);
+        existing.symbols.add(sym);
+        if (mCap !== null) {
+          existing.marketCap = existing.marketCap !== null ? Math.max(existing.marketCap, mCap) : mCap;
+        }
+      }
+    }
+
+    const companyEntries = Array.from(companyMap.values());
+    const validCompanies = companyEntries.filter(c => c.marketCap !== null);
+    const invalidCompanies = companyEntries.filter(c => c.marketCap === null);
+
+    // Sort strictly by marketCap DESC, with deterministic secondary sort by canonicalSymbol ASC
+    validCompanies.sort((a, b) => {
+      if (b.marketCap !== a.marketCap) {
+        return b.marketCap - a.marketCap;
+      }
+      return a.canonicalSymbol.localeCompare(b.canonicalSymbol);
+    });
+
+    const rankMap = new Map();
+    validCompanies.forEach((comp, idx) => {
+      const rank = idx + 1;
+      rankMap.set(comp.canonicalSymbol, rank);
+      comp.symbols.forEach(sym => {
+        rankMap.set(sym, rank);
+        rankMap.set(`${comp.canonicalSymbol}.NS`, rank);
+        rankMap.set(`${comp.canonicalSymbol}.BO`, rank);
+      });
+    });
+
+    invalidCompanies.forEach(comp => {
+      rankMap.set(comp.canonicalSymbol, null);
+      comp.symbols.forEach(sym => {
+        rankMap.set(sym, null);
+        rankMap.set(`${comp.canonicalSymbol}.NS`, null);
+        rankMap.set(`${comp.canonicalSymbol}.BO`, null);
+      });
+    });
+
+    this.globalRankCache = rankMap;
+    return rankMap;
+  }
+
+  async _getOrComputeGlobalRankMap() {
+    if (this.globalRankCache && this.globalRankCache.size > 1000) {
+      return this.globalRankCache;
+    }
+    const allSymbols = this.getAllIndianSymbols();
+    const quotes = await this._batchFetchQuotes(allSymbols);
+    const qMap = new Map();
+    quotes.forEach(q => {
+      if (q && q.symbol) {
+        qMap.set(q.symbol, q);
+        if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+        if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+      }
+    });
+    this.globalRankCache = this._computeGlobalRankings(allSymbols, qMap);
+    return this.globalRankCache;
+  }
+
+  /**
    * Fetch quotes for a sector's constituent stocks with per-symbol error tolerance and provenance tracking.
    */
-  async _fetchSectorQuotes(sector, fetchReturns = false) {
+  async _fetchSectorQuotes(sector, fetchReturns = false, passedRankMap = null) {
     const symbols = sector.stocks.map(s => s.symbol);
     const quotes = await this._batchFetchQuotes(symbols);
 
@@ -821,6 +1111,8 @@ class SectorDataService {
         quoteMap.set(q.symbol.replace('.NS', ''), q);
       }
     });
+
+    const rankMap = passedRankMap || this.globalRankCache || this._computeGlobalRankings(this.getAllIndianSymbols(), quoteMap);
 
     const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
 
@@ -916,14 +1208,55 @@ class SectorDataService {
       const resolvedEbit = isFinancialSector ? null : (stockFin?.ebit ?? quote?.ebit ?? null);
       const resolvedNetProfit = stockFin?.netProfit ?? quote?.netProfit ?? null;
 
-      if (quote && typeof quote.ltp === 'number' && quote.ltp > 0) {
-        let changePercent = quote.changePercent;
-        if ((changePercent === undefined || changePercent === null || isNaN(changePercent)) && quote.previousClose > 0) {
-          changePercent = parseFloat((((quote.ltp - quote.previousClose) / quote.previousClose) * 100).toFixed(2));
+      const rawRank = rankMap.get(stock.symbol) ?? (stock.symbol.endsWith('.NS') ? rankMap.get(stock.symbol.replace('.NS', '')) : null) ?? null;
+      const validMCap = (quote && typeof quote.marketCap === 'number' && quote.marketCap > 0 && !isNaN(quote.marketCap)) ? quote.marketCap : null;
+      const globalRank = validMCap !== null ? rawRank : null;
+
+      const hasValidPrice = quote && typeof quote.ltp === 'number' && quote.ltp > 0;
+      const hasValidPrevClose = quote && typeof quote.previousClose === 'number' && quote.previousClose > 0;
+
+      let direction = 'UNKNOWN';
+      let change = null;
+      let changePercent = null;
+
+      if (hasValidPrice && hasValidPrevClose) {
+        const diff = quote.ltp - quote.previousClose;
+        if (diff > 0.0001) {
+          direction = 'ADVANCING';
+        } else if (diff < -0.0001) {
+          direction = 'DECLINING';
+        } else {
+          direction = 'UNCHANGED';
         }
+        change = parseFloat((quote.ltp - quote.previousClose).toFixed(4));
+        changePercent = parseFloat((((quote.ltp - quote.previousClose) / quote.previousClose) * 100).toFixed(4));
+      } else if (hasValidPrice) {
+        change = (quote && typeof quote.change === 'number') ? quote.change : null;
+        changePercent = (quote && typeof quote.changePercent === 'number') ? quote.changePercent : null;
+      }
+
+      if (hasValidPrice) {
         return {
           ...stock,
           ...quote,
+          companyName: stock.name || quote.name || stock.symbol.replace(/\.(NS|BO)$/i, ''),
+          exchange: stock.symbol.endsWith('.BO') ? 'BSE' : 'NSE',
+          sector: sector.name,
+          sectorId: sector.id,
+          sectorName: sector.name,
+          indiaStockRank: globalRank,
+          indiaRank: globalRank,
+          indianMarketRank: globalRank,
+          globalRank,
+          rank: globalRank,
+          marketCap: validMCap,
+          currentPrice: quote.ltp,
+          price: quote.ltp,
+          previousClose: hasValidPrevClose ? quote.previousClose : (quote.previousClose || null),
+          change,
+          changePercent,
+          direction,
+          performance: stockRets,
           returns: stockRets,
           ebit: resolvedEbit,
           netProfit: resolvedNetProfit,
@@ -932,6 +1265,10 @@ class SectorDataService {
           allTimeHigh: stockAthBase?.allTimeHigh || null,
           allTimeHighDate: stockAthBase?.allTimeHighDate || null,
           ath: stockAthBase?.allTimeHigh || null,
+          ATH: stockAthBase?.allTimeHigh || null,
+          ATHDate: stockAthBase?.allTimeHighDate || null,
+          percentFrom52WLow: stockAthBase?.percentFrom52WLow ?? stockAthBase?.pctFrom52WLow ?? stockAthBase?.recoveryFromBasePercent ?? null,
+          percentFromATH: stockAthBase?.percentFromATH ?? stockAthBase?.pctFromATH ?? stockAthBase?.distanceFromATHPercent ?? null,
           pctFrom52WLow: stockAthBase?.pctFrom52WLow ?? stockAthBase?.recoveryFromBasePercent ?? null,
           pctFromATH: stockAthBase?.pctFromATH ?? stockAthBase?.distanceFromATHPercent ?? null,
           baseLow: stockAthBase?.week52Low ?? stockAthBase?.baseLow ?? null,
@@ -944,12 +1281,12 @@ class SectorDataService {
           positionDataSource: stockAthBase?.positionDataSource || quote.source || 'YAHOO_FINANCE',
           historicalAsOf: stockAthBase?.historicalAsOf || null,
           athBaseMetrics: stockAthBase || null,
-          changePercent,
           source: quote.source || "YAHOO_FINANCE",
           sourceType: quote.sourceType || "YAHOO_QUOTE",
           dataStatus: quote.dataStatus || (quote.isLive ? "LIVE" : "EOD"),
           isLive: quote.isLive ?? false,
           priceAsOf: quote.priceAsOf || new Date().toISOString(),
+          fetchedAt: quote.priceAsOf || quote.lastUpdatedAt || new Date().toISOString(),
           lastUpdatedAt: quote.lastUpdatedAt || new Date().toISOString()
         };
       }
@@ -957,17 +1294,32 @@ class SectorDataService {
       // If quote is completely missing or unavailable, return clean honest null representation
       return {
         ...stock,
+        companyName: stock.name || stock.symbol.replace(/\.(NS|BO)$/i, ''),
+        exchange: stock.symbol.endsWith('.BO') ? 'BSE' : 'NSE',
+        sector: sector.name,
+        sectorId: sector.id,
+        sectorName: sector.name,
+        indiaRank: null,
+        indianMarketRank: null,
+        globalRank: null,
+        rank: null,
+        currentPrice: null,
+        price: null,
         ltp: null,
         open: null,
         previousClose: null,
         change: null,
         changePercent: null,
+        direction: 'UNKNOWN',
         dayHigh: null,
         dayLow: null,
         high52: null,
         low52: null,
         allTimeHigh: null,
         allTimeHighDate: null,
+        ath: null,
+        ATH: null,
+        ATHDate: null,
         baseLow: null,
         baseLowDate: null,
         baseDurationDays: null,
@@ -975,6 +1327,10 @@ class SectorDataService {
         declineFromPeakPercent: null,
         recoveryFromBasePercent: null,
         distanceFromATHPercent: null,
+        percentFrom52WLow: null,
+        percentFromATH: null,
+        pctFrom52WLow: null,
+        pctFromATH: null,
         baseStatus: 'UNAVAILABLE',
         athBaseMetrics: null,
         volume: null,
@@ -986,12 +1342,14 @@ class SectorDataService {
         netProfit: resolvedNetProfit,
         dividendYield: null,
         vwap: null,
+        performance: stockRets,
         returns: stockRets,
         source: "UNAVAILABLE",
         sourceType: "UNAVAILABLE",
         dataStatus: "UNAVAILABLE",
         isLive: false,
         priceAsOf: null,
+        fetchedAt: new Date().toISOString(),
         lastUpdatedAt: new Date().toISOString()
       };
     });
@@ -1061,19 +1419,16 @@ class SectorDataService {
       // ──────────────────────────────────────────────────────
       // STEP 1: Determine primary instrument ticker for each sector
       //   - Indian sectors: always use indexTicker (^NSEBANK, ^CNXIT, etc.)
-      //     NEVER fall back to etfTicker for index-level data.
-      //   - Global sectors: use etfTicker (XLK, XLV, etc.) as the primary 
-      //     instrument since there is no separate index ticker.
+      //     NEVER use etfTicker for Indian index rows.
+      //   - Global sectors: use etfTicker (XLK, XLV, etc.) as the benchmark instrument.
       // ──────────────────────────────────────────────────────
       const primaryTickerMap = new Map(); // sectorId -> ticker
       for (const s of sectors) {
         if (s.region === 'india') {
-          // Indian sectors: indexTicker is the ONLY source
           if (s.indexTicker) {
             primaryTickerMap.set(s.id, s.indexTicker);
           }
         } else {
-          // Global sectors: etfTicker IS the primary instrument
           if (s.etfTicker) {
             primaryTickerMap.set(s.id, s.etfTicker);
           } else if (s.indexTicker) {
@@ -1083,116 +1438,86 @@ class SectorDataService {
       }
 
       // ──────────────────────────────────────────────────────
-      // STEP 2: Batch-fetch index/primary instrument quotes
+      // STEP 2: Batch-fetch index and constituent quotes concurrently
       // ──────────────────────────────────────────────────────
       const uniquePrimaryTickers = [...new Set([...primaryTickerMap.values()].filter(Boolean))];
-      const primaryQuotes = uniquePrimaryTickers.length > 0 ? await this._batchFetchQuotes(uniquePrimaryTickers) : [];
-      const primaryQuoteMap = new Map();
-      primaryQuotes.forEach(q => primaryQuoteMap.set(q.symbol, q));
+      const allConstituentSymbols = [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))];
 
-      // ──────────────────────────────────────────────────────
-      // STEP 3: Fetch index historical returns & ATH/Base metrics for all primary tickers in parallel
-      // ──────────────────────────────────────────────────────
-      const [indexReturnsResults, indexAthBaseResults] = await Promise.all([
-        Promise.allSettled(
-          uniquePrimaryTickers.map(async (ticker) => ({
-            ticker,
-            rets: await yahooFinanceService.getHistoricalReturns(ticker)
-          }))
-        ),
-        Promise.allSettled(
-          uniquePrimaryTickers.map(async (ticker) => ({
-            ticker,
-            metrics: await athBaseService.getAthAndBaseMetrics(ticker, primaryQuoteMap.get(ticker)?.ltp)
-          }))
-        )
+      const [primaryQuotes, constituentQuotes] = await Promise.all([
+        uniquePrimaryTickers.length > 0 ? this._batchFetchQuotes(uniquePrimaryTickers) : Promise.resolve([]),
+        allConstituentSymbols.length > 0 ? this._batchFetchQuotes(allConstituentSymbols) : Promise.resolve([])
       ]);
 
-      const indexReturnsMap = new Map();
-      indexReturnsResults.forEach(res => {
-        if (res.status === 'fulfilled' && res.value && res.value.rets) {
-          indexReturnsMap.set(res.value.ticker, res.value.rets);
+      const primaryQuoteMap = new Map();
+      primaryQuotes.forEach(q => {
+        if (q && q.symbol) {
+          primaryQuoteMap.set(q.symbol, q);
         }
       });
 
-      const indexAthBaseMap = new Map();
-      indexAthBaseResults.forEach(res => {
-        if (res.status === 'fulfilled' && res.value && res.value.metrics) {
-          indexAthBaseMap.set(res.value.ticker, res.value.metrics);
+      const fullQuoteMap = new Map();
+      if (this.quotesCache && typeof this.quotesCache.entries === 'function') {
+        for (const [sym, q] of this.quotesCache.entries()) {
+          if (q && q.symbol) fullQuoteMap.set(q.symbol, q);
+        }
+      }
+      constituentQuotes.forEach(q => {
+        if (q && q.symbol) {
+          fullQuoteMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) {
+            fullQuoteMap.set(q.symbol.replace('.NS', ''), q);
+          }
+        }
+      });
+
+      const globalRankMap = await this._getOrComputeGlobalRankMap();
+
+      // ──────────────────────────────────────────────────────
+      // STEP 3: Unified Historical Analysis for Primary Index Tickers (1 pass for Returns + ATH + 52W)
+      // ──────────────────────────────────────────────────────
+      const indexAnalysisResults = await Promise.allSettled(
+        uniquePrimaryTickers.map(async (ticker) => ({
+          ticker,
+          analysis: await yahooFinanceService.getHistoricalAnalysis(ticker, primaryQuoteMap.get(ticker)?.ltp)
+        }))
+      );
+
+      const indexAnalysisMap = new Map();
+      indexAnalysisResults.forEach(res => {
+        if (res.status === 'fulfilled' && res.value && res.value.analysis) {
+          indexAnalysisMap.set(res.value.ticker, res.value.analysis);
         }
       });
 
       // ──────────────────────────────────────────────────────
-      // STEP 4: Pre-fetch all constituent stock quotes in ONE unified batch
-      // ──────────────────────────────────────────────────────
-      const allConstituentSymbols = [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))];
-      if (allConstituentSymbols.length > 0) {
-        await this._batchFetchQuotes(allConstituentSymbols);
-      }
-
-      // Background pre-warm: constituent financials & returns (non-blocking)
-      const nonFinancialSymbols = [...new Set(
-        sectors
-          .filter(s => !s.id.includes('bank') && !s.id.includes('fin') && !s.id.includes('insurance'))
-          .flatMap(s => s.stocks.map(st => st.symbol))
-      )].filter(sym => !yahooFinanceService.financialsCache.has(sym));
-
-      const uncalculatedSymbols = allConstituentSymbols.filter(sym => !yahooFinanceService.returnsCache.has(sym));
-
-      if (nonFinancialSymbols.length > 0 || uncalculatedSymbols.length > 0) {
-        setTimeout(async () => {
-          if (nonFinancialSymbols.length > 0) {
-            const finChunkSize = 25;
-            for (let i = 0; i < nonFinancialSymbols.length; i += finChunkSize) {
-              const chunk = nonFinancialSymbols.slice(i, i + finChunkSize);
-              await Promise.allSettled(chunk.map(sym => yahooFinanceService.getStockFinancials(sym)));
-            }
-          }
-          if (uncalculatedSymbols.length > 0) {
-            const retChunkSize = 25;
-            for (let i = 0; i < uncalculatedSymbols.length; i += retChunkSize) {
-              const chunk = uncalculatedSymbols.slice(i, i + retChunkSize);
-              await Promise.allSettled(chunk.map(sym => yahooFinanceService.getHistoricalReturns(sym)));
-            }
-          }
-        }, 0);
-      }
-
-      // ──────────────────────────────────────────────────────
-      // STEP 5: Build sector results
+      // STEP 4: Build Sector Objects
       // ──────────────────────────────────────────────────────
       const results = [];
 
       for (const sector of sectors) {
         try {
-          const stocksWithQuotes = await this._fetchSectorQuotes(sector);
-          const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
+          const stocksWithQuotes = await this._fetchSectorQuotes(sector, false, globalRankMap);
+          const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0 && s.dataStatus !== 'UNAVAILABLE');
 
-          // ── Constituent aggregates (kept SEPARATE from index metrics) ──
+          // Constituent aggregates
           const changePercents = validStocks.map(s => s.changePercent).filter(v => typeof v === 'number' && !isNaN(v));
           const avgChangePercent = changePercents.length > 0
             ? parseFloat((changePercents.reduce((sum, v) => sum + v, 0) / changePercents.length).toFixed(2))
             : 0;
 
-          const advances = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent > 0).length;
-          const declines = validStocks.filter(s => typeof s.changePercent === 'number' && s.changePercent < 0).length;
-          const unchanged = validStocks.length - advances - declines;
+          const advancingStocks = stocksWithQuotes.filter(s => s.direction === 'ADVANCING');
+          const decliningStocks = stocksWithQuotes.filter(s => s.direction === 'DECLINING');
+          const unchangedStocks = stocksWithQuotes.filter(s => s.direction === 'UNCHANGED');
+          const unknownStocks = stocksWithQuotes.filter(s => s.direction === 'UNKNOWN');
 
-          // Constituent aggregate metrics (for internal/separate display only)
-          const constituentTotalVolume = validStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
+          const advances = advancingStocks.length;
+          const declines = decliningStocks.length;
+          const unchanged = unchangedStocks.length;
+          const unknown = unknownStocks.length;
+
+          // Constituent market cap and financials
           const totalMarketCap = validStocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
           
-          const validPeStocks = validStocks.filter(s => typeof s.pe === 'number' && s.pe > 0);
-          const constituentAvgPe = validPeStocks.length > 0
-            ? parseFloat((validPeStocks.reduce((sum, s) => sum + s.pe, 0) / validPeStocks.length).toFixed(2))
-            : null;
-
-          const validEpsStocks = validStocks.filter(s => typeof s.eps === 'number' && s.eps > 0);
-          const constituentAvgEps = validEpsStocks.length > 0
-            ? parseFloat((validEpsStocks.reduce((sum, s) => sum + s.eps, 0) / validEpsStocks.length).toFixed(2))
-            : null;
-
-          // Sector EBIT (constituent aggregate — labelled as such)
           const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
           let totalEbit = null;
           if (!isFinancialSector) {
@@ -1202,51 +1527,44 @@ class SectorDataService {
             }
           }
 
-          // Sector Net Profit (constituent aggregate)
           const validNetProfitStocks = validStocks.filter(s => typeof s.netProfit === 'number' && s.netProfit > 0);
           let totalNetProfit = validNetProfitStocks.length > 0
             ? validNetProfitStocks.reduce((sum, s) => sum + s.netProfit, 0)
             : null;
 
-          // ── Official index instrument data ──
+          // Official index instrument data
           const primaryTicker = primaryTickerMap.get(sector.id) || null;
           const indexQuote = primaryTicker ? primaryQuoteMap.get(primaryTicker) : null;
-          const indexReturns = primaryTicker ? indexReturnsMap.get(primaryTicker) : null;
-          const athBase = primaryTicker ? indexAthBaseMap.get(primaryTicker) : null;
+          const indexAnalysis = primaryTicker ? indexAnalysisMap.get(primaryTicker) : null;
+          const indexReturns = indexAnalysis?.returns || null;
+          const athBase = indexAnalysis?.athBase || null;
 
-          // Index price — exclusively from the index instrument, no fallback
+          // Official index prices (never constituent averages)
           const indexPrice = (indexQuote && typeof indexQuote.ltp === 'number' && indexQuote.ltp > 0) ? indexQuote.ltp : null;
           const previousClose = (indexQuote && typeof indexQuote.previousClose === 'number' && indexQuote.previousClose > 0) ? indexQuote.previousClose : null;
           const open = (indexQuote && typeof indexQuote.open === 'number' && indexQuote.open > 0) ? indexQuote.open : null;
           const dayHigh = (indexQuote && typeof indexQuote.dayHigh === 'number' && indexQuote.dayHigh > 0) ? indexQuote.dayHigh : null;
           const dayLow = (indexQuote && typeof indexQuote.dayLow === 'number' && indexQuote.dayLow > 0) ? indexQuote.dayLow : null;
 
-          // 52W High/Low — exclusively from the index instrument, NO constituent fallback
-          const fiftyTwoWeekHigh = (indexQuote && typeof indexQuote.high52 === 'number' && indexQuote.high52 > 0) ? indexQuote.high52 : null;
-          const fiftyTwoWeekLow = (indexQuote && typeof indexQuote.low52 === 'number' && indexQuote.low52 > 0) ? indexQuote.low52 : null;
+          // Official 52W High / Low & ATH
+          const fiftyTwoWeekHigh = athBase?.allTimeHigh || ((indexQuote && typeof indexQuote.high52 === 'number' && indexQuote.high52 > 0) ? indexQuote.high52 : null);
+          const fiftyTwoWeekLow = athBase?.week52Low || ((indexQuote && typeof indexQuote.low52 === 'number' && indexQuote.low52 > 0) ? indexQuote.low52 : null);
 
-          // PE, EPS, Volume — exclusively from the index instrument
-          // Yahoo does not provide PE/EPS/Volume for NSE indices — this will correctly be null
+          // Index PE & EPS (strictly from index instrument, never constituent average)
           const indexPe = (indexQuote && typeof indexQuote.pe === 'number' && indexQuote.pe > 0) ? indexQuote.pe : null;
           const indexEps = (indexQuote && typeof indexQuote.eps === 'number') ? indexQuote.eps : null;
           const indexVolume = (indexQuote && typeof indexQuote.volume === 'number' && indexQuote.volume > 0) ? indexQuote.volume : null;
 
-          // ── Index returns — exclusively from primary instrument, NO constituent fallback ──
+          // Index multi-period returns
           const sectorReturns = {};
           ['1W', '1M', '6M', '1Y', '3Y', '5Y', 'ALL'].forEach(p => {
             const hasIndexVal = indexReturns && typeof indexReturns[p] === 'number' && !isNaN(indexReturns[p]);
             sectorReturns[p] = hasIndexVal ? indexReturns[p] : null;
           });
 
-          // ── ALL return validation: detect data quality issues ──
-          if (sectorReturns['ALL'] !== null && Math.abs(sectorReturns['ALL']) > 50000) {
-            console.warn(`[DATA QUALITY WARNING] ${sector.id} (${primaryTicker}): ALL return = ${sectorReturns['ALL']}% exceeds 50000% — marking as suspect. Not correcting; logging for investigation.`);
-          }
-
-          // sectorChangePercent: for display/sorting
-          let sectorChangePercent;
+          // Sector change percent
+          let sectorChangePercent = 0;
           if (timeframe === '1D') {
-            // Use index change% if available, otherwise constituent avg
             sectorChangePercent = (indexQuote && typeof indexQuote.changePercent === 'number' && !isNaN(indexQuote.changePercent))
               ? indexQuote.changePercent 
               : avgChangePercent;
@@ -1260,13 +1578,6 @@ class SectorDataService {
           if (sectorChangePercent > 0.5) trend = 'Bullish';
           else if (sectorChangePercent < -0.5) trend = 'Bearish';
 
-          const sourceBreakdown = {
-            live: stocksWithQuotes.filter(s => s.dataStatus === 'LIVE').length,
-            eod: stocksWithQuotes.filter(s => s.dataStatus === 'EOD').length,
-            unavailable: stocksWithQuotes.filter(s => s.dataStatus === 'UNAVAILABLE' || s.ltp === null).length
-          };
-
-          // Determine data status for the index row
           const indexDataStatus = indexPrice !== null
             ? (session.isOpen ? 'LIVE' : 'EOD')
             : 'UNAVAILABLE';
@@ -1276,39 +1587,37 @@ class SectorDataService {
             name: sector.name,
             region: sector.region,
             assetClass: sector.assetClass || 'stocks',
-            
-            // ── Source provenance ──
-            primaryTicker: primaryTicker,
+            primaryTicker,
             indexTicker: sector.indexTicker || null,
             etfTicker: sector.etfTicker || null,
             indexDataSource: primaryTicker || null,
             indexDataStatus,
             indexDataTimestamp: new Date().toISOString(),
 
-            // ── Official index metrics (from primary instrument only) ──
+            // Official index metrics
+            price: indexPrice,
             indexPrice,
             previousClose,
             open,
             dayHigh,
             dayLow,
             fiftyTwoWeekHigh,
-            fiftyTwoWeekHigh: athBase?.allTimeHigh || fiftyTwoWeekHigh || null,
-            fiftyTwoWeekLow: athBase?.week52Low || fiftyTwoWeekLow || null,
+            fiftyTwoWeekLow,
 
-            // ── ATH & 52W Low Metrics (Authentic Yahoo Finance Historical Calculation) ──
-            week52Low: athBase?.week52Low ?? athBase?.baseLow ?? null,
-            week52LowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
-            allTimeHigh: athBase?.allTimeHigh || null,
-            allTimeHighDate: athBase?.allTimeHighDate || null,
-            ath: athBase?.allTimeHigh || null,
-            pctFrom52WLow: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
-            pctFromATH: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
-            baseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
-            baseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
-            longTermBaseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
-            longTermBaseLowDate: athBase?.week52LowDate ?? athBase?.baseLowDate ?? null,
-            recoveryFromBasePercent: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
-            distanceFromATHPercent: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
+            // ATH & 52W Low
+            week52Low: athBase?.week52Low ?? fiftyTwoWeekLow ?? null,
+            week52LowDate: athBase?.week52LowDate ?? null,
+            allTimeHigh: athBase?.allTimeHigh ?? fiftyTwoWeekHigh ?? null,
+            allTimeHighDate: athBase?.allTimeHighDate ?? null,
+            ath: athBase?.allTimeHigh ?? fiftyTwoWeekHigh ?? null,
+            ATH: athBase?.allTimeHigh ?? fiftyTwoWeekHigh ?? null,
+            ATHDate: athBase?.allTimeHighDate ?? null,
+            percentFrom52WLow: athBase?.percentFrom52WLow ?? athBase?.pctFrom52WLow ?? null,
+            percentFromATH: athBase?.percentFromATH ?? athBase?.pctFromATH ?? null,
+            pctFrom52WLow: athBase?.pctFrom52WLow ?? null,
+            pctFromATH: athBase?.pctFromATH ?? null,
+            recoveryFromBasePercent: athBase?.pctFrom52WLow ?? null,
+            distanceFromATHPercent: athBase?.pctFromATH ?? null,
             baseStatus: athBase?.baseStatus || 'WEEK_52_LOW',
             positionDataSource: athBase?.positionDataSource || 'YAHOO_FINANCE',
             historicalAsOf: athBase?.historicalAsOf || null,
@@ -1318,78 +1627,31 @@ class SectorDataService {
             eps: indexEps,
             totalVolume: indexVolume,
 
-            // ── Index returns (exclusively from primary instrument) ──
             changePercent: sectorChangePercent,
             trend,
             returns: sectorReturns,
 
-            // ── Constituent metrics (separate from index, labelled clearly) ──
+            // Constituent metrics and stock lists
             advances,
             declines,
             unchanged,
+            unknown,
+            totalValidStocks: stocksWithQuotes.length,
+            advancingStocks,
+            decliningStocks,
+            unchangedStocks,
+            unknownStocks,
             totalStocks: validStocks.length,
+            configuredStocks: sector.stocks.length,
             validStocks: validStocks.length,
             totalMarketCap,
-            constituentAvgPe,
-            constituentAvgEps,
-            constituentTotalVolume,
             ebit: totalEbit,
             netProfit: totalNetProfit,
 
-            sourceBreakdown,
             stocks: stocksWithQuotes
           });
         } catch (err) {
           console.error(`Error processing sector ${sector.id}:`, err.message);
-          results.push({
-            id: sector.id,
-            name: sector.name,
-            region: sector.region,
-            assetClass: sector.assetClass || 'stocks',
-            primaryTicker: primaryTickerMap.get(sector.id) || null,
-            indexTicker: sector.indexTicker || null,
-            etfTicker: sector.etfTicker || null,
-            indexDataSource: primaryTickerMap.get(sector.id) || null,
-            indexDataStatus: 'UNAVAILABLE',
-            indexDataTimestamp: new Date().toISOString(),
-            indexPrice: null,
-            previousClose: null,
-            open: null,
-            dayHigh: null,
-            dayLow: null,
-            fiftyTwoWeekHigh: null,
-            fiftyTwoWeekLow: null,
-            allTimeHigh: null,
-            allTimeHighDate: null,
-            baseLow: null,
-            baseLowDate: null,
-            baseDurationDays: null,
-            baseDurationYears: null,
-            declineFromPeakPercent: null,
-            recoveryFromBasePercent: null,
-            distanceFromATHPercent: null,
-            baseStatus: 'UNAVAILABLE',
-            athBaseMetrics: null,
-            pe: null,
-            eps: null,
-            totalVolume: null,
-            changePercent: 0,
-            trend: 'Neutral',
-            returns: { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null },
-            advances: 0,
-            declines: 0,
-            unchanged: 0,
-            totalStocks: sector.stocks.length,
-            validStocks: 0,
-            totalMarketCap: 0,
-            constituentAvgPe: null,
-            constituentAvgEps: null,
-            constituentTotalVolume: 0,
-            ebit: null,
-            netProfit: null,
-            sourceBreakdown: { live: 0, eod: 0, unavailable: sector.stocks.length },
-            stocks: []
-          });
         }
       }
 
@@ -1418,7 +1680,17 @@ class SectorDataService {
 
     const cacheKey = `sector_detail_${sector.id}_${timeframe}`;
     return this._getCachedOrFetch(cacheKey, async () => {
-      const stocksWithQuotes = await this._fetchSectorQuotes(sector, true);
+      // Ensure global rankings are computed
+      let rankMap = this.globalRankCache;
+      if (!rankMap || rankMap.size === 0) {
+        const allSymbols = this.getAllIndianSymbols();
+        const allQuotes = await this._batchFetchQuotes(allSymbols);
+        const qMap = new Map();
+        allQuotes.forEach(q => { if (q?.symbol) qMap.set(q.symbol, q); });
+        rankMap = this._computeGlobalRankings(allSymbols, qMap);
+      }
+
+      const stocksWithQuotes = await this._fetchSectorQuotes(sector, true, rankMap);
       const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
 
       // If timeframe is not 1D, use constituent stock historical return for the selected timeframe
@@ -1532,6 +1804,16 @@ class SectorDataService {
         }
       }
 
+      const advancingStocks = stocksWithQuotes.filter(s => s.direction === 'ADVANCING');
+      const decliningStocks = stocksWithQuotes.filter(s => s.direction === 'DECLINING');
+      const unchangedStocks = stocksWithQuotes.filter(s => s.direction === 'UNCHANGED');
+      const unknownStocks = stocksWithQuotes.filter(s => s.direction === 'UNKNOWN');
+
+      const advances = advancingStocks.length;
+      const declines = decliningStocks.length;
+      const unchanged = unchangedStocks.length;
+      const unknown = unknownStocks.length;
+
       return {
         id: sector.id,
         name: sector.name,
@@ -1545,6 +1827,10 @@ class SectorDataService {
         allTimeHigh: athBase?.allTimeHigh || null,
         allTimeHighDate: athBase?.allTimeHighDate || null,
         ath: athBase?.allTimeHigh || null,
+        ATH: athBase?.allTimeHigh || null,
+        ATHDate: athBase?.allTimeHighDate || null,
+        percentFrom52WLow: athBase?.percentFrom52WLow ?? athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
+        percentFromATH: athBase?.percentFromATH ?? athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
         pctFrom52WLow: athBase?.pctFrom52WLow ?? athBase?.recoveryFromBasePercent ?? null,
         pctFromATH: athBase?.pctFromATH ?? athBase?.distanceFromATHPercent ?? null,
         baseLow: athBase?.week52Low ?? athBase?.baseLow ?? null,
@@ -1569,13 +1855,259 @@ class SectorDataService {
         stocks: sorted,
         gainers,
         losers,
-        advanceCount,
-        declineCount,
-        unchanged: Math.max(0, validStocks.length - advanceCount - declineCount),
+        advances,
+        declines,
+        unchanged,
+        unknown,
+        totalValidStocks: stocksWithQuotes.length,
+        advanceCount: advances,
+        declineCount: declines,
+        advancingStocks,
+        decliningStocks,
+        unchangedStocks,
+        unknownStocks,
         validStocks: validStocks.length,
         totalStocks: validStocks.length,
         aiSummary
       };
+    });
+  }
+
+  /**
+   * Returns the entire Stocks Performance universe as a deduplicated, globally ranked list of stocks.
+   * Sorted strictly by globalRank ASC (1..N), with unranked at end.
+   */
+  async getAllRankedStocks(region = 'all', timeframe = '1D', assetClass = 'stocks') {
+    const cacheKey = `all_ranked_stocks_${region}_${timeframe}_${assetClass}`;
+    return this._getCachedOrFetch(cacheKey, async () => {
+      let sectors = ALL_SECTORS.filter(s => (s.assetClass || 'stocks') === assetClass);
+      if (region === 'india') {
+        sectors = sectors.filter(s => s.region === 'india');
+      } else if (region === 'global') {
+        sectors = sectors.filter(s => s.region === 'global');
+      }
+
+      // Map stock symbol -> primary sector metadata
+      const stockSectorMap = new Map();
+      sectors.forEach(s => {
+        s.stocks.forEach(st => {
+          if (!stockSectorMap.has(st.symbol)) {
+            stockSectorMap.set(st.symbol, {
+              sectorId: s.id,
+              sectorName: s.name,
+              region: s.region
+            });
+          }
+        });
+      });
+
+      // For Indian equities universe, use the pure Indian equity symbols
+      const allSymbols = region === 'global'
+        ? [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))]
+        : this.getAllIndianSymbols();
+
+      const quotes = await this._batchFetchQuotes(allSymbols);
+
+      const quoteMap = new Map();
+      quotes.forEach(q => {
+        if (q && q.symbol) {
+          quoteMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) {
+            quoteMap.set(q.symbol.replace('.NS', ''), q);
+          }
+          if (q.symbol.endsWith('.BO')) {
+            quoteMap.set(q.symbol.replace('.BO', ''), q);
+          }
+        }
+      });
+
+      // Compute global rankings strictly across the Indian NSE/BSE equity universe
+      const globalRankMap = await this._getOrComputeGlobalRankMap();
+
+      // Use fast cached historical returns, financials, and ATH metrics without blocking endpoint
+      const returnsMap = new Map();
+      const finMap = new Map();
+      const athBaseMap = new Map();
+
+      if (timeframe !== '1D') {
+        const heavySymbols = sectors.flatMap(s => s.stocks.map(st => st.symbol));
+        const [returnsList, finList, athBaseList] = await Promise.all([
+          Promise.allSettled(heavySymbols.map(sym => yahooFinanceService.getHistoricalReturns(sym))),
+          Promise.allSettled(heavySymbols.map(sym => yahooFinanceService.getStockFinancials(sym))),
+          Promise.allSettled(heavySymbols.map(sym => athBaseService.getAthAndBaseMetrics(sym, quoteMap.get(sym)?.ltp)))
+        ]);
+        heavySymbols.forEach((sym, idx) => {
+          if (returnsList[idx].status === 'fulfilled' && returnsList[idx].value) returnsMap.set(sym, returnsList[idx].value);
+          if (finList[idx].status === 'fulfilled' && finList[idx].value) finMap.set(sym, finList[idx].value);
+          if (athBaseList[idx].status === 'fulfilled' && athBaseList[idx].value) athBaseMap.set(sym, athBaseList[idx].value);
+        });
+      } else {
+        // Fast instant path for 1D overview: pull from memory cache
+        allSymbols.forEach(sym => {
+          const ret = yahooFinanceService.returnsCache?.get(sym)?.data;
+          if (ret) returnsMap.set(sym, ret);
+          const fin = yahooFinanceService.financialsCache?.get(sym)?.data;
+          if (fin) finMap.set(sym, fin);
+          const ath = athBaseService.cache?.get(`ATH_52W_V5:${sym.toUpperCase()}`)?.data;
+          if (ath) athBaseMap.set(sym, ath);
+        });
+      }
+
+      const rankedStockList = allSymbols.map(sym => {
+        const quote = quoteMap.get(sym) || null;
+        const secMeta = stockSectorMap.get(sym) || { sectorId: 'general', sectorName: 'General', region: 'india' };
+        const isFin = secMeta.sectorId.includes('bank') || secMeta.sectorId.includes('fin') || secMeta.sectorId.includes('insurance');
+        const stockRets = returnsMap.get(sym) || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
+        const fin = finMap.get(sym) || null;
+        const athBase = athBaseMap.get(sym) || null;
+
+        const rawRank = globalRankMap.get(sym) ?? null;
+        const validMarketCap = (quote && typeof quote.marketCap === 'number' && quote.marketCap > 0) ? quote.marketCap : null;
+        const globalRank = validMarketCap !== null ? rawRank : null;
+
+        const resolvedEbit = isFin ? null : (fin?.ebit ?? quote?.ebit ?? null);
+        const resolvedNetProfit = fin?.netProfit ?? quote?.netProfit ?? null;
+
+        const hasValidPrice = quote && typeof quote.ltp === 'number' && quote.ltp > 0;
+        const hasValidPrevClose = quote && typeof quote.previousClose === 'number' && quote.previousClose > 0;
+
+        let direction = 'UNKNOWN';
+        let change = null;
+        let changePercent = null;
+
+        if (hasValidPrice && hasValidPrevClose) {
+          const diff = quote.ltp - quote.previousClose;
+          if (diff > 0.0001) {
+            direction = 'ADVANCING';
+          } else if (diff < -0.0001) {
+            direction = 'DECLINING';
+          } else {
+            direction = 'UNCHANGED';
+          }
+          change = parseFloat((quote.ltp - quote.previousClose).toFixed(4));
+          changePercent = parseFloat((((quote.ltp - quote.previousClose) / quote.previousClose) * 100).toFixed(4));
+        } else if (hasValidPrice) {
+          change = (quote && typeof quote.change === 'number') ? quote.change : null;
+          changePercent = (quote && typeof quote.changePercent === 'number') ? quote.changePercent : null;
+        }
+
+        if (hasValidPrice) {
+          return {
+            symbol: sym,
+            name: quote.name || sym,
+            companyName: quote.name || sym.replace(/\.(NS|BO)$/i, ''),
+            exchange: sym.endsWith('.BO') ? 'BSE' : 'NSE',
+            sector: secMeta.sectorName,
+            sectorId: secMeta.sectorId,
+            sectorName: secMeta.sectorName,
+            region: secMeta.region,
+            indiaStockRank: globalRank,
+            indiaRank: globalRank,
+            indianMarketRank: globalRank,
+            globalRank,
+            rank: globalRank,
+            marketCap: validMarketCap,
+            netProfit: resolvedNetProfit,
+            ebit: resolvedEbit,
+            currentPrice: quote.ltp,
+            price: quote.ltp,
+            ltp: quote.ltp,
+            open: quote.open,
+            previousClose: hasValidPrevClose ? quote.previousClose : (quote?.previousClose || null),
+            change,
+            changePercent,
+            direction,
+            fiftyTwoWeekHigh: athBase?.allTimeHigh || quote.high52 || null,
+            fiftyTwoWeekLow: athBase?.week52Low || quote.low52 || null,
+            week52Low: athBase?.week52Low ?? quote.low52 ?? null,
+            week52LowDate: athBase?.week52LowDate ?? null,
+            allTimeHigh: athBase?.allTimeHigh || null,
+            allTimeHighDate: athBase?.allTimeHighDate || null,
+            ath: athBase?.allTimeHigh || null,
+            ATH: athBase?.allTimeHigh || null,
+            ATHDate: athBase?.allTimeHighDate || null,
+            percentFrom52WLow: athBase?.percentFrom52WLow ?? athBase?.pctFrom52WLow ?? null,
+            percentFromATH: athBase?.percentFromATH ?? athBase?.pctFromATH ?? null,
+            pctFrom52WLow: athBase?.pctFrom52WLow ?? null,
+            pctFromATH: athBase?.pctFromATH ?? null,
+            pe: quote.pe,
+            eps: quote.eps,
+            volume: quote.volume,
+            returns: stockRets,
+            performance: stockRets,
+            source: quote.source || "YAHOO_FINANCE",
+            sourceType: quote.sourceType || "YAHOO_QUOTE",
+            dataStatus: quote.dataStatus || (quote.isLive ? "LIVE" : "EOD"),
+            isLive: quote.isLive ?? false,
+            priceAsOf: quote.priceAsOf || new Date().toISOString(),
+            fetchedAt: quote.priceAsOf || quote.lastUpdatedAt || new Date().toISOString(),
+            lastUpdatedAt: quote.lastUpdatedAt || new Date().toISOString()
+          };
+        }
+
+        return {
+          symbol: sym,
+          name: sym,
+          companyName: sym.replace(/\.(NS|BO)$/i, ''),
+          exchange: sym.endsWith('.BO') ? 'BSE' : 'NSE',
+          sector: secMeta.sectorName,
+          sectorId: secMeta.sectorId,
+          sectorName: secMeta.sectorName,
+          region: secMeta.region,
+          indiaRank: null,
+          indianMarketRank: null,
+          globalRank: null,
+          rank: null,
+          marketCap: null,
+          netProfit: resolvedNetProfit,
+          ebit: resolvedEbit,
+          currentPrice: null,
+          price: null,
+          ltp: null,
+          open: null,
+          previousClose: null,
+          change: null,
+          changePercent: null,
+          direction: 'UNKNOWN',
+          fiftyTwoWeekHigh: null,
+          fiftyTwoWeekLow: null,
+          week52Low: null,
+          week52LowDate: null,
+          allTimeHigh: null,
+          allTimeHighDate: null,
+          ath: null,
+          ATH: null,
+          ATHDate: null,
+          percentFrom52WLow: null,
+          percentFromATH: null,
+          pctFrom52WLow: null,
+          pctFromATH: null,
+          pe: null,
+          eps: null,
+          volume: null,
+          returns: stockRets,
+          performance: stockRets,
+          source: "UNAVAILABLE",
+          sourceType: "UNAVAILABLE",
+          dataStatus: "UNAVAILABLE",
+          isLive: false,
+          priceAsOf: null,
+          fetchedAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString()
+        };
+      });
+
+      // Default sorting: globalRank ASC (1, 2, 3...), unranked at end
+      rankedStockList.sort((a, b) => {
+        if (a.globalRank !== null && b.globalRank !== null) {
+          return a.globalRank - b.globalRank;
+        }
+        if (a.globalRank !== null) return -1;
+        if (b.globalRank !== null) return 1;
+        return a.symbol.localeCompare(b.symbol);
+      });
+
+      return rankedStockList;
     });
   }
 
@@ -1682,6 +2214,20 @@ class SectorDataService {
       stocks: sector.stocks.map(s => ({ symbol: s.symbol, name: s.name }))
     }));
   }
+
+  async prewarmStockCache() {
+    try {
+      await this.getAllSectors('india', '1D', 'stocks');
+    } catch (e) {
+      // Non-blocking
+    }
+  }
 }
 
-export default new SectorDataService();
+const sectorDataService = new SectorDataService();
+// Auto pre-warm background cache on startup
+setTimeout(() => {
+  sectorDataService.prewarmStockCache().catch(() => {});
+}, 100);
+
+export default sectorDataService;

@@ -212,32 +212,18 @@ export function validateAndSanitizeQuote(rawQuote) {
 
   const session = isIndian ? getIndianMarketSession() : getUSMarketSession();
 
-  let dataStatus = rawQuote.dataStatus || 'LIVE';
-  let isLive = rawQuote.isLive === true;
+  let dataStatus = 'EOD';
+  let isLive = false;
 
-  // Enforce provenance rules: snapshot and stale data can NEVER be LIVE
-  if (rawQuote.source === 'SNAPSHOT' || dataStatus === 'SNAPSHOT') {
-    dataStatus = 'SNAPSHOT';
-    isLive = false;
-  } else if (dataStatus === 'STALE') {
-    isLive = false;
-  } else if (!session.isOpen) {
-    // Outside normal trading hours: latest official close is displayed
-    // Never label off-market or closed prices as live!
-    isLive = false;
-    if (dataStatus === 'LIVE' || dataStatus === 'LIVE_FALLBACK') {
-      dataStatus = session.session; // e.g. 'CLOSED', 'POST_CLOSE', 'PRE_OPEN', 'WEEKEND', 'HOLIDAY'
-    }
+  if (session.isOpen) {
+    dataStatus = 'LIVE';
+    isLive = true;
   } else {
-    // Market is actively OPEN
-    if (rawQuote.source === 'UPSTOX') {
-      dataStatus = 'LIVE';
-      isLive = true;
-    } else if (rawQuote.source === 'YAHOO_FINANCE') {
-      dataStatus = 'LIVE_FALLBACK';
-      isLive = true;
-    }
+    dataStatus = 'EOD';
+    isLive = false;
   }
+
+  const fetchedAt = new Date().toISOString();
 
   return {
     symbol,
@@ -248,6 +234,7 @@ export function validateAndSanitizeQuote(rawQuote) {
     exchange,
     exchangeSegment,
     marketSession: session.session,
+    price: ltp,
     ltp,
     open,
     previousClose,
@@ -267,12 +254,13 @@ export function validateAndSanitizeQuote(rawQuote) {
     dividendYield: typeof rawQuote.dividendYield === 'number' ? rawQuote.dividendYield : null,
     vwap: typeof rawQuote.vwap === 'number' && rawQuote.vwap > 0 ? rawQuote.vwap : ltp,
     returns: rawQuote.returns || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null },
-    source: rawQuote.source || 'UPSTOX',
-    sourceType: rawQuote.sourceType || 'UPSTOX_REST_V2',
+    source: rawQuote.source || 'YAHOO_FINANCE',
+    sourceType: rawQuote.sourceType || 'YAHOO_QUOTE',
     dataStatus,
     isLive,
     priceAsOf,
-    lastUpdatedAt: new Date().toISOString()
+    fetchedAt,
+    lastUpdatedAt: fetchedAt
   };
 }
 

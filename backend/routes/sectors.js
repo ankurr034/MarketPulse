@@ -39,6 +39,18 @@ router.get('/search', (req, res) => {
   res.json(results);
 });
 
+// GET /api/sectors/all-stocks?region=india|global|all&timeframe=1D|1W|1M|1Y|5Y|ALL
+router.get('/all-stocks', async (req, res) => {
+  try {
+    const { region = 'all', timeframe = '1D', assetClass = 'stocks' } = req.query;
+    const stocks = await sectorDataService.getAllRankedStocks(region, timeframe, assetClass);
+    res.json(stocks);
+  } catch (err) {
+    console.error('All ranked stocks fetch error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch all ranked stocks' });
+  }
+});
+
 // GET /api/sectors/:sectorId?timeframe=1D|1W|1M|1Y|5Y|ALL
 router.get('/:sectorId', async (req, res) => {
   try {
