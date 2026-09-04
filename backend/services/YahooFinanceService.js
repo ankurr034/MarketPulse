@@ -2,10 +2,10 @@ import YahooFinance from 'yahoo-finance2';
 import { getIndianMarketSession, getUSMarketSession, isFinancialEntity, validateAndSanitizeQuote } from './MarketDataValidator.js';
 import athBaseService from './AthBaseService.js';
 
-export const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
-try {
-  yahooFinance.setGlobalConfig({ validation: { logErrors: false } });
-} catch (e) {}
+export const yahooFinance = new YahooFinance({
+  suppressNotices: ['yahooSurvey'],
+  validation: { logErrors: false, logOptionsErrors: false }
+});
 
 const KNOWN_GLOBAL_SYMBOLS = new Set([
   'AAPL', 'MSFT', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ORCL', 'CSCO', 'INTU', 'IBM', 'QCOM', 'TXN', 'NOW', 'AMAT',
@@ -250,7 +250,39 @@ class YahooFinanceService {
 
   async getStockFinancials(sym) {
     const yahooSym = this.resolveYahooSymbol(sym);
-    if (!yahooSym) return { ebit: null, netProfit: null, ebitSource: '—', ebitType: '—', netProfitSource: '—', reportingPeriod: 'TTM' };
+    if (!yahooSym) return { 
+      ebit: null, 
+      revenue: null,
+      revenueYoY: null,
+      revenueQuarterly: {
+        symbol: sym,
+        companyName: null,
+        currentQuarterRevenue: null,
+        currentQuarterPeriodEnd: null,
+        previousYearSameQuarterRevenue: null,
+        previousYearSameQuarterPeriodEnd: null,
+        revenueYoYPercent: null,
+        revenueDataStatus: 'NO_SYMBOL',
+        revenueFetchedAt: Date.now()
+      },
+      revenueSource: '—',
+      netProfit: null, 
+      netProfitYoY: null,
+      netProfitQuarterly: {
+        symbol: sym,
+        currentQuarterNetProfit: null,
+        currentQuarterPeriodEnd: null,
+        previousYearSameQuarterNetProfit: null,
+        previousYearSameQuarterPeriodEnd: null,
+        netProfitYoYPercent: null,
+        netProfitDataStatus: 'NO_SYMBOL',
+        netProfitFetchedAt: Date.now()
+      },
+      ebitSource: '—', 
+      ebitType: '—', 
+      netProfitSource: '—', 
+      reportingPeriod: 'TTM' 
+    };
 
     const cached = this.financialsCache.get(yahooSym);
     if (cached && (Date.now() - cached.timestamp < this.FINANCIALS_CACHE_TTL)) {
@@ -263,17 +295,47 @@ class YahooFinanceService {
 
     const fetchPromise = (async () => {
       try {
-        const summary = await withTimeout(
-          yahooFinance.quoteSummary(yahooSym, {
-            modules: ['financialData', 'defaultKeyStatistics', 'assetProfile']
-          }).catch(() => ({})),
-          10000,
-          {}
-        );
+        const [summary, timeseries] = await Promise.all([
+          withTimeout(
+            yahooFinance.quoteSummary(yahooSym, {
+              modules: ['financialData', 'defaultKeyStatistics', 'assetProfile']
+            }).catch(() => ({})),
+            20000,
+            {}
+          ),
+          withTimeout(
+            yahooFinance.fundamentalsTimeSeries(yahooSym, { period1: '2023-01-01', module: 'financials', type: 'quarterly' }).catch(() => null),
+            20000,
+            null
+          )
+        ]);
+
+        let timeseriesData = timeseries;
+        const KNOWN_ALT_SCRIPS = {
+          'LTIM.NS': '540005.BO',
+          'LTIM': '540005.BO',
+          'LTIM.BO': '540005.BO',
+          'JIOFIN.NS': '543940.BO',
+          'JIOFIN': '543940.BO',
+          'JIOFIN.BO': '543940.BO'
+        };
+
+        if ((!Array.isArray(timeseriesData) || timeseriesData.length === 0) && KNOWN_ALT_SCRIPS[yahooSym]) {
+          const altSym = KNOWN_ALT_SCRIPS[yahooSym];
+          const altTs = await withTimeout(
+            yahooFinance.fundamentalsTimeSeries(altSym, { period1: '2023-01-01', module: 'financials', type: 'quarterly' }).catch(() => null),
+            20000,
+            null
+          );
+          if (Array.isArray(altTs) && altTs.length > 0) {
+            timeseriesData = altTs;
+          }
+        }
 
         const fd = summary.financialData || {};
         const ks = summary.defaultKeyStatistics || {};
         const ap = summary.assetProfile || {};
+        const stmt = summary.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
 
         const isFinancial = isFinancialEntity(yahooSym) || (
           ap.sector?.includes('Financial') ||
@@ -283,9 +345,15 @@ class YahooFinanceService {
         );
 
         let rate = 1;
-        if (fd.financialCurrency === 'USD' && yahooSym.endsWith('.NS')) {
+        if (fd.financialCurrency === 'USD' && (yahooSym.endsWith('.NS') || yahooSym.endsWith('.BO'))) {
           rate = 86.5; // USD to INR conversion
         }
+
+        // statementRate is determined after timeseries data is analyzed
+        // to handle inconsistencies where some Indian tickers (e.g., HCLTECH.NS)
+        // have fundamentalsTimeSeries already in INR despite financialCurrency=USD,
+        // while others (e.g., INFY.NS) have timeseries genuinely in USD.
+        let statementRate = rate;
 
         // 1. EBIT / Operating Income (N/A for Financial Institutions)
         let ebit = null;
@@ -315,27 +383,245 @@ class YahooFinanceService {
           ebitType = 'Derived from reported inputs';
         }
 
-        // 2. Net Profit (Reported Net Income)
-        let netProfit = null;
-        let netProfitSource = '—';
-        if (typeof ks.netIncomeToCommon === 'number' && !isNaN(ks.netIncomeToCommon)) {
-          netProfit = Math.round((ks.netIncomeToCommon * rate) / 10000000);
-          netProfitSource = 'defaultKeyStatistics.netIncomeToCommon';
+        // 2. Build Quarterly Statement Series (Revenue & Net Income) from Genuine Statement Feeds
+        const quarterMap = new Map();
+
+        if (Array.isArray(timeseriesData)) {
+          timeseriesData.forEach(q => {
+            if (q && q.date) {
+              const dStr = new Date(q.date).toISOString().split('T')[0];
+              const netVal = (typeof q.netIncome === 'number' && !isNaN(q.netIncome)) ? q.netIncome : 
+                             (typeof q.netIncomeCommonStockholders === 'number' && !isNaN(q.netIncomeCommonStockholders)) ? q.netIncomeCommonStockholders : null;
+              const revVal = (typeof q.totalRevenue === 'number' && !isNaN(q.totalRevenue)) ? q.totalRevenue :
+                             (typeof q.operatingRevenue === 'number' && !isNaN(q.operatingRevenue)) ? q.operatingRevenue : null;
+              if (dStr && (netVal !== null || revVal !== null)) {
+                quarterMap.set(dStr, { dateStr: dStr, rawNetIncome: netVal, rawRevenue: revVal });
+              }
+            }
+          });
         }
+
+        if (Array.isArray(stmt)) {
+          stmt.forEach(q => {
+            if (q && q.endDate) {
+              const dStr = new Date(q.endDate).toISOString().split('T')[0];
+              const netVal = (typeof q.netIncome === 'number' && !isNaN(q.netIncome)) ? q.netIncome : 
+                             (typeof q.netIncomeApplicableToCommonShares === 'number' && !isNaN(q.netIncomeApplicableToCommonShares)) ? q.netIncomeApplicableToCommonShares : null;
+              const revVal = (typeof q.totalRevenue === 'number' && !isNaN(q.totalRevenue)) ? q.totalRevenue :
+                             (typeof q.operatingRevenue === 'number' && !isNaN(q.operatingRevenue)) ? q.operatingRevenue : null;
+              if (dStr) {
+                if (quarterMap.has(dStr)) {
+                  const existing = quarterMap.get(dStr);
+                  if (existing.rawNetIncome === null && netVal !== null) existing.rawNetIncome = netVal;
+                  if (existing.rawRevenue === null && revVal !== null) existing.rawRevenue = revVal;
+                } else if (netVal !== null || revVal !== null) {
+                  quarterMap.set(dStr, { dateStr: dStr, rawNetIncome: netVal, rawRevenue: revVal });
+                }
+              }
+            }
+          });
+        }
+
+        const quarters = Array.from(quarterMap.values());
+        quarters.sort((a, b) => new Date(b.dateStr) - new Date(a.dateStr));
+
+        // Smart currency detection for statementRate:
+        // Some Indian tickers (e.g., HCLTECH.NS) report financialCurrency=USD but
+        // their fundamentalsTimeSeries values are already in INR. Others (e.g., INFY.NS)
+        // genuinely have timeseries in USD. Compare raw quarterly values with TTM revenue
+        // from quoteSummary (which is in financialCurrency) to detect.
+        if (rate > 1 && quarters.length > 0 && typeof fd.totalRevenue === 'number' && fd.totalRevenue > 0) {
+          const latestWithRev = quarters.find(q => typeof q.rawRevenue === 'number' && !isNaN(q.rawRevenue) && q.rawRevenue > 0);
+          if (latestWithRev) {
+            const ttmQuarterlyEstimate = fd.totalRevenue / 4;
+            const ratio = latestWithRev.rawRevenue / ttmQuarterlyEstimate;
+            // If timeseries quarterly value is >10x the TTM quarterly estimate,
+            // the timeseries is already in local currency (INR), not financialCurrency (USD)
+            if (ratio > 10) {
+              statementRate = 1;
+            }
+          }
+        }
+
+        // --- REVENUE: Latest Reported Quarter and YoY vs Same Quarter 1 Year Ago ---
+        const revenueQuarters = quarters.filter(q => typeof q.rawRevenue === 'number' && !isNaN(q.rawRevenue));
+        let currentQuarterRevenue = null;
+        let currentQuarterRevenuePeriodEnd = null;
+        let previousYearSameQuarterRevenue = null;
+        let previousYearSameQuarterRevenuePeriodEnd = null;
+        let revenueYoYPercent = null;
+        let revenueDataStatus = 'NO_DATA';
+
+        if (revenueQuarters.length > 0) {
+          const curr = revenueQuarters[0];
+          currentQuarterRevenuePeriodEnd = curr.dateStr;
+          currentQuarterRevenue = Math.round((curr.rawRevenue * statementRate) / 10000000);
+
+          const currDate = new Date(curr.dateStr);
+          const targetYear = currDate.getUTCFullYear() - 1;
+          const targetMonth = currDate.getUTCMonth();
+
+          // Period Validation: Find same quarter 1 year prior (matching targetYear and month within 1 month boundary)
+          const prior = revenueQuarters.find(q => {
+            const d = new Date(q.dateStr);
+            return d.getUTCFullYear() === targetYear && Math.abs(d.getUTCMonth() - targetMonth) <= 1;
+          });
+
+          if (prior) {
+            previousYearSameQuarterRevenuePeriodEnd = prior.dateStr;
+            previousYearSameQuarterRevenue = Math.round((prior.rawRevenue * statementRate) / 10000000);
+
+            // Zero denominator check & formula calculation:
+            // YoY % = ((current - prior) / ABS(prior)) * 100
+            if (previousYearSameQuarterRevenue !== 0) {
+              const rawYoY = ((currentQuarterRevenue - previousYearSameQuarterRevenue) / Math.abs(previousYearSameQuarterRevenue)) * 100;
+              if (!isNaN(rawYoY) && isFinite(rawYoY)) {
+                revenueYoYPercent = parseFloat(rawYoY.toFixed(2));
+                revenueDataStatus = 'VALID_SAME_QUARTER_YOY';
+              }
+            } else {
+              revenueDataStatus = 'ZERO_PRIOR_YEAR_DENOMINATOR';
+            }
+          } else {
+            revenueDataStatus = 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+          }
+        }
+
+        const revenueQuarterly = {
+          symbol: sym,
+          companyName: ap.longName || null,
+          currentQuarterRevenue,
+          currentQuarterPeriodEnd: currentQuarterRevenuePeriodEnd,
+          previousYearSameQuarterRevenue,
+          previousYearSameQuarterPeriodEnd: previousYearSameQuarterRevenuePeriodEnd,
+          revenueYoYPercent,
+          revenueDataStatus,
+          revenueFetchedAt: Date.now()
+        };
+
+        // --- NET PROFIT: Accounting preservation ---
+        const netIncomeQuarters = quarters.filter(q => typeof q.rawNetIncome === 'number' && !isNaN(q.rawNetIncome));
+        let currentQuarterNetProfit = null;
+        let currentQuarterPeriodEnd = null;
+        let previousYearSameQuarterNetProfit = null;
+        let previousYearSameQuarterPeriodEnd = null;
+        let netProfitYoYPercent = null;
+        let netProfitDataStatus = 'NO_DATA';
+
+        if (netIncomeQuarters.length > 0) {
+          const curr = netIncomeQuarters[0];
+          currentQuarterPeriodEnd = curr.dateStr;
+          currentQuarterNetProfit = Math.round((curr.rawNetIncome * statementRate) / 10000000);
+
+          const currDate = new Date(curr.dateStr);
+          const targetYear = currDate.getUTCFullYear() - 1;
+          const targetMonth = currDate.getUTCMonth();
+
+          const prior = netIncomeQuarters.find(q => {
+            const d = new Date(q.dateStr);
+            return d.getUTCFullYear() === targetYear && Math.abs(d.getUTCMonth() - targetMonth) <= 1;
+          });
+
+          if (prior) {
+            previousYearSameQuarterPeriodEnd = prior.dateStr;
+            previousYearSameQuarterNetProfit = Math.round((prior.rawNetIncome * statementRate) / 10000000);
+
+            if (previousYearSameQuarterNetProfit !== 0) {
+              const rawYoY = ((currentQuarterNetProfit - previousYearSameQuarterNetProfit) / Math.abs(previousYearSameQuarterNetProfit)) * 100;
+              if (!isNaN(rawYoY) && isFinite(rawYoY)) {
+                netProfitYoYPercent = parseFloat(rawYoY.toFixed(2));
+                netProfitDataStatus = 'VALID_SAME_QUARTER_YOY';
+              }
+            } else {
+              netProfitDataStatus = 'ZERO_PRIOR_YEAR_DENOMINATOR';
+            }
+          } else {
+            netProfitDataStatus = 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+          }
+        }
+
+        // Fallback for reported Net Profit ONLY if quarterly entries unavailable
+        let netProfit = currentQuarterNetProfit;
+        let netProfitSource = 'Quarterly Statement';
+
+        if (netProfit === null) {
+          if (typeof ks.netIncomeToCommon === 'number' && !isNaN(ks.netIncomeToCommon)) {
+            netProfit = Math.round((ks.netIncomeToCommon * rate) / 10000000);
+            netProfitSource = 'defaultKeyStatistics.netIncomeToCommon (TTM)';
+          }
+        }
+
+        const netProfitQuarterly = {
+          symbol: sym,
+          currentQuarterNetProfit,
+          currentQuarterPeriodEnd,
+          previousYearSameQuarterNetProfit,
+          previousYearSameQuarterPeriodEnd,
+          netProfitYoYPercent,
+          netProfitDataStatus,
+          netProfitFetchedAt: Date.now()
+        };
 
         const res = { 
           ebit: (typeof ebit === 'number' && ebit > 0) ? ebit : null, 
-          netProfit: (typeof netProfit === 'number' && netProfit > 0) ? netProfit : null,
+          revenue: (typeof currentQuarterRevenue === 'number') ? currentQuarterRevenue : null,
+          revenueYoY: revenueYoYPercent,
+          revenueQuarterly,
+          revenueSource: currentQuarterRevenuePeriodEnd ? 'Quarterly Statement' : '—',
+          netProfit: (typeof netProfit === 'number') ? netProfit : null,
+          netProfitYoY: netProfitYoYPercent,
+          netProfitQuarterly,
           ebitSource,
           ebitType,
           netProfitSource,
-          reportingPeriod: 'TTM'
+          reportingPeriod: currentQuarterRevenuePeriodEnd ? `Q (${currentQuarterRevenuePeriodEnd})` : (currentQuarterPeriodEnd ? `Q (${currentQuarterPeriodEnd})` : 'TTM')
         };
 
-        this.financialsCache.set(yahooSym, { data: res, timestamp: Date.now() });
+        if (res.revenue !== null || res.revenueYoY !== null || res.netProfit !== null || res.netProfitYoY !== null) {
+          this.financialsCache.set(yahooSym, { data: res, timestamp: Date.now() });
+          this.financialsCache.set(sym, { data: res, timestamp: Date.now() });
+          if (yahooSym.endsWith('.NS')) {
+            this.financialsCache.set(yahooSym.replace('.NS', ''), { data: res, timestamp: Date.now() });
+          }
+          if (yahooSym.endsWith('.BO')) {
+            this.financialsCache.set(yahooSym.replace('.BO', ''), { data: res, timestamp: Date.now() });
+          }
+        }
         return res;
       } catch (e) {
-        const fallback = { ebit: null, netProfit: null, ebitSource: '—', ebitType: '—', netProfitSource: '—', reportingPeriod: 'TTM' };
+        const fallback = { 
+          ebit: null, 
+          revenue: null,
+          revenueYoY: null,
+          revenueQuarterly: {
+            symbol: sym,
+            companyName: null,
+            currentQuarterRevenue: null,
+            currentQuarterPeriodEnd: null,
+            previousYearSameQuarterRevenue: null,
+            previousYearSameQuarterPeriodEnd: null,
+            revenueYoYPercent: null,
+            revenueDataStatus: 'ERROR',
+            revenueFetchedAt: Date.now()
+          },
+          revenueSource: '—',
+          netProfit: null, 
+          netProfitYoY: null,
+          netProfitQuarterly: {
+            symbol: sym,
+            currentQuarterNetProfit: null,
+            currentQuarterPeriodEnd: null,
+            previousYearSameQuarterNetProfit: null,
+            previousYearSameQuarterPeriodEnd: null,
+            netProfitYoYPercent: null,
+            netProfitDataStatus: 'ERROR',
+            netProfitFetchedAt: Date.now()
+          },
+          ebitSource: '—', 
+          ebitType: '—', 
+          netProfitSource: '—', 
+          reportingPeriod: 'TTM' 
+        };
         return fallback;
       } finally {
         this.inFlightFinancials.delete(yahooSym);
@@ -411,7 +697,7 @@ class YahooFinanceService {
 
           const promise = (async () => {
             try {
-              const rawQuotes = await withTimeout(yahooFinance.quote(chunk), 10000, []);
+              const rawQuotes = await withTimeout(yahooFinance.quote(chunk, {}, { validateResult: false }), 10000, []);
               const quotesList = Array.isArray(rawQuotes) ? rawQuotes : (rawQuotes ? [rawQuotes] : []);
 
               for (const q of quotesList) {
@@ -425,13 +711,16 @@ class YahooFinanceService {
                 const pe = q.trailingPE || q.forwardPE || null;
                 const eps = q.epsTrailingTwelveMonths || null;
 
-                let fin = this.financialsCache.get(sym)?.data;
-                let netProfit = fin?.netProfit || null;
-                let ebit = fin?.ebit || null;
-
-                if (!netProfit && typeof q.sharesOutstanding === 'number' && q.sharesOutstanding > 0 && typeof eps === 'number' && !isNaN(eps)) {
-                  netProfit = Math.round((q.sharesOutstanding * eps) / 10000000);
-                }
+                let fin = this.financialsCache.get(sym)?.data || 
+                          (sym.endsWith('.NS') ? this.financialsCache.get(sym.replace('.NS', ''))?.data : null) ||
+                          (sym.endsWith('.BO') ? this.financialsCache.get(sym.replace('.BO', ''))?.data : null);
+                let revenue = (typeof fin?.revenue === 'number') ? fin.revenue : null;
+                let revenueYoY = (typeof fin?.revenueYoY === 'number') ? fin.revenueYoY : null;
+                let revenueQuarterly = fin?.revenueQuarterly || null;
+                let netProfit = (typeof fin?.netProfit === 'number') ? fin.netProfit : null;
+                let netProfitYoY = (typeof fin?.netProfitYoY === 'number') ? fin.netProfitYoY : null;
+                let netProfitQuarterly = fin?.netProfitQuarterly || null;
+                let ebit = (typeof fin?.ebit === 'number') ? fin.ebit : null;
 
                 const ltp = price;
                 const previousClose = typeof q.regularMarketPreviousClose === 'number' ? q.regularMarketPreviousClose : ltp;
@@ -459,7 +748,12 @@ class YahooFinanceService {
                   pb: (typeof q.priceToBook === 'number' && q.priceToBook > 0) ? parseFloat(q.priceToBook.toFixed(2)) : null,
                   eps: (typeof eps === 'number') ? parseFloat(eps.toFixed(2)) : null,
                   ebit: ebit,
+                  revenue: revenue,
+                  revenueYoY: revenueYoY,
+                  revenueQuarterly: revenueQuarterly,
                   netProfit: netProfit,
+                  netProfitYoY: netProfitYoY,
+                  netProfitQuarterly: netProfitQuarterly,
                   dividendYield: typeof q.dividendYield === 'number' ? q.dividendYield : null,
                   volume: typeof q.regularMarketVolume === 'number' ? q.regularMarketVolume : null,
                   vwap: ltp,

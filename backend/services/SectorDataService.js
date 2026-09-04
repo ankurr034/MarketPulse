@@ -869,6 +869,61 @@ class SectorDataService {
     this.symbolCache = new Map();
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     this.SYMBOL_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+    this.isWarmingFinancials = false;
+    setTimeout(() => this.warmFinancialsCache(), 1000);
+  }
+
+  /**
+   * Proactively warm up quarterly financials cache for sector constituent stocks in the background.
+   */
+  async warmFinancialsCache() {
+    if (this.isWarmingFinancials) return;
+    this.isWarmingFinancials = true;
+    try {
+      const symSet = new Set();
+      ALL_SECTORS.forEach(s => (s.stocks || []).forEach(st => {
+        if (st && st.symbol) symSet.add(st.symbol);
+      }));
+
+      // Also proactively warm top Indian equities
+      const topLargeCaps = [
+        'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'BHARTIARTL.NS', 'ICICIBANK.NS',
+        'INFY.NS', 'SBIN.NS', 'ITC.NS', 'HINDUNILVR.NS', 'LT.NS',
+        'BAJFINANCE.NS', 'HCLTECH.NS', 'MARUTI.NS', 'SUNPHARMA.NS', 'ADANIENT.NS',
+        'KOTAKBANK.NS', 'TITAN.NS', 'ONGC.NS', 'TATAMOTORS.NS', 'NTPC.NS',
+        'AXISBANK.NS', 'ADANIPORTS.NS', 'M&M.NS', 'POWERGRID.NS', 'ULTRACEMCO.NS',
+        'COALINDIA.NS', 'BAJAJFINSV.NS', 'JSWSTEEL.NS', 'TATASTEEL.NS', 'ASIANPAINT.NS',
+        'SIEMENS.NS', 'IOC.NS', 'HAL.NS', 'BEL.NS', 'DMART.NS', 'VBL.NS',
+        'NESTLEIND.NS', 'GRASIM.NS', 'BAJAJ-AUTO.NS', 'WIPRO.NS', 'TECHM.NS',
+        'ADANIGREEN.NS', 'ADANIPOWER.NS', 'BPCL.NS', 'HINDALCO.NS', 'EICHERMOT.NS',
+        'SHRIRAMFIN.NS', 'DIVISLAB.NS', 'TRENT.NS', 'CHOLAFIN.NS', 'SBILIFE.NS',
+        'VEDL.NS', 'GAIL.NS', 'ZOMATO.NS', 'JIOFIN.NS', 'INDIGO.NS', 'CIPLA.NS',
+        'DRREDDY.NS', 'APOLLOHOSP.NS', 'TATAPOWER.NS', 'TVSMOTOR.NS', 'BANKBARODA.NS',
+        'PNB.NS', 'CANBK.NS', 'UNIONBANK.NS', 'INDIANB.NS', 'ABB.NS', 'AMBUJACEM.NS',
+        'HDFCLIFE.NS', 'MUTHOOTFIN.NS', 'PIDILITIND.NS', 'LODHA.NS', 'DLF.NS',
+        'GODREJCP.NS', 'DABUR.NS', 'BRITANNIA.NS', 'COLPAL.NS', 'MARICO.NS',
+        'HAVELLS.NS', 'VOLTAS.NS', 'POLYCAB.NS', 'KEI.NS', 'PERSISTENT.NS',
+        'COFORGE.NS', 'MPHASIS.NS', 'LTTS.NS', 'KPITTECH.NS', 'TATAELXSI.NS',
+        'LTIM.NS', 'IRFC.NS', 'PFC.NS', 'RECLTD.NS', 'MAXHEALTH.NS', 'MANKIND.NS'
+      ];
+      topLargeCaps.forEach(s => symSet.add(s));
+
+      const symbols = Array.from(symSet);
+      console.log(`[SectorDataService] Starting background warming of quarterly financials for ${symbols.length} constituent & top stocks...`);
+
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+        const batch = symbols.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(batch.map(sym => yahooFinanceService.getStockFinancials(sym)));
+        await new Promise(r => setTimeout(r, 300));
+      }
+      this.cache.clear();
+      console.log(`[SectorDataService] Completed quarterly financials warming for ${symbols.length} constituent stocks.`);
+    } catch (err) {
+      console.warn('[SectorDataService] Error warming financials cache:', err.message);
+    } finally {
+      this.isWarmingFinancials = false;
+    }
   }
 
   /**
@@ -920,12 +975,33 @@ class SectorDataService {
   }
 
   /**
+   * Helper to retrieve cached financials across all symbol representations.
+   */
+  _getFinFromCache(sym) {
+    if (!sym) return null;
+    return yahooFinanceService.financialsCache?.get(sym)?.data ||
+           (sym.endsWith('.NS') ? yahooFinanceService.financialsCache?.get(sym.replace('.NS', ''))?.data : null) ||
+           (sym.endsWith('.BO') ? yahooFinanceService.financialsCache?.get(sym.replace('.BO', ''))?.data : null) ||
+           yahooFinanceService.financialsCache?.get(`${sym}.NS`)?.data ||
+           yahooFinanceService.financialsCache?.get(`${sym}.BO`)?.data ||
+           null;
+  }
+
+  /**
    * Generic cache wrapper — returns cached data if fresh, else fetches and caches.
    */
   async _getCachedOrFetch(cacheKey, fetchFn) {
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      return cached.data;
+      let isStale = false;
+      // Only check staleness for stock-level datasets where items have a .symbol property
+      if (cacheKey.startsWith('all_ranked_stocks_') || cacheKey.startsWith('sector_detail_')) {
+        const stocks = Array.isArray(cached.data) ? cached.data : (cached.data?.stocks || []);
+        isStale = stocks.length > 0 && stocks.some(s => s && s.symbol && (s.revenue === null || s.revenue === undefined) && this._getFinFromCache(s.symbol));
+      }
+      if (!isStale) {
+        return cached.data;
+      }
     }
     const data = await fetchFn();
     if (data && (!Array.isArray(data) || data.some(s => s.indexPrice !== null || s.validStocks > 0))) {
@@ -1142,32 +1218,36 @@ class SectorDataService {
       });
     }
 
-    // Fetch financials (EBIT & Net Profit) for constituent stocks if requested or cached
+    // Fetch financials (EBIT & Net Profit & YoY %) for constituent stocks if requested or cached
     const financialsMap = new Map();
-    if (!isFinancialSector) {
-      if (fetchReturns) {
-        const stockFinList = await Promise.allSettled(
-          symbols.map(sym => yahooFinanceService.getStockFinancials(sym))
-        );
-        symbols.forEach((sym, idx) => {
-          if (stockFinList[idx].status === 'fulfilled' && stockFinList[idx].value) {
-            financialsMap.set(sym, stockFinList[idx].value);
-            if (sym.endsWith('.NS')) {
-              financialsMap.set(sym.replace('.NS', ''), stockFinList[idx].value);
-            }
+    if (fetchReturns) {
+      const stockFinList = await Promise.allSettled(
+        symbols.map(sym => yahooFinanceService.getStockFinancials(sym))
+      );
+      symbols.forEach((sym, idx) => {
+        if (stockFinList[idx].status === 'fulfilled' && stockFinList[idx].value) {
+          financialsMap.set(sym, stockFinList[idx].value);
+          if (sym.endsWith('.NS')) {
+            financialsMap.set(sym.replace('.NS', ''), stockFinList[idx].value);
           }
-        });
-      } else {
-        symbols.forEach(sym => {
-          const cached = yahooFinanceService.financialsCache?.get(sym)?.data;
-          if (cached) {
-            financialsMap.set(sym, cached);
-            if (sym.endsWith('.NS')) {
-              financialsMap.set(sym.replace('.NS', ''), cached);
-            }
+          if (sym.endsWith('.BO')) {
+            financialsMap.set(sym.replace('.BO', ''), stockFinList[idx].value);
           }
-        });
-      }
+        }
+      });
+    } else {
+      symbols.forEach(sym => {
+        const cached = this._getFinFromCache(sym);
+        if (cached) {
+          financialsMap.set(sym, cached);
+          if (sym.endsWith('.NS')) {
+            financialsMap.set(sym.replace('.NS', ''), cached);
+          }
+          if (sym.endsWith('.BO')) {
+            financialsMap.set(sym.replace('.BO', ''), cached);
+          }
+        }
+      });
     }
 
     // Fetch ATH & Base metrics for constituent stocks if requested or cached
@@ -1199,13 +1279,22 @@ class SectorDataService {
     }
 
     // Return enriched stock data, preserving sector stock metadata and strict provenance
-    return sector.stocks.map(stock => {
-      const quote = quoteMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? quoteMap.get(stock.symbol.replace('.NS', '')) : null);
+    const enrichedStocks = sector.stocks.map((stock) => {
+      const quote = quoteMap.get(stock.symbol) || 
+                    (stock.symbol.endsWith('.NS') ? quoteMap.get(stock.symbol.replace('.NS', '')) : null) ||
+                    (stock.symbol.endsWith('.BO') ? quoteMap.get(stock.symbol.replace('.BO', '')) : null) ||
+                    null;
+      const stockFin = financialsMap.get(stock.symbol) || 
+                       (stock.symbol.endsWith('.NS') ? financialsMap.get(stock.symbol.replace('.NS', '')) : null) ||
+                       (stock.symbol.endsWith('.BO') ? financialsMap.get(stock.symbol.replace('.BO', '')) : null) ||
+                       this._getFinFromCache(stock.symbol);
       const stockRets = returnsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? returnsMap.get(stock.symbol.replace('.NS', '')) : null) || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
-      const stockFin = financialsMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? financialsMap.get(stock.symbol.replace('.NS', '')) : null);
       const stockAthBase = athBaseMap.get(stock.symbol) || (stock.symbol.endsWith('.NS') ? athBaseMap.get(stock.symbol.replace('.NS', '')) : null);
 
       const resolvedEbit = isFinancialSector ? null : (stockFin?.ebit ?? quote?.ebit ?? null);
+      const resolvedRevenue = stockFin?.revenue ?? quote?.revenue ?? null;
+      const resolvedRevenueYoY = stockFin?.revenueYoY ?? quote?.revenueYoY ?? null;
+      const resolvedRevenueQuarterly = stockFin?.revenueQuarterly ?? quote?.revenueQuarterly ?? null;
       const resolvedNetProfit = stockFin?.netProfit ?? quote?.netProfit ?? null;
 
       const rawRank = rankMap.get(stock.symbol) ?? (stock.symbol.endsWith('.NS') ? rankMap.get(stock.symbol.replace('.NS', '')) : null) ?? null;
@@ -1259,7 +1348,12 @@ class SectorDataService {
           performance: stockRets,
           returns: stockRets,
           ebit: resolvedEbit,
+          revenue: resolvedRevenue,
+          revenueYoY: resolvedRevenueYoY,
+          revenueQuarterly: resolvedRevenueQuarterly,
           netProfit: resolvedNetProfit,
+          netProfitYoY: stockFin?.netProfitYoY ?? quote?.netProfitYoY ?? null,
+          netProfitQuarterly: stockFin?.netProfitQuarterly ?? quote?.netProfitQuarterly ?? null,
           week52Low: stockAthBase?.week52Low ?? stockAthBase?.baseLow ?? null,
           week52LowDate: stockAthBase?.week52LowDate ?? stockAthBase?.baseLowDate ?? null,
           allTimeHigh: stockAthBase?.allTimeHigh || null,
@@ -1299,6 +1393,7 @@ class SectorDataService {
         sector: sector.name,
         sectorId: sector.id,
         sectorName: sector.name,
+        indiaStockRank: null,
         indiaRank: null,
         indianMarketRank: null,
         globalRank: null,
@@ -1339,7 +1434,12 @@ class SectorDataService {
         pb: null,
         eps: null,
         ebit: resolvedEbit,
+        revenue: resolvedRevenue,
+        revenueYoY: resolvedRevenueYoY,
+        revenueQuarterly: resolvedRevenueQuarterly,
         netProfit: resolvedNetProfit,
+        netProfitYoY: stockFin?.netProfitYoY ?? quote?.netProfitYoY ?? null,
+        netProfitQuarterly: stockFin?.netProfitQuarterly ?? quote?.netProfitQuarterly ?? null,
         dividendYield: null,
         vwap: null,
         performance: stockRets,
@@ -1353,6 +1453,8 @@ class SectorDataService {
         lastUpdatedAt: new Date().toISOString()
       };
     });
+
+    return enrichedStocks;
   }
 
   /**
@@ -1474,20 +1576,24 @@ class SectorDataService {
 
       // ──────────────────────────────────────────────────────
       // STEP 3: Unified Historical Analysis for Primary Index Tickers (1 pass for Returns + ATH + 52W)
+      // Concurrency controlled in chunks of 5 to prevent Yahoo connection throttling
       // ──────────────────────────────────────────────────────
-      const indexAnalysisResults = await Promise.allSettled(
-        uniquePrimaryTickers.map(async (ticker) => ({
-          ticker,
-          analysis: await yahooFinanceService.getHistoricalAnalysis(ticker, primaryQuoteMap.get(ticker)?.ltp)
-        }))
-      );
-
       const indexAnalysisMap = new Map();
-      indexAnalysisResults.forEach(res => {
-        if (res.status === 'fulfilled' && res.value && res.value.analysis) {
-          indexAnalysisMap.set(res.value.ticker, res.value.analysis);
-        }
-      });
+      const INDEX_BATCH_SIZE = 5;
+      for (let i = 0; i < uniquePrimaryTickers.length; i += INDEX_BATCH_SIZE) {
+        const chunk = uniquePrimaryTickers.slice(i, i + INDEX_BATCH_SIZE);
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (ticker) => ({
+            ticker,
+            analysis: await yahooFinanceService.getHistoricalAnalysis(ticker, primaryQuoteMap.get(ticker)?.ltp)
+          }))
+        );
+        chunkResults.forEach(res => {
+          if (res.status === 'fulfilled' && res.value && res.value.analysis) {
+            indexAnalysisMap.set(res.value.ticker, res.value.analysis);
+          }
+        });
+      }
 
       // ──────────────────────────────────────────────────────
       // STEP 4: Build Sector Objects
@@ -1646,6 +1752,9 @@ class SectorDataService {
             validStocks: validStocks.length,
             totalMarketCap,
             ebit: totalEbit,
+            revenue: null,
+            revenueYoY: null,
+            revenueQuarterly: null,
             netProfit: totalNetProfit,
 
             stocks: stocksWithQuotes
@@ -1849,6 +1958,9 @@ class SectorDataService {
         timeframe,
         trend,
         ebit: totalEbit,
+        revenue: null,
+        revenueYoY: null,
+        revenueQuarterly: null,
         netProfit: totalNetProfit,
         totalVolume,
         totalMarketCap,
@@ -1942,15 +2054,37 @@ class SectorDataService {
           if (athBaseList[idx].status === 'fulfilled' && athBaseList[idx].value) athBaseMap.set(sym, athBaseList[idx].value);
         });
       } else {
-        // Fast instant path for 1D overview: pull from memory cache
+        // Fast path for 1D overview: pull from memory cache
         allSymbols.forEach(sym => {
           const ret = yahooFinanceService.returnsCache?.get(sym)?.data;
           if (ret) returnsMap.set(sym, ret);
-          const fin = yahooFinanceService.financialsCache?.get(sym)?.data;
+          const fin = this._getFinFromCache(sym);
           if (fin) finMap.set(sym, fin);
           const ath = athBaseService.cache?.get(`ATH_52W_V5:${sym.toUpperCase()}`)?.data;
           if (ath) athBaseMap.set(sym, ath);
         });
+
+        // Ensure all sector constituents and top 100 ranked stocks have genuine financials
+        const constituentSymbols = sectors.flatMap(s => (s.stocks || []).map(st => st.symbol));
+        const topRankedSymbols = Array.from(globalRankMap.entries())
+          .filter(([s, rank]) => typeof rank === 'number' && rank <= 100)
+          .sort((a, b) => a[1] - b[1])
+          .map(([s]) => s);
+
+        const prioritySymbols = [...new Set([...constituentSymbols, ...topRankedSymbols])];
+        const missingPriority = prioritySymbols.filter(sym => !finMap.has(sym) && !this._getFinFromCache(sym));
+
+        if (missingPriority.length > 0) {
+          const toFetch = missingPriority.slice(0, 10);
+          const topFinList = await Promise.allSettled(toFetch.map(sym => yahooFinanceService.getStockFinancials(sym)));
+          toFetch.forEach((sym, idx) => {
+            if (topFinList[idx].status === 'fulfilled' && topFinList[idx].value) {
+              finMap.set(sym, topFinList[idx].value);
+              if (sym.endsWith('.NS')) finMap.set(sym.replace('.NS', ''), topFinList[idx].value);
+              if (sym.endsWith('.BO')) finMap.set(sym.replace('.BO', ''), topFinList[idx].value);
+            }
+          });
+        }
       }
 
       const rankedStockList = allSymbols.map(sym => {
@@ -1958,7 +2092,7 @@ class SectorDataService {
         const secMeta = stockSectorMap.get(sym) || { sectorId: 'general', sectorName: 'General', region: 'india' };
         const isFin = secMeta.sectorId.includes('bank') || secMeta.sectorId.includes('fin') || secMeta.sectorId.includes('insurance');
         const stockRets = returnsMap.get(sym) || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null };
-        const fin = finMap.get(sym) || null;
+        const fin = finMap.get(sym) || this._getFinFromCache(sym) || null;
         const athBase = athBaseMap.get(sym) || null;
 
         const rawRank = globalRankMap.get(sym) ?? null;
@@ -1966,6 +2100,9 @@ class SectorDataService {
         const globalRank = validMarketCap !== null ? rawRank : null;
 
         const resolvedEbit = isFin ? null : (fin?.ebit ?? quote?.ebit ?? null);
+        const resolvedRevenue = fin?.revenue ?? quote?.revenue ?? null;
+        const resolvedRevenueYoY = fin?.revenueYoY ?? quote?.revenueYoY ?? null;
+        const resolvedRevenueQuarterly = fin?.revenueQuarterly ?? quote?.revenueQuarterly ?? null;
         const resolvedNetProfit = fin?.netProfit ?? quote?.netProfit ?? null;
 
         const hasValidPrice = quote && typeof quote.ltp === 'number' && quote.ltp > 0;
@@ -2006,8 +2143,12 @@ class SectorDataService {
             indianMarketRank: globalRank,
             globalRank,
             rank: globalRank,
-            marketCap: validMarketCap,
+            revenue: resolvedRevenue,
+            revenueYoY: resolvedRevenueYoY,
+            revenueQuarterly: resolvedRevenueQuarterly,
             netProfit: resolvedNetProfit,
+            netProfitYoY: fin?.netProfitYoY ?? quote?.netProfitYoY ?? null,
+            netProfitQuarterly: fin?.netProfitQuarterly ?? quote?.netProfitQuarterly ?? null,
             ebit: resolvedEbit,
             currentPrice: quote.ltp,
             price: quote.ltp,
@@ -2054,12 +2195,18 @@ class SectorDataService {
           sectorId: secMeta.sectorId,
           sectorName: secMeta.sectorName,
           region: secMeta.region,
+          indiaStockRank: null,
           indiaRank: null,
           indianMarketRank: null,
           globalRank: null,
           rank: null,
           marketCap: null,
+          revenue: resolvedRevenue,
+          revenueYoY: resolvedRevenueYoY,
+          revenueQuarterly: resolvedRevenueQuarterly,
           netProfit: resolvedNetProfit,
+          netProfitYoY: fin?.netProfitYoY ?? quote?.netProfitYoY ?? null,
+          netProfitQuarterly: fin?.netProfitQuarterly ?? quote?.netProfitQuarterly ?? null,
           ebit: resolvedEbit,
           currentPrice: null,
           price: null,

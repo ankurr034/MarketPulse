@@ -162,6 +162,9 @@ export function validateAndSanitizeQuote(rawQuote) {
       pb: null,
       eps: null,
       ebit: null,
+      revenue: null,
+      revenueYoY: null,
+      revenueQuarterly: null,
       netProfit: null,
       dividendYield: null,
       vwap: null,
@@ -197,6 +200,9 @@ export function validateAndSanitizeQuote(rawQuote) {
 
   const isFin = isFinancialEntity(symbol);
   const ebit = isFin ? null : (typeof rawQuote.ebit === 'number' && !isNaN(rawQuote.ebit) ? rawQuote.ebit : null);
+  const revenue = typeof rawQuote.revenue === 'number' && !isNaN(rawQuote.revenue) ? rawQuote.revenue : null;
+  const revenueYoY = (typeof rawQuote.revenueYoY === 'number' && !isNaN(rawQuote.revenueYoY)) ? rawQuote.revenueYoY : null;
+  const revenueQuarterly = rawQuote.revenueQuarterly || null;
   const netProfit = typeof rawQuote.netProfit === 'number' && !isNaN(rawQuote.netProfit) ? rawQuote.netProfit : null;
 
   const rawPriceAsOf = rawQuote.priceAsOf;
@@ -250,7 +256,12 @@ export function validateAndSanitizeQuote(rawQuote) {
     pb: typeof rawQuote.pb === 'number' && rawQuote.pb > 0 ? rawQuote.pb : null,
     eps: typeof rawQuote.eps === 'number' ? rawQuote.eps : null,
     ebit,
+    revenue,
+    revenueYoY,
+    revenueQuarterly,
     netProfit,
+    netProfitYoY: (typeof rawQuote.netProfitYoY === 'number' && !isNaN(rawQuote.netProfitYoY)) ? rawQuote.netProfitYoY : null,
+    netProfitQuarterly: rawQuote.netProfitQuarterly || null,
     dividendYield: typeof rawQuote.dividendYield === 'number' ? rawQuote.dividendYield : null,
     vwap: typeof rawQuote.vwap === 'number' && rawQuote.vwap > 0 ? rawQuote.vwap : ltp,
     returns: rawQuote.returns || { '1W': null, '1M': null, '6M': null, '1Y': null, '3Y': null, '5Y': null, 'ALL': null },

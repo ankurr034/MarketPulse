@@ -1026,14 +1026,18 @@ export const IndianMfSectorAnalysis = () => {
         axios.get(`${API_BASE}/indian-mf/dashboard-summary`).catch(e => { console.warn('Summary endpoint warning:', e.message); return { data: null }; }),
         axios.get(`${API_BASE}/indian-mf/all-direct-schemes`).catch(e => { console.warn('All direct schemes warning:', e.message); return { data: [] }; })
       ]);
-      if (overviewRes.data) setData(overviewRes.data);
+      if (overviewRes.data && overviewRes.data.macro && overviewRes.data.sectors) {
+        setData(overviewRes.data);
+      } else if (!overviewRes.data) {
+        throw new Error('Unable to retrieve Indian MFs sector overview.');
+      }
       if (Array.isArray(flatRes.data)) setFlatFunds(flatRes.data);
       if (Array.isArray(extraRes.data)) setExtraCategorySchemes(extraRes.data);
       if (summaryRes?.data) setLiveSummary(summaryRes.data);
       if (Array.isArray(directRes.data)) setAllDirectSchemes(directRes.data);
     } catch (err) {
       console.error('Failed to load sector overview:', err);
-      setError('Failed to load Indian MFs data.');
+      setError(err.message || 'Failed to load Indian MFs data.');
     } finally {
       setLoading(false);
     }
@@ -1828,8 +1832,14 @@ export const IndianMfSectorAnalysis = () => {
 
   if (!data || !data.macro || !data.sectors) {
     return (
-      <div className="flex-1 p-8 text-[var(--text-muted)] text-center">
-        No data available or malformed response.
+      <div className="flex-1 p-8 text-center text-slate-500 dark:text-slate-400">
+        <p className="mb-4">No data available or malformed response.</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg inline-flex items-center text-sm font-medium transition-colors cursor-pointer"
+        >
+          <RefreshCcw className="w-4 h-4 mr-2" /> Reload Data
+        </button>
       </div>
     );
   }

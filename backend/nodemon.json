@@ -1,0 +1,20 @@
+{
+  "watch": [
+    "server.js",
+    "routes",
+    "services",
+    "utils",
+    "config"
+  ],
+  "ext": "js,mjs,cjs",
+  "ignore": [
+    "data/**",
+    "**/data/**",
+    "**/*.json",
+    "**/*.log",
+    "**/*.md",
+    "node_modules/**",
+    "../data/**"
+  ],
+  "delay": 1500
+}

@@ -55,17 +55,16 @@ router.get('/macro/snapshot', async (req, res) => {
   }
 });
 
-let fetchPromise = null;
+let inFlightSectorsPromise = null;
 
-router.get('/sectors-overview', async (req, res) => {
-  try {
-    const hasInvalidData = sectorsOverviewCache?.sectors?.some(s => s.topFunds?.some(f => f.navAvailable === false));
-    if (sectorsOverviewCache && !hasInvalidData && (Date.now() - sectorsOverviewCacheTime < SECTORS_CACHE_TTL)) {
-      return res.json({ cached: true, ...sectorsOverviewCache });
-    }
+async function getOrFetchSectorsOverview() {
+  if (sectorsOverviewCache && (Date.now() - sectorsOverviewCacheTime < SECTORS_CACHE_TTL)) {
+    return sectorsOverviewCache;
+  }
 
-    if (!fetchPromise) {
-      fetchPromise = (async () => {
+  if (!inFlightSectorsPromise) {
+    inFlightSectorsPromise = (async () => {
+      try {
         const [macro, sectors] = await Promise.all([
           macroDataService.getMacroSnapshot(),
           indianMfSectorService.getAllSectorsWithFunds()
@@ -74,42 +73,32 @@ router.get('/sectors-overview', async (req, res) => {
         sectorsOverviewCache = payload;
         sectorsOverviewCacheTime = Date.now();
         return payload;
-      })();
-    }
+      } finally {
+        inFlightSectorsPromise = null;
+      }
+    })();
+  }
 
-    const payload = await fetchPromise;
-    fetchPromise = null; // Clear the promise once resolved
+  return inFlightSectorsPromise;
+}
 
+router.get('/sectors-overview', async (req, res) => {
+  try {
+    const payload = await getOrFetchSectorsOverview();
     res.json(payload);
   } catch (err) {
-    fetchPromise = null;
     console.error('Error fetching sectors overview:', err);
-    res.status(500).json({ error: 'Failed to fetch sectors overview' });
+    if (sectorsOverviewCache) {
+      return res.json({ cached: true, fallback: true, ...sectorsOverviewCache });
+    }
+    res.status(500).json({ error: 'Failed to fetch sectors overview', details: err.message });
   }
 });
 
 router.get('/sectors/flat', async (req, res) => {
   try {
-    let sectors;
-    if (sectorsOverviewCache && (Date.now() - sectorsOverviewCacheTime < SECTORS_CACHE_TTL)) {
-      sectors = sectorsOverviewCache.sectors;
-    } else {
-      if (!fetchPromise) {
-        fetchPromise = (async () => {
-          const [macro, s] = await Promise.all([
-            macroDataService.getMacroSnapshot(),
-            indianMfSectorService.getAllSectorsWithFunds()
-          ]);
-          const payload = { macro, sectors: s };
-          sectorsOverviewCache = payload;
-          sectorsOverviewCacheTime = Date.now();
-          return payload;
-        })();
-      }
-      const payload = await fetchPromise;
-      fetchPromise = null;
-      sectors = payload.sectors;
-    }
+    const payload = await getOrFetchSectorsOverview();
+    const sectors = payload?.sectors || [];
 
     const flatFunds = [];
     for (const sector of sectors) {

@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setActiveSector, setSectors, setLoading, setActiveSymbol, setTimeframe } from '../store/slices/marketSlice';
 import { 
   Building, Building2, Landmark, Cpu, Car, Pill, ShoppingBag, 
   Hammer, Zap, Tv, HardHat, TrendingUp, Download, RefreshCw, 
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, 
-  ChevronsLeft, ChevronsRight, ArrowRight
+  ChevronsLeft, ChevronsRight, ArrowRight, X
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -188,7 +188,6 @@ export default function SectorHeatmap() {
   // Filter & interaction state
   const [viewMode, setViewMode] = useState('sectors'); // 'sectors' | 'all_stocks'
   const [selectedSectorFilter, setSelectedSectorFilter] = useState('all');
-  const [activePeriod, setActivePeriod] = useState('1W');
   const [expandedSectorId, setExpandedSectorId] = useState(null);
   
   // All Stocks dataset state
@@ -203,6 +202,7 @@ export default function SectorHeatmap() {
   const [stockFilterTab, setStockFilterTab] = useState('all'); // 'all' | 'gainers' | 'losers' | 'volume' | 'marketCap'
   const [stockSearchQuery, setStockSearchQuery] = useState('');
   const [visibleStockCount, setVisibleStockCount] = useState(5);
+  const autoSwitchedFromSectorsRef = useRef(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -210,6 +210,32 @@ export default function SectorHeatmap() {
 
   // Refresh trigger state
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Search handlers with automatic view mode management
+  const handleSearchChange = useCallback((query) => {
+    setStockSearchQuery(query);
+    setCurrentPage(1);
+    if (query && query.trim().length > 0) {
+      if (viewMode === 'sectors') {
+        autoSwitchedFromSectorsRef.current = true;
+        setViewMode('all_stocks');
+      }
+    } else {
+      if (autoSwitchedFromSectorsRef.current) {
+        autoSwitchedFromSectorsRef.current = false;
+        setViewMode('sectors');
+      }
+    }
+  }, [viewMode]);
+
+  const handleClearSearch = useCallback(() => {
+    setStockSearchQuery('');
+    setCurrentPage(1);
+    if (autoSwitchedFromSectorsRef.current) {
+      autoSwitchedFromSectorsRef.current = false;
+      setViewMode('sectors');
+    }
+  }, []);
 
   // Format actual backend/store update timestamp
   const formattedLastUpdated = useMemo(() => {
@@ -346,15 +372,26 @@ export default function SectorHeatmap() {
   const processedAllStocks = useMemo(() => {
     let list = [...allRankedUniverse];
 
-    // Filter by search query
+    // Filter by search query across complete stock dataset
     if (stockSearchQuery.trim()) {
       const q = stockSearchQuery.toLowerCase().trim();
-      list = list.filter(stk =>
-        (stk.symbol && stk.symbol.toLowerCase().includes(q)) ||
-        (stk.name && stk.name.toLowerCase().includes(q)) ||
-        (stk.sector && stk.sector.toLowerCase().includes(q)) ||
-        (stk.sectorName && stk.sectorName.toLowerCase().includes(q))
-      );
+      list = list.filter(stk => {
+        const symbol = (stk.symbol || '').toLowerCase();
+        const cleanSymbol = symbol.replace('.ns', '').replace('.bo', '');
+        const name = (stk.name || '').toLowerCase();
+        const bseSymbol = (stk.bseSymbol || '').toLowerCase();
+        const ticker = (stk.ticker || '').toLowerCase();
+        const sector = (stk.sector || stk.sectorName || '').toLowerCase();
+
+        return (
+          cleanSymbol.includes(q) ||
+          symbol.includes(q) ||
+          name.includes(q) ||
+          bseSymbol.includes(q) ||
+          ticker.includes(q) ||
+          sector.includes(q)
+        );
+      });
     }
 
     // Filter by tab (preserves immutable stock.globalRank)
@@ -531,6 +568,40 @@ export default function SectorHeatmap() {
     );
   };
 
+  // Render Revenue cell: Line 1 current reported Revenue (₹ Cr), Line 2 quarterly same-quarter Revenue YoY %
+  const renderRevenueCell = (item) => {
+    const revenueVal = (item?.revenue !== undefined && item?.revenue !== null && !isNaN(item.revenue))
+      ? Number(item.revenue)
+      : null;
+    const yoyVal = (item?.revenueYoY !== undefined && item?.revenueYoY !== null && !isNaN(item.revenueYoY))
+      ? Number(item.revenueYoY)
+      : null;
+
+    const formattedRevenue = (revenueVal !== null && revenueVal !== undefined && !isNaN(revenueVal))
+      ? formatIndianNumber(revenueVal, 0, 0)
+      : '—';
+
+    const isPos = yoyVal !== null && yoyVal > 0;
+    const isNeg = yoyVal !== null && yoyVal < 0;
+
+    return (
+      <div className="flex flex-col items-end py-0.5">
+        <span className="font-mono text-slate-800 dark:text-slate-200">
+          {formattedRevenue}
+        </span>
+        <span
+          className={`text-[10px] font-mono font-medium leading-tight ${
+            isPos ? 'text-emerald-600 dark:text-emerald-400' :
+            isNeg ? 'text-rose-600 dark:text-rose-400' :
+            'text-slate-400'
+          }`}
+        >
+          {yoyVal !== null ? `${isPos ? '+' : ''}${yoyVal.toFixed(2)}%` : '—'}
+        </span>
+      </div>
+    );
+  };
+
   // Export CSV
   const handleExportCSV = () => {
     if (viewMode === 'all_stocks') {
@@ -540,7 +611,8 @@ export default function SectorHeatmap() {
         '# (India Rank)',
         'Stock',
         'Sector',
-        'Net Profit (Cr INR)',
+        'Revenue (Cr INR)',
+        'Current Qtr YoY (%)',
         'Market Cap (Cr INR)',
         'Base Recovery (%)',
         'ATH Distance (%)',
@@ -565,7 +637,8 @@ export default function SectorHeatmap() {
           stk.globalRank !== null && stk.globalRank !== undefined ? stk.globalRank : '—',
           `"${(stk.symbol || '').replace('.NS', '')} - ${stk.name || ''}"`,
           `"${stk.sector || stk.sectorName || ''}"`,
-          stk.netProfit ? stk.netProfit.toFixed(2) : '—',
+          stk.revenue !== null && stk.revenue !== undefined ? stk.revenue.toFixed(2) : '—',
+          stk.revenueYoY !== null && stk.revenueYoY !== undefined ? `${stk.revenueYoY > 0 ? '+' : ''}${stk.revenueYoY.toFixed(2)}%` : '—',
           stk.marketCap || '—',
           rec,
           athDist,
@@ -599,7 +672,8 @@ export default function SectorHeatmap() {
     const headers = [
       '#',
       'Sector',
-      'Net Profit (Cr INR)',
+      'Revenue (Cr INR)',
+      'Current Qtr YoY (%)',
       'Up Stocks',
       'Down Stocks',
       'Total Stocks',
@@ -626,7 +700,8 @@ export default function SectorHeatmap() {
       return [
         index + 1,
         `"${s.name || ''}"`,
-        s.netProfit ? s.netProfit.toFixed(2) : '—',
+        s.revenue !== null && s.revenue !== undefined ? s.revenue.toFixed(2) : '—',
+        s.revenueYoY !== null && s.revenueYoY !== undefined ? `${s.revenueYoY > 0 ? '+' : ''}${s.revenueYoY.toFixed(2)}%` : '—',
         s.advances || 0,
         s.declines || 0,
         s.totalStocks || s.stocks?.length || 0,
@@ -808,13 +883,14 @@ export default function SectorHeatmap() {
         </div>
       </div>
 
-      {/* ── CONTROLS ROW: VIEW TOGGLE + DROPDOWN + PERIODS + EXPORT CSV ── */}
+      {/* ── CONTROLS ROW: VIEW TOGGLE + DROPDOWN + STOCK SEARCH BAR + EXPORT CSV ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
           {/* View Mode Toggle Pill */}
-          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs shrink-0">
             <button
               onClick={() => {
+                autoSwitchedFromSectorsRef.current = false;
                 setViewMode('sectors');
                 if (selectedSectorFilter === 'all_stocks') setSelectedSectorFilter('all');
                 setCurrentPage(1);
@@ -829,6 +905,7 @@ export default function SectorHeatmap() {
             </button>
             <button
               onClick={() => {
+                autoSwitchedFromSectorsRef.current = false;
                 setViewMode('all_stocks');
                 setSelectedSectorFilter('all_stocks');
                 setCurrentPage(1);
@@ -844,7 +921,7 @@ export default function SectorHeatmap() {
           </div>
 
           {/* Sector Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <select
               value={selectedSectorFilter}
               onChange={(e) => {
@@ -855,6 +932,7 @@ export default function SectorHeatmap() {
                 } else {
                   setViewMode('sectors');
                 }
+                autoSwitchedFromSectorsRef.current = false;
                 setCurrentPage(1);
               }}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer min-w-[140px]"
@@ -868,31 +946,32 @@ export default function SectorHeatmap() {
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
 
-          {/* Period Filter Buttons */}
-          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs">
-            {PERIODS.map(p => {
-              const isActive = activePeriod === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setActivePeriod(p)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                    isActive
-                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-400/80 dark:border-blue-500/80 shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
-                >
-                  {p}
-                </button>
-              );
-            })}
+          {/* Stock Search Bar */}
+          <div className="relative flex-1 min-w-[200px] sm:min-w-[260px] max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search stocks..."
+              value={stockSearchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs transition-colors"
+            />
+            {stockSearchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Export CSV Button */}
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs ml-auto"
+          className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs ml-auto shrink-0"
         >
           <Download size={13} className="text-slate-500 dark:text-slate-400" />
           <span>Export CSV</span>
@@ -940,17 +1019,23 @@ export default function SectorHeatmap() {
 
             {/* Search Input across All Stocks */}
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search by stock or sector..."
+                placeholder="Search stocks..."
                 value={stockSearchQuery}
-                onChange={(e) => {
-                  setStockSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-8 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 shadow-2xs"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-8 pr-8 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 shadow-2xs"
               />
+              {stockSearchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -962,7 +1047,12 @@ export default function SectorHeatmap() {
                   <th className="py-3 px-3 w-8 text-center">#</th>
                   <th className="py-3 px-3">Stock</th>
                   <th className="py-3 px-3">Sector</th>
-                  <th className="py-3 px-3 text-right">Net Profit (₹ Cr)</th>
+                  <th className="py-2.5 px-3 text-right">
+                    <div>Revenue (₹ Cr)</div>
+                    <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
+                      Current Qtr YoY
+                    </div>
+                  </th>
                   <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
                   <th className="py-2.5 px-3 text-center">
                     <div className="font-bold text-slate-700 dark:text-slate-200">
@@ -1012,7 +1102,7 @@ export default function SectorHeatmap() {
                       >
                         {/* # Global Rank */}
                         <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500 dark:text-slate-400">
-                          {stock.globalRank !== null && stock.globalRank !== undefined ? `#${stock.globalRank}` : '—'}
+                          {(stock.indiaStockRank ?? stock.globalRank) !== null && (stock.indiaStockRank ?? stock.globalRank) !== undefined ? `#${stock.indiaStockRank ?? stock.globalRank}` : '—'}
                         </td>
 
                         {/* Stock Badge + Symbol */}
@@ -1041,9 +1131,9 @@ export default function SectorHeatmap() {
                           </span>
                         </td>
 
-                        {/* Net Profit (₹ Cr) */}
-                        <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                          {stock.netProfit ? formatIndianNumber(stock.netProfit, 0, 0) : '—'}
+                        {/* Revenue (₹ Cr) */}
+                        <td className="py-2.5 px-3 text-right">
+                          {renderRevenueCell(stock)}
                         </td>
 
                         {/* Market Cap (₹ Cr) */}
@@ -1100,7 +1190,7 @@ export default function SectorHeatmap() {
                 ) : (
                   <tr>
                     <td colSpan={18} className="py-12 text-center text-slate-400 italic">
-                      No stocks found matching the selected criteria.
+                      No stocks found
                     </td>
                   </tr>
                 )}
@@ -1119,7 +1209,12 @@ export default function SectorHeatmap() {
                 <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-3 w-8 text-center">#</th>
                   <th className="py-3 px-3">Sector</th>
-                  <th className="py-3 px-3 text-right">Net Profit (₹ Cr)</th>
+                  <th className="py-2.5 px-3 text-right">
+                    <div>Revenue (₹ Cr)</div>
+                    <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
+                      Current Qtr YoY
+                    </div>
+                  </th>
                   <th className="py-3 px-3 text-center">Up / Down / Total</th>
                   <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
                   <th className="py-2.5 px-3 text-center">
@@ -1205,9 +1300,9 @@ export default function SectorHeatmap() {
                             </div>
                           </td>
 
-                          {/* Net Profit (₹ Cr) */}
-                          <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                            {sector.netProfit ? formatIndianNumber(sector.netProfit, 0, 0) : '—'}
+                          {/* Revenue (₹ Cr) */}
+                          <td className="py-3 px-3 text-right">
+                            {renderRevenueCell(sector)}
                           </td>
 
                           {/* Up / Down / Total */}
@@ -1307,14 +1402,23 @@ export default function SectorHeatmap() {
                                   <div className="flex items-center gap-3">
                                     {/* Search Stocks in Sector */}
                                     <div className="relative">
-                                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                       <input
                                         type="text"
-                                        placeholder={`Search within ${sector.name}`}
+                                        placeholder="Search stocks..."
                                         value={stockSearchQuery}
-                                        onChange={(e) => setStockSearchQuery(e.target.value)}
-                                        className="pl-8 pr-3 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 w-52"
+                                        onChange={(e) => handleSearchChange(e.target.value)}
+                                        className="pl-8 pr-8 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 w-52"
                                       />
+                                      {stockSearchQuery && (
+                                        <button
+                                          onClick={handleClearSearch}
+                                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                          title="Clear search"
+                                        >
+                                          <X size={13} />
+                                        </button>
+                                      )}
                                     </div>
 
                                     {/* View All Stocks Link */}
@@ -1345,7 +1449,12 @@ export default function SectorHeatmap() {
                                         <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                                           <th className="py-2.5 px-3 w-8 text-center">#</th>
                                           <th className="py-2.5 px-3">Stock</th>
-                                          <th className="py-2.5 px-3 text-right">Net Profit (₹ Cr)</th>
+                                          <th className="py-2 px-3 text-right">
+                                            <div>Revenue (₹ Cr)</div>
+                                            <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
+                                              Current Qtr YoY
+                                            </div>
+                                          </th>
                                           <th className="py-2.5 px-3 text-right">Market Cap (₹ Cr)</th>
                                           <th className="py-2 px-3 text-center">
                                             <div className="font-bold text-slate-700 dark:text-slate-200">
@@ -1388,7 +1497,7 @@ export default function SectorHeatmap() {
                                             return (
                                               <tr>
                                                 <td colSpan={17} className="py-8 text-center text-slate-400 italic">
-                                                  No stocks found matching the criteria.
+                                                  No stocks found
                                                 </td>
                                               </tr>
                                             );
@@ -1407,7 +1516,7 @@ export default function SectorHeatmap() {
                                               >
                                                 {/* # Persistent Global Market-Cap Rank */}
                                                 <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500 dark:text-slate-400">
-                                                  {stock.globalRank !== null && stock.globalRank !== undefined ? `#${stock.globalRank}` : '—'}
+                                                  {(stock.indiaStockRank ?? stock.globalRank) !== null && (stock.indiaStockRank ?? stock.globalRank) !== undefined ? `#${stock.indiaStockRank ?? stock.globalRank}` : '—'}
                                                 </td>
 
                                                 {/* Stock Badge + Symbol */}
@@ -1429,9 +1538,9 @@ export default function SectorHeatmap() {
                                                   </div>
                                                 </td>
 
-                                                {/* Net Profit (₹ Cr) */}
-                                                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                                                  {stock.netProfit ? formatIndianNumber(stock.netProfit, 0, 0) : '—'}
+                                                {/* Revenue (₹ Cr) */}
+                                                <td className="py-2.5 px-3 text-right">
+                                                  {renderRevenueCell(stock)}
                                                 </td>
 
                                                 {/* Market Cap (₹ Cr) */}
