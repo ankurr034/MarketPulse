@@ -23,6 +23,7 @@
     "socket.io": "^4.7.5",
     "upstox-js-sdk": "^2.30.0",
     "ws": "^8.21.3",
+    "xlsx": "^0.18.5",
     "yahoo-finance2": "^4.0.0"
   },
   "devDependencies": {

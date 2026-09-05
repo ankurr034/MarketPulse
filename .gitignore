@@ -17,8 +17,9 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
-data/
-backend/data/
+/data/
+/backend/data/*
+!/backend/data/amc_disclosures/
 .vite/
 *.vite
 

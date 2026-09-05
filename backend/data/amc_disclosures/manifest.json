@@ -1,0 +1,83 @@
+{
+  "provider": "PPFAS Mutual Fund Official Portal",
+  "fetchedAt": "2026-09-05T08:12:26.248Z",
+  "schemes": {
+    "122639": {
+      "schemeCode": "122639",
+      "isin": "INF879O01027",
+      "fileKey": "PPFCF",
+      "schemeName": "Parag Parikh Flexi Cap Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPFCF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "122639_PPFCF.xlsx",
+      "fileSizeBytes": 98381,
+      "fetchedAt": "2026-09-05T08:12:26.496Z",
+      "verified": true
+    },
+    "143269": {
+      "schemeCode": "143269",
+      "isin": "INF879O01126",
+      "fileKey": "PPLF",
+      "schemeName": "Parag Parikh Liquid Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPLF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "143269_PPLF.xlsx",
+      "fileSizeBytes": 72328,
+      "fetchedAt": "2026-09-05T08:12:26.851Z",
+      "verified": true
+    },
+    "147481": {
+      "schemeCode": "147481",
+      "isin": "INF879O01191",
+      "fileKey": "PPTSF",
+      "schemeName": "Parag Parikh ELSS Tax Saver Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPTSF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "147481_PPTSF.xlsx",
+      "fileSizeBytes": 82071,
+      "fetchedAt": "2026-09-05T08:12:26.678Z",
+      "verified": true
+    },
+    "148958": {
+      "schemeCode": "148958",
+      "isin": "INF879O01225",
+      "fileKey": "PPCHF",
+      "schemeName": "Parag Parikh Conservative Hybrid Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPCHF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "148958_PPCHF.xlsx",
+      "fileSizeBytes": 88778,
+      "fetchedAt": "2026-09-05T08:12:26.782Z",
+      "verified": true
+    },
+    "152109": {
+      "schemeCode": "152109",
+      "isin": "INF879O01266",
+      "fileKey": "PPAF",
+      "schemeName": "Parag Parikh Arbitrage Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPAF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "152109_PPAF.xlsx",
+      "fileSizeBytes": 92978,
+      "fetchedAt": "2026-09-05T08:12:26.930Z",
+      "verified": true
+    },
+    "152468": {
+      "schemeCode": "152468",
+      "isin": "INF879O01282",
+      "fileKey": "PPDAAF",
+      "schemeName": "Parag Parikh Dynamic Asset Allocation Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPDAAF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "152468_PPDAAF.xlsx",
+      "fileSizeBytes": 73669,
+      "fetchedAt": "2026-09-05T08:12:27.008Z",
+      "verified": true
+    },
+    "154155": {
+      "schemeCode": "154155",
+      "isin": "INF879O01308",
+      "fileKey": "PPLCF",
+      "schemeName": "Parag Parikh Large Cap Fund",
+      "sourceUrl": "https://amc.ppfas.com/downloads/portfolio-disclosure/2026/PPLCF_PPFAS_Monthly_Portfolio_Report_July_31_2026.xlsx",
+      "fileName": "154155_PPLCF.xlsx",
+      "fileSizeBytes": 87362,
+      "fetchedAt": "2026-09-05T08:12:26.596Z",
+      "verified": true
+    }
+  }
+}

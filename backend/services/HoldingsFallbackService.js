@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { yahooFinance } from './YahooFinanceService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
+import officialAmcPortfolioService from './OfficialAmcPortfolioService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,7 +127,16 @@ class HoldingsFallbackService {
       const topHoldings = res.topHoldings;
       
       if (!topHoldings || !topHoldings.holdings || topHoldings.holdings.length === 0) {
-        const unavailable = { available: false, reason: "Holdings data not available for this ticker in Yahoo Finance." };
+        const unavailable = {
+          available: false,
+          holdingsAvailable: false,
+          dataStatus: 'DATA_UNAVAILABLE',
+          positions: [],
+          holdings: [],
+          sectorBreakdown: {},
+          sector_weightings: {},
+          reason: "Holdings data not available for this ticker in Yahoo Finance."
+        };
         this._setCache(cacheKey, unavailable);
         return unavailable;
       }
@@ -142,13 +152,26 @@ class HoldingsFallbackService {
       
       const result = {
         available: true,
+        holdingsAvailable: true,
+        dataStatus: 'DATA_AVAILABLE',
+        positions: holdings,
         holdings: holdings,
+        sectorBreakdown: sectorWeightings,
         sector_weightings: sectorWeightings
       };
       this._setCache(cacheKey, result);
       return result;
     } catch (e) {
-      return { available: false, reason: `Failed to parse holdings: ${e.message}` };
+      return {
+        available: false,
+        holdingsAvailable: false,
+        dataStatus: 'DATA_UNAVAILABLE',
+        positions: [],
+        holdings: [],
+        sectorBreakdown: {},
+        sector_weightings: {},
+        reason: `Failed to parse holdings: ${e.message}`
+      };
     }
   }
 
@@ -286,8 +309,14 @@ class HoldingsFallbackService {
 
       const result = {
         available: true,
+        holdingsAvailable: true,
+        dataStatus: 'DATA_AVAILABLE',
+        schemeCode: cleanCode,
+        isin: isin,
         holdings: formattedHoldings,
+        positions: formattedHoldings,
         sector_weightings: sectorWeightings,
+        sectorBreakdown: sectorWeightings,
         aum: resolvedAum,
         aumCr: resolvedAum,
         aumAsOf: aumAsOf,
@@ -319,8 +348,28 @@ class HoldingsFallbackService {
   async getHoldings(ticker, schemeName) {
     const cleanTicker = String(ticker).trim();
     if (/^\d+$/.test(cleanTicker)) {
+      // 1. Primary authoritative source: Official AMC Portfolio Disclosure
+      try {
+        const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanTicker);
+        if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanTicker) {
+          const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
+          const resolvedAum = officialRes.portfolioAumCr || (cachedAum && typeof cachedAum.value === 'number' ? Number(cachedAum.value) : null);
+          return {
+            ...officialRes,
+            schemeCode: cleanTicker,
+            aum: resolvedAum,
+            aumCr: resolvedAum,
+            aumAsOf: officialRes.holdingsAsOf || cachedAum?.asOf || null,
+            aumSource: officialRes.source || cachedAum?.source || null
+          };
+        }
+      } catch (amcErr) {
+        console.warn(`Official AMC holdings lookup failed for ${cleanTicker}:`, amcErr.message);
+      }
+
+      // 2. Secondary fallback: FinAPI
       const directResult = await this.fetchFinapiHoldings(cleanTicker);
-      if (directResult && directResult.available !== false) {
+      if (directResult && directResult.available !== false && directResult.holdings && directResult.holdings.length > 0) {
         return directResult;
       }
 
@@ -329,6 +378,12 @@ class HoldingsFallbackService {
 
       return {
         available: false,
+        holdingsAvailable: false,
+        dataStatus: "DATA_UNAVAILABLE",
+        schemeCode: cleanTicker,
+        positions: [],
+        holdings: [],
+        sectorBreakdown: {},
         aum: aumVal,
         aumCr: aumVal,
         aumAsOf: cachedAum?.asOf || null,

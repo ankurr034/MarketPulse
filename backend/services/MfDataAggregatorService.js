@@ -7,6 +7,7 @@ import holdingsFallbackService from './HoldingsFallbackService.js';
 import riskAnalyticsService from './RiskAnalyticsService.js';
 import aiRankingEngineService from './AiRankingEngineService.js';
 import mfapiCacheService from './MfapiCacheService.js';
+import officialAmcPortfolioService from './OfficialAmcPortfolioService.js';
 
 class MfDataAggregatorService {
   constructor() {
@@ -97,26 +98,30 @@ class MfDataAggregatorService {
   }
 
   async getSchemeHoldings(schemeCode, timeframe = 'all') {
-    const cacheKey = `holdings_${schemeCode}_${timeframe}_dynamic`;
+    const cleanCode = String(schemeCode || '').trim();
+    const cacheKey = `holdings_${cleanCode}_${timeframe}_dynamic`;
     const cached = this._getCached(cacheKey);
-    if (cached) return cached;
+    if (cached && String(cached.schemeCode) === cleanCode) return cached;
 
-    const maxNavHistoryRes = await this.getSchemeNavHistory(schemeCode, 'max');
+    const maxNavHistoryRes = await this.getSchemeNavHistory(cleanCode, 'max');
     const fullNavHistory = maxNavHistoryRes && maxNavHistoryRes.data ? maxNavHistoryRes.data : [];
 
-    const navHistoryRes = (timeframe === 'max' || timeframe === 'all') ? maxNavHistoryRes : await this.getSchemeNavHistory(schemeCode, timeframe);
+    const navHistoryRes = (timeframe === 'max' || timeframe === 'all') ? maxNavHistoryRes : await this.getSchemeNavHistory(cleanCode, timeframe);
     const navHistory = navHistoryRes && navHistoryRes.data ? navHistoryRes.data : [];
     const meta = maxNavHistoryRes && maxNavHistoryRes.meta ? maxNavHistoryRes.meta : null;
 
-    const schemeName = meta ? meta.scheme_name : `Scheme ${schemeCode}`;
+    const schemeName = meta ? meta.scheme_name : `Scheme ${cleanCode}`;
     const category = meta ? meta.scheme_category : 'Equity Scheme';
 
     const aiEvaluation = aiRankingEngineService.evaluateAssetRiskAndPerformance(navHistory, [], timeframe);
 
     let holdings = [];
+    let positions = [];
     let sectorBreakdown = {};
     let holdingsAvailable = false;
     let holdingsReason = "Official portfolio holdings disclosure unavailable for this fund";
+    let holdingsAsOf = null;
+    let holdingsSource = null;
     let aum = null;
     let expenseRatio = null;
     let high52 = null;
@@ -125,21 +130,47 @@ class MfDataAggregatorService {
     let pb = null;
     let finapiRes = null;
 
+    let officialMeta = null;
+
+    // 1. Primary authoritative source: Official AMC Portfolio Disclosure
+    try {
+      const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanCode);
+      if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanCode) {
+        officialMeta = officialRes;
+        positions = officialRes.positions;
+        holdings = officialRes.positions;
+        sectorBreakdown = officialRes.sectorBreakdown || {};
+        holdingsAvailable = true;
+        holdingsReason = null;
+        holdingsAsOf = officialRes.holdingsAsOf;
+        holdingsSource = officialRes.source;
+        if (officialRes.portfolioAumCr && !isNaN(officialRes.portfolioAumCr)) {
+          aum = Number(officialRes.portfolioAumCr);
+        }
+      }
+    } catch (amcErr) {
+      console.warn(`Official AMC portfolio check warning for scheme ${cleanCode}:`, amcErr.message);
+    }
+
+    // 2. Fetch FinAPI for auxiliary fundamentals (expenseRatio, pe, pb) or fallback holdings
     try {
       finapiRes = await holdingsFallbackService.fetchFinapiHoldings(schemeCode);
       if (finapiRes) {
-        if (finapiRes.available) {
-          holdings = finapiRes.holdings || [];
+        if (!holdingsAvailable && finapiRes.available && finapiRes.holdings && finapiRes.holdings.length > 0) {
+          positions = finapiRes.holdings;
+          holdings = finapiRes.holdings;
           sectorBreakdown = finapiRes.sector_weightings || {};
-          holdingsAvailable = holdings.length > 0;
-          if (holdingsAvailable) holdingsReason = null;
-          expenseRatio = finapiRes.expenseRatio ?? null;
-          high52 = finapiRes.high52 ?? null;
-          low52 = finapiRes.low52 ?? null;
-          pe = finapiRes.pe ?? null;
-          pb = finapiRes.pb ?? null;
+          holdingsAvailable = true;
+          holdingsReason = null;
+          holdingsAsOf = finapiRes.holdings[0]?.portfolioAsOf || null;
+          holdingsSource = 'Upvaly FinAPI Disclosure';
         }
-        if (finapiRes.aum !== null && finapiRes.aum !== undefined && !isNaN(finapiRes.aum) && Number(finapiRes.aum) > 0) {
+        expenseRatio = finapiRes.expenseRatio ?? null;
+        high52 = finapiRes.high52 ?? null;
+        low52 = finapiRes.low52 ?? null;
+        pe = finapiRes.pe ?? null;
+        pb = finapiRes.pb ?? null;
+        if (aum === null && finapiRes.aum !== null && finapiRes.aum !== undefined && !isNaN(finapiRes.aum) && Number(finapiRes.aum) > 0) {
           aum = Number(finapiRes.aum);
         }
       }
@@ -200,16 +231,31 @@ class MfDataAggregatorService {
 
     const result = {
       available: true,
-      schemeCode: schemeCode,
+      schemeCode: cleanCode,
       schemeName: schemeName,
       category: category,
-      fundManager: meta ? (meta.fund_house || 'Motilal Oswal Asset Management Co. Ltd.') : 'Motilal Oswal AMC Management Team',
+      fundManager: meta ? (meta.fund_house || 'Mutual Fund AMC') : 'Mutual Fund Management Team',
       benchmark: benchmark,
       risk: category.toLowerCase().includes('debt') ? 'Moderate' : 'Very High',
-      asOfDate: new Date().toLocaleDateString('en-IN'),
+      asOfDate: holdingsAsOf || new Date().toLocaleDateString('en-IN'),
       nav: latestNav,
       holdingsAvailable,
       holdingsReason,
+      dataStatus: holdingsAvailable ? 'DATA_AVAILABLE' : 'DATA_UNAVAILABLE',
+      holdingsAsOf: holdingsAsOf || null,
+      holdingsSource: holdingsSource || null,
+      sourceUrl: officialMeta?.sourceUrl || null,
+      sourceFile: officialMeta?.sourceFile || null,
+      fetchedAt: officialMeta?.fetchedAt || null,
+      amc: officialMeta?.amc || meta?.fund_house || null,
+      AMC: officialMeta?.AMC || meta?.fund_house || null,
+      plan: officialMeta?.plan || 'Direct Plan',
+      option: officialMeta?.option || 'Growth',
+      isin: officialMeta?.isin || meta?.isin_growth || null,
+      ISIN: officialMeta?.ISIN || meta?.isin_growth || null,
+      totalDisclosedPositionsCount: officialMeta?.totalDisclosedPositionsCount || (holdingsAvailable ? positions.length : 0),
+      eligibleStockPositionsCount: officialMeta?.eligibleStockPositionsCount || (holdingsAvailable ? positions.filter(p => p.securityType === 'Equity' || p.securityType === 'Foreign Equity' || p.securityType === 'ETF/REIT').length : 0),
+      positions: positions,
       holdings: holdings,
       sectorBreakdown: sectorBreakdown,
       oneDayChangePct: calcMetrics.return1D ?? null,

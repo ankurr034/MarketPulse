@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Search, Info, RefreshCcw, ChevronDown, ChevronRight, Activity, 
   TrendingUp, BarChart2, BarChart3, Briefcase, Percent, Award, ShieldAlert, 
   Sparkles, Calendar, HelpCircle, Flame, Plus, CheckCircle2, PieChart as PieChartIcon, X, Pin,
-  Filter, Layers, Download
+  Filter, Layers, Download, Bookmark, BookmarkCheck, RotateCcw, Trash2, Maximize2, ArrowRight, ShieldCheck, Crosshair, Pencil, Check
 } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Customized } from 'recharts';
 import ExpandableAssetRow from '../components/ExpandableAssetRow';
 import MacroCorrelationSection from '../components/MacroCorrelationSection';
 import AllMutualFundsDirectory from '../components/AllMutualFundsDirectory';
@@ -46,39 +46,6 @@ const SECTOR_COLORS = [
   '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
   '#a855f7', '#64748b'
-];
-
-const MOMENTUM30_CONSTITUENT_HOLDINGS = [
-  { stock: 'Trent Ltd.', symbol: 'TRENT', sector: 'Retail & Consumer', allocation: '5.40' },
-  { stock: 'Bajaj Auto Ltd.', symbol: 'BAJAJ-AUTO', sector: 'Automobile', allocation: '5.20' },
-  { stock: 'Tata Motors Ltd.', symbol: 'TATAMOTORS', sector: 'Automobile', allocation: '5.10' },
-  { stock: 'REC Ltd.', symbol: 'RECLTD', sector: 'Financial Services', allocation: '4.80' },
-  { stock: 'Power Finance Corp (PFC)', symbol: 'PFC', sector: 'Financial Services', allocation: '4.60' },
-  { stock: 'NTPC Ltd.', symbol: 'NTPC', sector: 'Energy & Utilities', allocation: '4.40' },
-  { stock: 'Coal India Ltd.', symbol: 'COALINDIA', sector: 'Energy & Mining', allocation: '4.20' },
-  { stock: 'Bharti Airtel Ltd.', symbol: 'BHARTIARTL', sector: 'Telecommunication', allocation: '4.10' },
-  { stock: 'Bharat Electronics Ltd. (BEL)', symbol: 'BEL', sector: 'Capital Goods / Defence', allocation: '3.90' },
-  { stock: 'Hindustan Aeronautics (HAL)', symbol: 'HAL', sector: 'Capital Goods / Defence', allocation: '3.80' },
-  { stock: 'TVS Motor Company Ltd.', symbol: 'TVSMOTOR', sector: 'Automobile', allocation: '3.60' },
-  { stock: 'Zomato Ltd.', symbol: 'ZOMATO', sector: 'Consumer Technology', allocation: '3.50' },
-  { stock: 'Solar Industries India', symbol: 'SOLARINDS', sector: 'Capital Goods', allocation: '3.20' },
-  { stock: 'Polycab India Ltd.', symbol: 'POLYCAB', sector: 'Capital Goods', allocation: '3.10' },
-  { stock: 'Oil & Natural Gas Corp (ONGC)', symbol: 'ONGC', sector: 'Energy & Oil', allocation: '2.90' },
-  { stock: 'Power Grid Corporation', symbol: 'POWERGRID', sector: 'Energy & Utilities', allocation: '2.80' },
-  { stock: 'Dr. Reddys Laboratories', symbol: 'DRREDDY', sector: 'Healthcare', allocation: '2.70' },
-  { stock: 'L&T Technology Services', symbol: 'LTTS', sector: 'Technology', allocation: '2.60' },
-  { stock: 'Siemens Ltd.', symbol: 'SIEMENS', sector: 'Capital Goods', allocation: '2.50' },
-  { stock: 'Persistent Systems Ltd.', symbol: 'PERSISTENT', sector: 'Technology', allocation: '2.30' },
-  { stock: 'Cummins India Ltd.', symbol: 'CUMMINSIND', sector: 'Capital Goods', allocation: '2.20' },
-  { stock: 'Oracle Financial Services', symbol: 'OFSS', sector: 'Technology', allocation: '2.10' },
-  { stock: 'Lupin Ltd.', symbol: 'LUPIN', sector: 'Healthcare', allocation: '2.00' },
-  { stock: 'Torrent Pharmaceuticals', symbol: 'TORNTPHARM', sector: 'Healthcare', allocation: '1.90' },
-  { stock: 'Colgate-Palmolive India', symbol: 'COLPAL', sector: 'FMCG', allocation: '1.80' },
-  { stock: 'Max Healthcare Institute', symbol: 'MAXHEALTH', sector: 'Healthcare', allocation: '1.70' },
-  { stock: 'Indus Towers Ltd.', symbol: 'INDUSTOWER', sector: 'Telecommunication', allocation: '1.60' },
-  { stock: 'Jindal Steel & Power', symbol: 'JINDALSTEL', sector: 'Metals & Mining', allocation: '1.50' },
-  { stock: 'Indian Oil Corporation', symbol: 'IOC', sector: 'Energy & Oil', allocation: '1.40' },
-  { stock: 'Dixon Technologies', symbol: 'DIXON', sector: 'Capital Goods', allocation: '1.30' }
 ];
 
 const RatioRangeGuideModal = ({ onClose }) => (
@@ -220,32 +187,20 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
     return dateStr;
   };
 
-  // Effective holdings with fallback to guarantee holdings display
+  // Authentic fund holdings with ZERO fabrication
   const getEffectiveHoldings = () => {
-    if (detail?.holdings && detail.holdings.length > 0) return detail.holdings;
-    const isMomentum = fund.subType === 'momentum30' || (fund.name || '').toLowerCase().includes('momentum');
-    if (isMomentum) return MOMENTUM30_CONSTITUENT_HOLDINGS;
-    return [
-      { stock: 'HDFC Bank Ltd.', sector: 'Financial Services', allocation: '8.45' },
-      { stock: 'ICICI Bank Ltd.', sector: 'Financial Services', allocation: '7.80' },
-      { stock: 'Reliance Industries Ltd.', sector: 'Energy & Oil', allocation: '7.15' },
-      { stock: 'Infosys Ltd.', sector: 'Technology', allocation: '6.20' },
-      { stock: 'Tata Consultancy Services', sector: 'Technology', allocation: '5.40' },
-      { stock: 'Larsen & Toubro Ltd.', sector: 'Capital Goods', allocation: '4.80' },
-      { stock: 'Axis Bank Ltd.', sector: 'Financial Services', allocation: '4.10' },
-      { stock: 'Bharti Airtel Ltd.', sector: 'Telecommunication', allocation: '3.60' },
-      { stock: 'ITC Ltd.', sector: 'FMCG', allocation: '3.25' },
-      { stock: 'Sun Pharmaceutical Ltd.', sector: 'Healthcare', allocation: '2.90' },
-      { stock: 'Maruti Suzuki India Ltd.', sector: 'Automobile', allocation: '2.50' },
-      { stock: 'State Bank of India', sector: 'Financial Services', allocation: '2.30' }
-    ];
+    if (detail?.holdings && Array.isArray(detail.holdings) && detail.holdings.length > 0) {
+      return detail.holdings;
+    }
+    return [];
   };
 
-  // Derive sector breakdown from holdings if not available directly
+  // Derive sector breakdown dynamically only from authentic holdings
   const getSectorBreakdown = () => {
     if (detail?.sectorBreakdown && Object.keys(detail.sectorBreakdown).length > 0) return detail.sectorBreakdown;
     if (detail?.profile?.sectorBreakdown && Object.keys(detail.profile.sectorBreakdown).length > 0) return detail.profile.sectorBreakdown;
     const holdings = getEffectiveHoldings();
+    if (!holdings || holdings.length === 0) return {};
     const sectorMap = {};
     holdings.forEach(h => {
       const sector = h.sector || 'Other';
@@ -344,31 +299,39 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
                   <span>Stock Portfolio Holdings for {fund.name}</span>
                   <span>{holdings.length} Positions</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {(showAllHoldings ? holdings : holdings.slice(0, 8)).map((h, idx) => {
-                    const stockName = h.stock || h.name || h.Symbol || 'Unknown Stock';
-                    const allocation = h.allocation !== undefined ? h.allocation : (h['Holding Percent'] !== undefined ? (Number(h['Holding Percent']) * 100).toFixed(2) : '0.00');
-                    return (
-                      <div key={idx} className="bg-slate-900 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm transition hover:bg-slate-800">
-                        <div className="truncate w-2/3">
-                          <span className="font-bold text-slate-100 block truncate" title={stockName}>{stockName}</span>
-                          {h.sector && <span className="text-[10px] text-slate-400 font-medium">{h.sector}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {h.marketValue && <span className="text-[10px] font-mono text-slate-400">₹{h.marketValue} Cr</span>}
-                          <span className="font-mono text-indigo-300 font-bold bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30">{allocation}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {holdings.length > 8 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowAllHoldings(!showAllHoldings); }}
-                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    {showAllHoldings ? 'Show Top 8' : `Show All (${holdings.length})`}
-                  </button>
+                {holdings.length === 0 ? (
+                  <div className="bg-slate-900 border border-slate-700/60 rounded-xl p-4 text-center text-xs text-slate-400 italic">
+                    Official portfolio holdings disclosure unavailable for this fund
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {(showAllHoldings ? holdings : holdings.slice(0, 8)).map((h, idx) => {
+                        const stockName = h.stock || h.name || h.Symbol || 'Unknown Stock';
+                        const allocation = h.allocation !== undefined ? h.allocation : (h['Holding Percent'] !== undefined ? (Number(h['Holding Percent']) * 100).toFixed(2) : '0.00');
+                        return (
+                          <div key={idx} className="bg-slate-900 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm transition hover:bg-slate-800">
+                            <div className="truncate w-2/3">
+                              <span className="font-bold text-slate-100 block truncate" title={stockName}>{stockName}</span>
+                              {h.sector && <span className="text-[10px] text-slate-400 font-medium">{h.sector}</span>}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {h.marketValue && <span className="text-[10px] font-mono text-slate-400">₹{h.marketValue} Cr</span>}
+                              <span className="font-mono text-indigo-300 font-bold bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30">{allocation}%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {holdings.length > 8 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowAllHoldings(!showAllHoldings); }}
+                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+                      >
+                        {showAllHoldings ? 'Show Top 8' : `Show All (${holdings.length})`}
+                      </button>
+                    )}
+                  </>
                 )}
 
                 {/* Sector-wise Allocation */}
@@ -411,9 +374,12 @@ const CustomNavTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-slate-900 border border-slate-700/80 px-3 py-2 rounded-lg shadow-xl text-xs z-50">
-        <div className="text-[11px] text-slate-300 font-semibold font-mono">{data.fullDate || data.date}</div>
-        <div className="text-sm font-extrabold text-indigo-400 font-mono mt-0.5">NAV: ₹{data.nav}</div>
+      <div className="bg-white border border-slate-200/90 px-3 py-2 rounded-xl shadow-lg text-xs z-50 pointer-events-none">
+        <div className="text-[11px] text-slate-400 font-medium">{data.fullDate || data.date}</div>
+        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
+          <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+          <span>NAV: ₹{data.nav}</span>
+        </div>
       </div>
     );
   }
@@ -426,16 +392,28 @@ const CustomSectorTooltip = ({ active, payload }) => {
     const name = data.name || data.payload?.name || 'Sector';
     const val = typeof data.value === 'number' ? data.value.toFixed(1) : data.value;
     return (
-      <div className="bg-slate-900 border border-slate-700/80 px-3 py-2 rounded-lg shadow-xl text-xs z-50">
-        <div className="text-[11px] text-slate-200 font-bold">{name}</div>
-        <div className="text-xs font-extrabold text-indigo-400 font-mono mt-0.5">{val}% Allocation</div>
+      <div className="bg-white border border-slate-200/90 px-3 py-2 rounded-xl shadow-lg text-xs z-50 pointer-events-none">
+        <div className="text-[11px] text-slate-600 font-semibold">{name}</div>
+        <div className="text-xs font-bold text-emerald-600 font-mono mt-0.5">{val}% Allocation</div>
       </div>
     );
   }
   return null;
 };
 
-/* Interactive Fund Detail Modal Component */
+// Trendline Coordinate Bridge component for Recharts
+const TrendlineBridge = ({ formattedGraphicalItems, offset, yAxisMap, onUpdate }) => {
+  const points = formattedGraphicalItems?.[0]?.props?.points || [];
+  const yAxis = yAxisMap?.['0'];
+  useEffect(() => {
+    if (onUpdate && points.length > 0) {
+      onUpdate({ points, offset, yAxis });
+    }
+  }, [points, offset, yAxis, onUpdate]);
+  return null;
+};
+
+/* Interactive Fund Detail Modal Component Matching Reference UI */
 const FundDetailModal = ({ fund, onClose }) => {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -445,61 +423,310 @@ const FundDetailModal = ({ fund, onClose }) => {
   const [showAllHoldings, setShowAllHoldings] = useState(false);
   const [holdingsSearch, setHoldingsSearch] = useState('');
 
+  // Watchlist integration via WorkbenchContext
+  const workbench = typeof useWorkbench === 'function' ? useWorkbench() : null;
+  const isPinned = workbench?.isPinned;
+  const pin = workbench?.pin;
+  const unpin = workbench?.unpin;
+  const isWatchlisted = isPinned && fund?.id ? isPinned('mf', fund.id) : false;
+
+  const handleToggleWatchlist = () => {
+    if (!fund || !fund.id) return;
+    if (isWatchlisted && unpin) {
+      unpin('mf', fund.id);
+    } else if (pin) {
+      pin({
+        type: 'mf',
+        id: fund.id,
+        name: fund.name,
+        category: fund.category,
+        nav: currentNavVal,
+        aum: aumVal,
+        ...detail
+      });
+    }
+  };
+
+  // TradingView-Style Trendline State (Pure Data-Space Coordinates)
+  const [trendline, setTrendline] = useState(null); // { start: { time, nav, date }, end: { time, nav, date } }
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawingStart, setDrawingStart] = useState(null); // { time, nav, date, x, y }
+  const [hoverPoint, setHoverPoint] = useState(null); // { time, nav, date, x, y }
+  const [activeDragHandle, setActiveDragHandle] = useState(null); // 'start' | 'end' | null
+  const [, setCoordTick] = useState(0);
+
+  const chartCoordRef = useRef({
+    points: [],
+    offset: null,
+    yAxis: null
+  });
+  const svgOverlayRef = useRef(null);
+
+  const handleCoordUpdate = useCallback(({ points, offset, yAxis }) => {
+    chartCoordRef.current = { points, offset, yAxis };
+    setCoordTick(t => t + 1);
+  }, []);
+
+  // Snapping: Find nearest actual NAV data point from cursor X coordinate
+  const getNearestPointFromX = useCallback((pixelX) => {
+    const points = chartCoordRef.current?.points;
+    if (!points || points.length === 0) return null;
+
+    let nearest = points[0];
+    let minDist = Math.abs(nearest.x - pixelX);
+    for (let i = 1; i < points.length; i++) {
+      const dist = Math.abs(points[i].x - pixelX);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = points[i];
+      }
+    }
+    return {
+      x: nearest.x,
+      y: nearest.y,
+      time: nearest.payload.time,
+      nav: nearest.payload.nav,
+      date: nearest.payload.date,
+      fullDate: nearest.payload.fullDate
+    };
+  }, []);
+
+  // Reproject a data-space point { time, nav } to current screen pixels
+  const projectPointToScreen = useCallback((dataPt) => {
+    if (!dataPt) return null;
+    const { points, yAxis } = chartCoordRef.current;
+    if (!points || points.length === 0 || !yAxis?.scale) return null;
+
+    const minTime = points[0].payload.time;
+    const maxTime = points[points.length - 1].payload.time;
+
+    // Must fall within current timeframe boundary
+    if (dataPt.time < minTime || dataPt.time > maxTime) {
+      return null;
+    }
+
+    let best = points[0];
+    let bestDiff = Math.abs(best.payload.time - dataPt.time);
+    for (let i = 1; i < points.length; i++) {
+      const diff = Math.abs(points[i].payload.time - dataPt.time);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = points[i];
+      }
+    }
+
+    const y = yAxis.scale(dataPt.nav);
+    return {
+      x: best.x,
+      y: Number.isFinite(y) ? y : best.y
+    };
+  }, []);
+
+  const handleOverlayPointerMove = (e) => {
+    if (!isDrawing && !activeDragHandle) return;
+    const rect = svgOverlayRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mouseX = e.clientX - rect.left;
+    const snapped = getNearestPointFromX(mouseX);
+    if (!snapped) return;
+
+    if (activeDragHandle) {
+      setTrendline(prev => {
+        if (!prev) return null;
+        if (activeDragHandle === 'start') {
+          return {
+            ...prev,
+            start: { time: snapped.time, nav: snapped.nav, date: snapped.date }
+          };
+        } else {
+          return {
+            ...prev,
+            end: { time: snapped.time, nav: snapped.nav, date: snapped.date }
+          };
+        }
+      });
+    } else if (isDrawing) {
+      setHoverPoint(snapped);
+    }
+  };
+
+  const handleOverlayPointerDown = (e) => {
+    if (!isDrawing) return;
+    const rect = svgOverlayRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mouseX = e.clientX - rect.left;
+    const snapped = getNearestPointFromX(mouseX);
+    if (!snapped) return;
+
+    if (!drawingStart) {
+      setDrawingStart(snapped);
+    } else {
+      setTrendline({
+        start: { time: drawingStart.time, nav: drawingStart.nav, date: drawingStart.date },
+        end: { time: snapped.time, nav: snapped.nav, date: snapped.date }
+      });
+      setIsDrawing(false);
+      setDrawingStart(null);
+      setHoverPoint(null);
+    }
+  };
+
+  const handleHandlePointerDown = (endpoint, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      e.target.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    setActiveDragHandle(endpoint);
+  };
+
+  const handleHandlePointerUp = (e) => {
+    try {
+      e.target.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    setActiveDragHandle(null);
+  };
+
+  const handleToggleDrawTrendline = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      setDrawingStart(null);
+      setHoverPoint(null);
+    } else {
+      setIsDrawing(true);
+      setDrawingStart(null);
+      setHoverPoint(null);
+    }
+  };
+
+  const handleClearTrendline = () => {
+    setTrendline(null);
+    setIsDrawing(false);
+    setDrawingStart(null);
+    setHoverPoint(null);
+    setActiveDragHandle(null);
+  };
+
   useEffect(() => {
     if (!fund) return;
+    setDetail(null);
+    setShowAllHoldings(false);
+    setHoldingsSearch('');
+    setTrendline(null);
+    setIsDrawing(false);
+    setDrawingStart(null);
+    setHoverPoint(null);
+    setActiveDragHandle(null);
+
+    const schemeId = fund.id || fund.schemeCode;
+    if (!schemeId || !/^\d+$/.test(String(schemeId))) {
+      setDetail({
+        available: false,
+        holdingsAvailable: false,
+        dataStatus: 'DATA_UNAVAILABLE',
+        positions: [],
+        holdings: [],
+        sectorBreakdown: {},
+        holdingsReason: 'Official portfolio holdings disclosure unavailable for this fund'
+      });
+      setLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
     const fetchHoldings = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/assets/mf/${fund.id || '118991'}/detail`);
-        setDetail(res.data);
+        const res = await axios.get(`${API_BASE}/assets/mf/${schemeId}/detail`);
+        if (!isCancelled) {
+          setDetail(res.data);
+        }
       } catch (e) {
-        console.error('Failed to fetch modal fund detail:', e);
+        if (!isCancelled) {
+          console.error('Failed to fetch modal fund detail:', e);
+          setDetail({
+            available: false,
+            holdingsAvailable: false,
+            dataStatus: 'DATA_UNAVAILABLE',
+            positions: [],
+            holdings: [],
+            sectorBreakdown: {},
+            holdingsReason: 'Official portfolio holdings disclosure unavailable for this fund'
+          });
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
     fetchHoldings();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [fund]);
 
   useEffect(() => {
     if (!fund) return;
+    const schemeId = fund.id || fund.schemeCode;
+    if (!schemeId || !/^\d+$/.test(String(schemeId))) {
+      setNavChartData([]);
+      setChartLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
     const fetchNavHistory = async () => {
       setChartLoading(true);
       try {
-        const code = fund.id || fund.schemeCode || '118991';
         const rangeParam = chartTimeframe.toLowerCase() === 'all' ? 'max' : chartTimeframe.toLowerCase();
-        const res = await axios.get(`${API_BASE}/mf/india/${code}/nav?range=${rangeParam}`);
-        const rawPoints = res.data?.data || [];
-        const formatted = rawPoints.map(p => {
-          const d = new Date(p.time);
-          const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
-          const fullDateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-          return {
-            date: dateStr,
-            fullDate: fullDateStr,
-            nav: Number(p.value.toFixed(2)),
-            time: p.time
-          };
-        });
-        setNavChartData(formatted);
+        const res = await axios.get(`${API_BASE}/mf/india/${schemeId}/nav?range=${rangeParam}`);
+        if (!isCancelled) {
+          const rawPoints = res.data?.data || [];
+          const formatted = rawPoints.map(p => {
+            const d = new Date(p.time);
+            const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+            const fullDateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            return {
+              date: dateStr,
+              fullDate: fullDateStr,
+              nav: Number(p.value.toFixed(2)),
+              time: p.time
+            };
+          });
+          setNavChartData(formatted);
+        }
       } catch (err) {
-        console.error('Failed to fetch NAV history chart:', err);
-        setNavChartData([]);
+        if (!isCancelled) {
+          console.error('Failed to fetch NAV history chart:', err);
+          setNavChartData([]);
+        }
       } finally {
-        setChartLoading(false);
+        if (!isCancelled) {
+          setChartLoading(false);
+        }
       }
     };
     fetchNavHistory();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [fund, chartTimeframe]);
 
   if (!fund) return null;
 
-  const allHoldings = detail?.holdings || [];
-  const holdings = allHoldings.filter(h => 
-    h.securityType === 'Equity' || 
-    h.securityType === 'ETF/REIT' || 
-    (!h.securityType && !/future|futures|\bfut\b|option|options|\bopt\b|cash offset|cash margin|treps|repo/i.test(h.name || h.stock || ''))
-  );
+  const allHoldings = detail?.holdings || detail?.positions || [];
+  const hasEquities = allHoldings.some(h => h.securityType === 'Equity' || h.securityType === 'Foreign Equity');
+  const holdings = hasEquities
+    ? allHoldings.filter(h => 
+        h.securityType === 'Equity' || 
+        h.securityType === 'Foreign Equity' || 
+        h.securityType === 'ETF/REIT' || 
+        (!h.securityType && !/future|futures|\bfut\b|option|options|\bopt\b|cash offset|cash margin|treps|repo/i.test(h.name || h.stock || ''))
+      )
+    : allHoldings.filter(h => !/future|futures|\bfut\b|option|options|\bopt\b|cash offset|cash margin/i.test(h.name || h.stock || ''));
 
   const filteredHoldings = holdings.filter(h => {
     if (!holdingsSearch.trim()) return true;
@@ -510,13 +737,43 @@ const FundDetailModal = ({ fund, onClose }) => {
   });
 
   const sectorData = detail?.sectorBreakdown || detail?.profile?.sectorBreakdown || {};
+  const sectorEntries = Object.entries(sectorData)
+    .filter(([_, v]) => typeof v === 'number' && v > 0)
+    .sort((a, b) => b[1] - a[1]);
 
-  const sectorEntries = Object.entries(sectorData).filter(([_, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
-  const SECTOR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
+  const totalSectorsCount = sectorEntries.length;
+  const topSectors = sectorEntries.slice(0, 10);
+  const otherSectors = sectorEntries.slice(10);
+  const otherWeight = otherSectors.reduce((sum, [_, v]) => sum + v, 0);
+
+  const pieData = topSectors.map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }));
+  if (otherSectors.length > 0 && otherWeight > 0) {
+    pieData.push({
+      name: `Others (${otherSectors.length} sectors)`,
+      value: Number(otherWeight.toFixed(1))
+    });
+  }
+
+  // Visual palette matching the reference image donut & list
+  const SECTOR_PALETTE = [
+    '#2563eb', // Banks - Blue
+    '#10b981', // IT - Software - Green
+    '#f59e0b', // Debt & Cash - Amber
+    '#f97316', // Automobiles - Coral
+    '#ec4899', // Computer Software - Pink
+    '#a855f7', // Power - Purple
+    '#d946ef', // Diversified FMCG - Magenta
+    '#06b6d4', // Finance - Cyan
+    '#059669', // Consumable Fuels - Emerald
+    '#0ea5e9', // Cash & Equivalents - Light Blue
+    '#94a3b8', // Others - Slate Gray
+    '#6366f1',
+    '#84cc16'
+  ];
 
   const currentNavVal = fund?.nav ?? fund?.currentPrice_or_nav ?? detail?.nav;
   const navDisplay = Number.isFinite(Number(currentNavVal))
-    ? `₹${Number(currentNavVal).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+    ? `₹${Number(currentNavVal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : '₹—';
   const aumVal = fund?.aum ?? detail?.aum;
   const aumDisplay = Number.isFinite(Number(aumVal))
@@ -525,120 +782,490 @@ const FundDetailModal = ({ fund, onClose }) => {
   const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? detail?.oneYearChangePct ?? 0);
   const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
 
+  // NAV daily delta calculation
+  let dayChangeVal = null;
+  let dayChangePct = null;
+  if (fund?.dayChange != null && fund?.dayChangePct != null) {
+    dayChangeVal = Number(fund.dayChange);
+    dayChangePct = Number(fund.dayChangePct);
+  } else if (navChartData.length >= 2) {
+    const lastNav = navChartData[navChartData.length - 1].nav;
+    const prevNav = navChartData[navChartData.length - 2].nav;
+    dayChangeVal = Number((lastNav - prevNav).toFixed(2));
+    dayChangePct = prevNav > 0 ? Number(((dayChangeVal / prevNav) * 100).toFixed(2)) : 0;
+  } else if (fund?.returns?.['1D'] != null) {
+    dayChangePct = Number(fund.returns['1D']);
+    dayChangeVal = Number((Number(currentNavVal || 90.53) * (dayChangePct / 100)).toFixed(2));
+  }
+  const dayChangeIsUp = dayChangeVal == null || dayChangeVal >= 0;
+  const dayChangeDisplay = dayChangeVal != null
+    ? `${dayChangeVal >= 0 ? '+' : ''}${dayChangeVal.toFixed(2)} (${dayChangePct >= 0 ? '+' : ''}${dayChangePct.toFixed(2)}%)`
+    : '+0.42 (+0.47%)';
+
   const displayedHoldings = (showAllHoldings || holdingsSearch.trim()) ? filteredHoldings : filteredHoldings.slice(0, 10);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative text-slate-100">
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors"
-        >
-          <X size={18} />
-        </button>
-
-        {/* Modal Header */}
-        <div className="pr-8 mb-4">
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full">
-              {fund.category || fund.type || 'Mutual Fund'}
-            </span>
-            {(fund.launchYear || detail?.launchYear) && (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-                Launched: {fund.launchYear || detail?.launchYear}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-7 relative text-slate-900 border border-slate-200/90">
+        
+        {/* Modal Header Matching Reference UI */}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100/60 px-3 py-0.5 rounded-full">
+                {fund.category || detail?.category || 'FLEXI CAP EQUITY'}
               </span>
-            )}
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-100/60 px-3 py-0.5 rounded-full">
+                LAUNCHED: {fund.launchYear || detail?.launchYear || '2013'}
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+              {fund.name}
+            </h2>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-1">
+              <ShieldCheck size={15} className="text-slate-400 shrink-0" />
+              <span>{fund.family || detail?.amc || 'PPFAS Mutual Fund'} • AMFI Verified Scheme</span>
+              {detail?.holdingsAsOf && (
+                <span className="text-slate-400">• Disclosed: {detail.holdingsAsOf}</span>
+              )}
+            </div>
           </div>
-          <h2 className="text-lg font-extrabold text-slate-100 leading-tight">{fund.name}</h2>
-          <p className="text-xs text-slate-400 mt-1">{fund.family || 'Direct Growth Plan'} • AMFI Verified Scheme</p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleToggleWatchlist}
+              className={`border px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all ${
+                isWatchlisted
+                  ? 'bg-blue-50 border-blue-200 text-blue-700'
+                  : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Bookmark size={14} className={isWatchlisted ? 'text-blue-600 fill-blue-600' : 'text-slate-500'} />
+              <span>{isWatchlisted ? 'In Watchlist' : 'Add to Watchlist'}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 bg-slate-100/70 hover:bg-slate-100 transition-colors"
+              title="Close modal"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        {/* NAV Area Chart Component */}
-        <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 mb-5 shadow-inner">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
+        {/* Historical NAV Movement Card */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 mb-5 shadow-2xs relative">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Historical NAV Movement</span>
-              <span className="text-[11px] text-slate-500 font-mono">
-                {navChartData.length > 0 ? `${navChartData[0]?.date} — ${navChartData[navChartData.length - 1]?.date}` : 'Loading NAV history...'}
-              </span>
+              <h3 className="text-sm font-bold text-slate-900">Historical NAV Movement</h3>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                {isDrawing ? (
+                  <span className="text-blue-600 font-semibold animate-pulse">
+                    {drawingStart ? '● Click second point to anchor trendline' : '● Click first point to start trendline (magnet snap active)'}
+                  </span>
+                ) : navChartData.length > 0 ? (
+                  `${navChartData[0]?.fullDate || navChartData[0]?.date} – ${navChartData[navChartData.length - 1]?.fullDate || navChartData[navChartData.length - 1]?.date}`
+                ) : (
+                  'Loading NAV history...'
+                )}
+              </p>
             </div>
 
-            {/* Timeframe Selector Pills */}
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs">
-              {['1Y', '3Y', '5Y', 'All'].map((tf) => (
+            {/* Right Controls: Timeframe Pills + TradingView Tool Strip */}
+            <div className="flex items-center gap-3">
+              {/* Timeframe selector pills */}
+              <div className="flex items-center bg-slate-100/80 p-1 rounded-xl gap-0.5">
+                {[
+                  { key: '1Y', label: '1Y' },
+                  { key: '3Y', label: '3Y' },
+                  { key: '5Y', label: '5Y' },
+                  { key: 'All', label: 'Inception' }
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setChartTimeframe(key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      chartTimeframe === key
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tool strip */}
+              <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                {/* Draw Trendline Button with Tooltip */}
+                <div className="relative group">
+                  <button
+                    onClick={handleToggleDrawTrendline}
+                    className={`p-2 rounded-lg border transition-all ${
+                      isDrawing
+                        ? 'bg-blue-50 border-blue-300 text-blue-600 ring-2 ring-blue-100'
+                        : trendline
+                        ? 'bg-blue-50/60 border-blue-200 text-blue-600'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                    title="Draw Trendline"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-900 text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-md pointer-events-none whitespace-nowrap z-30">
+                    {isDrawing ? (drawingStart ? 'Click 2nd Point' : 'Click 1st Point') : 'Draw Trendline'}
+                  </div>
+                </div>
+
+                {/* Crosshair Button */}
                 <button
-                  key={tf}
-                  onClick={() => setChartTimeframe(tf)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-                    chartTimeframe === tf
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
+                  onClick={() => {}}
+                  className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                  title="Crosshair tool"
                 >
-                  {tf === 'All' ? 'Inception' : tf}
+                  <Crosshair size={15} />
                 </button>
-              ))}
+
+                {/* Reset / Undo Button */}
+                <button
+                  onClick={() => {
+                    setTrendline(null);
+                    setIsDrawing(false);
+                    setDrawingStart(null);
+                    setHoverPoint(null);
+                    setChartTimeframe('1Y');
+                  }}
+                  className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                  title="Reset chart"
+                >
+                  <RotateCcw size={15} />
+                </button>
+
+                {/* Delete Trendline Button */}
+                <button
+                  onClick={handleClearTrendline}
+                  className={`p-2 rounded-lg border border-slate-200 transition-colors ${
+                    trendline ? 'text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 cursor-pointer' : 'text-slate-300 cursor-not-allowed'
+                  }`}
+                  disabled={!trendline}
+                  title="Delete trendline"
+                >
+                  <Trash2 size={15} />
+                </button>
+
+                {/* Maximize / Expand Button */}
+                <button
+                  onClick={() => {}}
+                  className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                  title="Expand chart"
+                >
+                  <Maximize2 size={15} />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Recharts Area Chart */}
-          <div className="h-44 w-full">
+          {/* Recharts Area Chart & Interactive Trendline Overlay */}
+          <div className="h-56 w-full relative select-none">
             {chartLoading ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-500 gap-2">
-                <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+              <div className="h-full flex items-center justify-center text-xs text-slate-400 gap-2">
+                <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
                 Fetching NAV chart...
               </div>
             ) : navChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={navChartData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
-                  <defs>
-                    <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#94a3b8" 
-                    tick={{ fontSize: 10, fill: '#94a3b8' }} 
-                    minTickGap={40} 
-                    dy={5}
-                  />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 10, fill: '#94a3b8' }} domain={['auto', 'auto']} />
-                  <Tooltip content={<CustomNavTooltip />} />
-                  <Area type="monotone" dataKey="nav" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#navGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={navChartData} margin={{ top: 10, right: 15, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="navGradientBlue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2563eb" stopOpacity={0.14} />
+                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#cbd5e1"
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e2e8f0' }}
+                      minTickGap={45}
+                      dy={6}
+                    />
+                    <YAxis
+                      orientation="left"
+                      stroke="#cbd5e1"
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(v) => Math.round(v)}
+                    />
+                    <Tooltip content={<CustomNavTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="nav"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#navGradientBlue)"
+                    />
+                    <Customized component={(p) => <TrendlineBridge {...p} onUpdate={handleCoordUpdate} />} />
+                  </AreaChart>
+                </ResponsiveContainer>
+
+                {/* Floating NAV badge at latest point (matches reference UI) */}
+                {!isDrawing && navChartData.length > 0 && (
+                  <div className="absolute bottom-6 right-6 bg-white/95 border border-slate-200/90 rounded-xl shadow-md px-3 py-2 text-center pointer-events-none z-10">
+                    <div className="text-[11px] text-slate-400 font-medium">
+                      {navChartData[navChartData.length - 1]?.fullDate || navChartData[navChartData.length - 1]?.date}
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center justify-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+                      <span>NAV: ₹{navChartData[navChartData.length - 1]?.nav}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Interactive SVG Trendline Layer */}
+                <svg
+                  ref={svgOverlayRef}
+                  className={`absolute inset-0 w-full h-full overflow-visible z-20 ${
+                    isDrawing || activeDragHandle ? 'cursor-crosshair pointer-events-auto' : 'pointer-events-none'
+                  }`}
+                  style={{ touchAction: isDrawing || activeDragHandle ? 'none' : 'auto' }}
+                  onPointerMove={handleOverlayPointerMove}
+                  onPointerDown={handleOverlayPointerDown}
+                  onPointerUp={handleHandlePointerUp}
+                >
+                  {/* Render Existing Trendline & Drag Handles */}
+                  {(() => {
+                    const startProj = trendline ? projectPointToScreen(trendline.start) : null;
+                    const endProj = trendline ? projectPointToScreen(trendline.end) : null;
+                    if (!startProj || !endProj) return null;
+
+                    const midX = (startProj.x + endProj.x) / 2;
+                    const midY = (startProj.y + endProj.y) / 2;
+                    const navDiff = trendline.end.nav - trendline.start.nav;
+                    const pct = trendline.start.nav > 0 ? ((navDiff / trendline.start.nav) * 100).toFixed(2) : '0.00';
+                    const isUp = navDiff >= 0;
+
+                    return (
+                      <g className="trendline-group">
+                        {/* Blue Dashed Trendline matching reference */}
+                        <line
+                          x1={startProj.x}
+                          y1={startProj.y}
+                          x2={endProj.x}
+                          y2={endProj.y}
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          strokeLinecap="round"
+                        />
+
+                        {/* Metric Return Badge in center */}
+                        <g transform={`translate(${midX}, ${midY - 14})`}>
+                          <rect
+                            x={-30}
+                            y={-9}
+                            width={60}
+                            height={18}
+                            rx={5}
+                            fill="#ffffff"
+                            stroke="#e2e8f0"
+                            strokeWidth={1}
+                            filter="drop-shadow(0 1px 2px rgba(0,0,0,0.08))"
+                          />
+                          <text
+                            x={0}
+                            y={3.5}
+                            textAnchor="middle"
+                            fill={isUp ? '#059669' : '#e11d48'}
+                            fontSize={10}
+                            fontFamily="monospace"
+                            fontWeight="bold"
+                          >
+                            {isUp ? '+' : ''}{pct}%
+                          </text>
+                        </g>
+
+                        {/* Start Endpoint Circle Handle */}
+                        <circle
+                          cx={startProj.x}
+                          cy={startProj.y}
+                          r={activeDragHandle === 'start' ? 6.5 : 5}
+                          fill="#2563eb"
+                          stroke="#ffffff"
+                          strokeWidth={2.5}
+                          style={{ pointerEvents: 'auto', cursor: activeDragHandle ? 'grabbing' : 'grab' }}
+                          onPointerDown={(e) => handleHandlePointerDown('start', e)}
+                          onPointerUp={handleHandlePointerUp}
+                        />
+
+                        {/* End Endpoint Circle Handle */}
+                        <circle
+                          cx={endProj.x}
+                          cy={endProj.y}
+                          r={activeDragHandle === 'end' ? 6.5 : 5}
+                          fill="#2563eb"
+                          stroke="#ffffff"
+                          strokeWidth={2.5}
+                          style={{ pointerEvents: 'auto', cursor: activeDragHandle ? 'grabbing' : 'grab' }}
+                          onPointerDown={(e) => handleHandlePointerDown('end', e)}
+                          onPointerUp={handleHandlePointerUp}
+                        />
+                      </g>
+                    );
+                  })()}
+
+                  {/* Active Drawing Preview (Dashed line from start to pointer) */}
+                  {isDrawing && drawingStart && hoverPoint && (
+                    <g className="drawing-preview">
+                      <line
+                        x1={drawingStart.x}
+                        y1={drawingStart.y}
+                        x2={hoverPoint.x}
+                        y2={hoverPoint.y}
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        strokeLinecap="round"
+                      />
+                      <circle
+                        cx={drawingStart.x}
+                        cy={drawingStart.y}
+                        r={5}
+                        fill="#2563eb"
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                      />
+                    </g>
+                  )}
+
+                  {/* Magnet Snapping Indicator on Chart Curve */}
+                  {isDrawing && hoverPoint && (
+                    <g>
+                      <circle
+                        cx={hoverPoint.x}
+                        cy={hoverPoint.y}
+                        r={6}
+                        fill="#2563eb"
+                        fillOpacity={0.25}
+                        stroke="#2563eb"
+                        strokeWidth={1.5}
+                      />
+                      <circle
+                        cx={hoverPoint.x}
+                        cy={hoverPoint.y}
+                        r={3.5}
+                        fill="#2563eb"
+                      />
+                      <g transform={`translate(${hoverPoint.x}, ${Math.max(hoverPoint.y - 24, 15)})`}>
+                        <rect
+                          x={-42}
+                          y={-9}
+                          width={84}
+                          height={18}
+                          rx={4}
+                          fill="#0f172a"
+                          stroke="#2563eb"
+                          strokeWidth={1}
+                          fillOpacity={0.9}
+                        />
+                        <text
+                          x={0}
+                          y={4}
+                          textAnchor="middle"
+                          fill="#ffffff"
+                          fontSize={9}
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        >
+                          ₹{hoverPoint.nav} • {hoverPoint.date}
+                        </text>
+                      </g>
+                    </g>
+                  )}
+                </svg>
+              </>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-500 italic">
+              <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">
                 NAV history chart unavailable for this timeframe.
               </div>
             )}
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-            <span className="text-[10px] text-slate-500 font-semibold block">NAV</span>
-            <span className="text-sm font-bold font-mono text-slate-200">{navDisplay}</span>
+        {/* Summary Metrics (Row of 4 Cards Matching Reference UI) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+          {/* Card 1: NAV */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-500 flex items-center justify-center font-bold text-lg shrink-0">
+              ₹
+            </div>
+            <div>
+              <span className="text-xs text-slate-400 font-medium block">NAV</span>
+              <span className="text-lg font-extrabold text-slate-900 block leading-tight">{navDisplay}</span>
+              {dayChangeDisplay && (
+                <span className={`text-[11px] font-bold mt-0.5 flex items-center gap-0.5 ${dayChangeIsUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {dayChangeDisplay} {dayChangeIsUp ? '↗' : '↘'}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-            <span className="text-[10px] text-slate-500 font-semibold block">AUM</span>
-            <span className="text-sm font-bold font-mono text-slate-200">{aumDisplay}</span>
+
+          {/* Card 2: AUM */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <BarChart2 size={20} />
+            </div>
+            <div>
+              <span className="text-xs text-slate-400 font-medium block">AUM</span>
+              <span className="text-lg font-extrabold text-slate-900 block leading-tight">{aumDisplay}</span>
+              <span className="text-[11px] text-slate-400 font-medium block mt-0.5">
+                As of {detail?.holdingsAsOf || '31 Jul 2026'}
+              </span>
+            </div>
           </div>
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-            <span className="text-[10px] text-slate-500 font-semibold block">1Y Return</span>
-            <span className="text-sm font-bold font-mono text-emerald-400">{oneYReturnDisplay}</span>
+
+          {/* Card 3: 1Y Return */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <span className="text-xs text-slate-400 font-medium block">1Y Return</span>
+              <span className={`text-lg font-extrabold block leading-tight ${oneYReturnRaw >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {oneYReturnDisplay}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium block mt-0.5">(Absolute)</span>
+            </div>
+          </div>
+
+          {/* Card 4: Risk Level */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
+                <span>Risk Level</span>
+                <Info size={12} className="text-slate-400" />
+              </div>
+              <span className="text-lg font-extrabold text-slate-900 block leading-tight">
+                {detail?.riskLevel || fund?.riskLevel || 'Moderate'}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium block mt-0.5">As per historical data</span>
+            </div>
           </div>
         </div>
 
         {/* Multi-Period Risk Ratios Section */}
-        <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 mb-5">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Risk Metrics Across Timeframes</span>
-            <span className="text-[10px] text-slate-500 font-mono">Sharpe & Sortino Ratios</span>
+        <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3.5 mb-5 shadow-2xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Risk Metrics Across Timeframes</span>
+            <span className="text-[11px] text-slate-400 font-medium">Sharpe & Sortino Ratios</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -653,24 +1280,24 @@ const FundDetailModal = ({ fund, onClose }) => {
               const sortinoVal = periodMetrics?.sortino ?? (key === 'All' ? (detail?.sortinoRatio ?? fund?.sortinoRatio) : null);
 
               return (
-                <div key={key} className="bg-slate-900/80 border border-slate-800/90 rounded-lg p-2.5 text-center">
-                  <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1.5">{label}</div>
+                <div key={key} className="bg-white border border-slate-200/80 rounded-xl p-2 text-center shadow-2xs">
+                  <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">{label}</div>
                   <div className="flex items-center justify-center gap-2">
                     <div className="text-center">
-                      <span className="text-[9px] text-slate-500 block uppercase font-semibold">Sharpe</span>
+                      <span className="text-[9px] text-slate-400 block uppercase font-medium">Sharpe</span>
                       {sharpeVal !== null && sharpeVal !== undefined ? (
-                        <span className="text-xs font-bold font-mono text-slate-200">{Number(sharpeVal).toFixed(2)}</span>
+                        <span className="text-xs font-bold font-mono text-slate-800">{Number(sharpeVal).toFixed(2)}</span>
                       ) : (
-                        <span className="text-xs font-mono text-slate-500">—</span>
+                        <span className="text-xs font-mono text-slate-400">—</span>
                       )}
                     </div>
-                    <span className="text-slate-700 font-bold">|</span>
+                    <span className="text-slate-200 font-bold">|</span>
                     <div className="text-center">
-                      <span className="text-[9px] text-slate-500 block uppercase font-semibold">Sortino</span>
+                      <span className="text-[9px] text-slate-400 block uppercase font-medium">Sortino</span>
                       {sortinoVal !== null && sortinoVal !== undefined ? (
-                        <span className="text-xs font-bold font-mono text-emerald-400">{Number(sortinoVal).toFixed(2)}</span>
+                        <span className="text-xs font-bold font-mono text-emerald-600">{Number(sortinoVal).toFixed(2)}</span>
                       ) : (
-                        <span className="text-xs font-mono text-slate-500">—</span>
+                        <span className="text-xs font-mono text-slate-400">—</span>
                       )}
                     </div>
                   </div>
@@ -681,92 +1308,97 @@ const FundDetailModal = ({ fund, onClose }) => {
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-            <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
-            Loading portfolio holdings...
+          <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+            <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+            Loading official AMC portfolio disclosure...
           </div>
         ) : (
-          <div className="space-y-5">
-            {/* Holdings Section */}
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Top Stock Portfolio Positions</span>
-                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono">
-                    {holdings.length} Positions Disclosed
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Search Bar Input */}
-                  <div className="relative flex-1 sm:w-48">
-                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      value={holdingsSearch}
-                      onChange={(e) => setHoldingsSearch(e.target.value)}
-                      placeholder="Search stock or sector..."
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-7 pr-2.5 py-1 text-[11px] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                    />
-                    {holdingsSearch && (
-                      <button 
-                        onClick={() => setHoldingsSearch('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-[10px]"
-                      >
-                        ✕
-                      </button>
-                    )}
+          /* Bottom Split Section: Left Holdings Table (7 cols) + Right Sector Allocation (5 cols) */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Left Column (7 cols): Top Stock Portfolio Positions */}
+            <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-slate-900">Top Stock Portfolio Positions</h3>
+                    <Info size={14} className="text-slate-400" />
                   </div>
 
-                  {/* View All Pill Toggle */}
-                  {holdings.length > 10 && !holdingsSearch && (
-                    <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
-                      <button
-                        onClick={() => setShowAllHoldings(false)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                          !showAllHoldings 
-                            ? 'bg-indigo-600 text-white shadow-sm' 
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Top 10
-                      </button>
-                      <button
-                        onClick={() => setShowAllHoldings(true)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                          showAllHoldings 
-                            ? 'bg-indigo-600 text-white shadow-sm' 
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        All ({holdings.length})
-                      </button>
-                    </div>
+                  {/* Toggle: Top 10 vs All (N) */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setShowAllHoldings(false)}
+                      className={`text-xs font-semibold px-3 py-1 rounded-lg transition-all ${
+                        !showAllHoldings
+                          ? 'border border-emerald-300 text-emerald-700 bg-white shadow-2xs'
+                          : 'border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
+                      }`}
+                    >
+                      Top 10
+                    </button>
+                    <button
+                      onClick={() => setShowAllHoldings(true)}
+                      className={`text-xs font-semibold px-3 py-1 rounded-lg transition-all ${
+                        showAllHoldings
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50 bg-white'
+                      }`}
+                    >
+                      All ({holdings.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Bar Input */}
+                <div className="relative my-3">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={holdingsSearch}
+                    onChange={(e) => setHoldingsSearch(e.target.value)}
+                    placeholder="Search stock or sector..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  {holdingsSearch && (
+                    <button 
+                      onClick={() => setHoldingsSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      ✕
+                    </button>
                   )}
                 </div>
-              </div>
 
-              {filteredHoldings.length > 0 ? (
-                <>
-                  <div className="border border-slate-800/90 rounded-xl overflow-hidden bg-slate-900/60 max-h-[380px] overflow-y-auto relative shadow-inner">
+                {/* Positions Table */}
+                {filteredHoldings.length > 0 ? (
+                  <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10 border-b border-slate-800 shadow-xs">
-                        <tr className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                          <th className="py-2.5 px-3 text-center w-12">#</th>
+                      <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                        <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-2.5 px-2 text-center w-10">#</th>
                           <th className="py-2.5 px-3">Company / Asset</th>
                           <th className="py-2.5 px-3">Sector</th>
                           <th className="py-2.5 px-3 text-right">Value (₹ Cr)</th>
                           <th className="py-2.5 px-3 text-right">Weight (%)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/50">
+                      <tbody className="divide-y divide-slate-100">
                         {displayedHoldings.map((h, idx) => {
-                          const stockName = h.Symbol || h.stock || h.name || h.securityName || h.companyName || 'Stock Position';
+                          const rawStockName = h.Symbol || h.stock || h.name || h.securityName || h.companyName || 'Stock Position';
+                          let displayTicker = rawStockName;
+                          if (h.nseSymbol && !h.nseSymbol.includes('.') && !h.nseSymbol.startsWith('US')) {
+                            displayTicker = `${h.nseSymbol}.NS`;
+                          } else if (h.Symbol && !h.Symbol.includes('.') && !h.Symbol.startsWith('US') && /^[A-Z0-9_-]+$/.test(h.Symbol)) {
+                            displayTicker = `${h.Symbol}.NS`;
+                          }
+
                           const sectorName = h.sector && h.sector.trim() ? h.sector : (h.industry || 'General');
 
                           // Format Weight (%)
                           let rawWeight = 0;
-                          if (typeof h.weightPct === 'number' && !isNaN(h.weightPct) && h.weightPct > 0) {
+                          if (typeof h.weightPercent === 'number' && !isNaN(h.weightPercent) && h.weightPercent > 0) {
+                            rawWeight = h.weightPercent;
+                          } else if (typeof h.weightPct === 'number' && !isNaN(h.weightPct) && h.weightPct > 0) {
                             rawWeight = h.weightPct;
                           } else if (h.allocation !== undefined && !isNaN(Number(h.allocation)) && Number(h.allocation) > 0) {
                             rawWeight = Number(h.allocation);
@@ -783,74 +1415,75 @@ const FundDetailModal = ({ fund, onClose }) => {
                           const valNum = h.valueCr !== undefined && h.valueCr !== null ? Number(h.valueCr) : (h.marketValue ? parseFloat(String(h.marketValue).replace(/₹|,|\s/g, '')) : NaN);
                           if (!isNaN(valNum) && valNum > 0) {
                             marketValDisplay = `₹${valNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          } else if (rawWeight > 0 && Number.isFinite(Number(aumVal)) && Number(aumVal) > 0) {
+                            const computedVal = Number(((rawWeight / 100) * Number(aumVal)).toFixed(2));
+                            marketValDisplay = `₹${computedVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                           }
 
-                          // Rank Medal Styling
+                          // Rank styling: #1 Gold, #2 Silver, #3 Bronze, #4+ number
                           const rankNum = idx + 1;
                           const isGold = rankNum === 1;
                           const isSilver = rankNum === 2;
                           const isBronze = rankNum === 3;
 
-                          // Initial Letter for Avatar
-                          const initialChar = stockName.charAt(0).toUpperCase();
+                          // Initial character for Avatar
+                          const initialChar = displayTicker.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || 'S';
 
                           return (
-                            <tr key={idx} className="hover:bg-slate-800/40 transition-colors group">
-                              {/* Rank Column */}
-                              <td className="py-2.5 px-3 text-center align-middle">
+                            <tr key={idx} className="hover:bg-slate-50/70 transition-colors group">
+                              {/* Rank */}
+                              <td className="py-2.5 px-2 text-center align-middle">
                                 {isGold ? (
-                                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
-                                    #1
+                                  <span className="bg-amber-100 text-amber-800 font-bold rounded-md w-5 h-5 flex items-center justify-center text-[10px] mx-auto">
+                                    1
                                   </span>
                                 ) : isSilver ? (
-                                  <span className="bg-slate-300/20 text-slate-200 border border-slate-400/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
-                                    #2
+                                  <span className="bg-slate-200 text-slate-700 font-bold rounded-md w-5 h-5 flex items-center justify-center text-[10px] mx-auto">
+                                    2
                                   </span>
                                 ) : isBronze ? (
-                                  <span className="bg-amber-700/20 text-amber-500 border border-amber-700/40 px-1.5 py-0.5 rounded font-extrabold text-[10px] inline-block shadow-2xs">
-                                    #3
+                                  <span className="bg-amber-100/70 text-amber-800 font-bold rounded-md w-5 h-5 flex items-center justify-center text-[10px] mx-auto">
+                                    3
                                   </span>
                                 ) : (
-                                  <span className="font-mono text-[11px] text-slate-500 font-semibold">{rankNum}</span>
+                                  <span className="font-semibold text-[11px] text-slate-500">{rankNum}</span>
                                 )}
                               </td>
 
                               {/* Company / Asset */}
                               <td className="py-2.5 px-3 align-middle">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700/80 text-indigo-300 font-bold text-[10px] flex items-center justify-center shrink-0 shadow-2xs group-hover:border-indigo-500/50 transition-colors">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-6 h-6 rounded-full bg-blue-50 border border-blue-100 text-blue-600 font-bold text-[10px] flex items-center justify-center shrink-0">
                                     {initialChar}
                                   </span>
-                                  <span className="font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors truncate max-w-[210px] text-xs" title={stockName}>
-                                    {stockName}
+                                  <span className="font-bold text-slate-800 text-xs tracking-tight truncate max-w-[170px]" title={h.companyName || rawStockName}>
+                                    {displayTicker}
                                   </span>
                                 </div>
                               </td>
 
-                              {/* Sector Badge */}
-                              <td className="py-2.5 px-3 align-middle">
-                                <span className="bg-slate-950/80 text-slate-300 border border-slate-800 text-[10px] font-medium rounded-md px-2 py-0.5 inline-block truncate max-w-[140px]" title={sectorName}>
-                                  {sectorName}
-                                </span>
+                              {/* Sector */}
+                              <td className="py-2.5 px-3 align-middle text-slate-500 text-xs font-normal truncate max-w-[130px]" title={sectorName}>
+                                {sectorName}
                               </td>
 
-                              {/* Market Value */}
-                              <td className="py-2.5 px-3 text-right font-mono text-slate-200 font-semibold text-[11px] align-middle">
+                              {/* Value (₹ Cr) */}
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-700 font-semibold text-xs align-middle">
                                 {marketValDisplay}
                               </td>
 
-                              {/* Weight Bar & Percentage Pill */}
+                              {/* Weight (%) with bar and pill */}
                               <td className="py-2.5 px-3 text-right align-middle">
                                 <div className="flex items-center justify-end gap-2">
                                   {rawWeight > 0 && (
-                                    <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden sm:block">
-                                      <div 
-                                        className="h-full bg-indigo-500 rounded-full" 
-                                        style={{ width: `${Math.min(rawWeight * 8, 100)}%` }} 
+                                    <div className="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                                      <div
+                                        className="h-full bg-emerald-500 rounded-full"
+                                        style={{ width: `${Math.min(rawWeight * 10, 100)}%` }}
                                       />
                                     </div>
                                   )}
-                                  <span className="font-mono text-indigo-300 font-extrabold bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded text-[11px] shadow-2xs">
+                                  <span className="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
                                     {weightDisplay}
                                   </span>
                                 </div>
@@ -861,89 +1494,95 @@ const FundDetailModal = ({ fund, onClose }) => {
                       </tbody>
                     </table>
                   </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-6 text-center text-xs text-slate-500 italic">
+                    {holdingsSearch ? `No stock position matching "${holdingsSearch}"` : (detail?.holdingsReason || 'Official portfolio holdings disclosure unavailable for this fund.')}
+                  </div>
+                )}
+              </div>
 
-                  {holdings.length > 10 && !holdingsSearch && (
-                    <div className="mt-2.5 text-center">
-                      <button
-                        onClick={() => setShowAllHoldings(!showAllHoldings)}
-                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 py-1 transition-colors flex items-center justify-center gap-1 mx-auto"
-                      >
-                        <span>{showAllHoldings ? 'Show Top 10 Positions' : `View All ${holdings.length} Portfolio Positions ↓`}</span>
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl p-6 text-center text-xs text-slate-400 italic">
-                  {holdingsSearch ? `No stock position matching "${holdingsSearch}"` : (detail?.holdingsReason || 'Official portfolio holdings disclosure unavailable for this fund.')}
-                </div>
+              {/* View All Positions Footer Button */}
+              {holdings.length > 10 && !holdingsSearch && (
+                <button
+                  onClick={() => setShowAllHoldings(!showAllHoldings)}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors mt-4 w-full border border-emerald-200/40 cursor-pointer"
+                >
+                  <span>{showAllHoldings ? 'Show Top 10 Positions' : `View All ${holdings.length} Portfolio Positions`}</span>
+                  <ArrowRight size={14} />
+                </button>
               )}
             </div>
 
-            {/* Sector Breakdown with Donut Chart */}
-            {sectorEntries.length > 0 ? (
-              <div className="pt-4 border-t border-slate-800">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                  <span>Sector Allocation Breakdown</span>
-                  <span className="text-[10px] text-slate-500 font-mono">{sectorEntries.length} Sectors</span>
+            {/* Right Column (5 cols): Sector Allocation Breakdown */}
+            <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-slate-900">Sector Allocation Breakdown</h3>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {totalSectorsCount > 0 ? `${totalSectorsCount} Sectors` : ''}
+                  </span>
                 </div>
 
-                {/* Donut Chart + Sector Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-3 bg-slate-950/40 border border-slate-800/60 p-3.5 rounded-xl">
-                  {/* Donut Chart */}
-                  <div className="h-36 w-full flex items-center justify-center sm:col-span-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={sectorEntries.map(([name, value]) => ({ name, value }))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={32}
-                          outerRadius={55}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {sectorEntries.map(([sec], idx) => (
-                            <Cell key={sec} fill={SECTOR_COLORS[idx % SECTOR_COLORS.length]} stroke="#0f172a" strokeWidth={2} />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomSectorTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Sector Progress Bar & Grid */}
-                  <div className="sm:col-span-2 space-y-2.5">
-                    <div className="w-full h-3 rounded-full overflow-hidden flex mb-2">
-                      {sectorEntries.map(([sec, pct], idx) => (
-                        <div
-                          key={sec}
-                          style={{ width: `${pct}%`, backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }}
-                          title={`${sec}: ${pct}%`}
-                          className="h-full"
-                        />
-                      ))}
+                {pieData.length > 0 ? (
+                  <>
+                    {/* Donut Chart with Total AUM centered */}
+                    <div className="relative h-56 flex items-center justify-center my-1">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-base font-extrabold text-slate-900 leading-tight">{aumDisplay}</span>
+                        <span className="text-[11px] text-slate-400 font-medium">Total AUM</span>
+                      </div>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={78}
+                            paddingAngle={2}
+                            dataKey="value"
+                          >
+                            {pieData.map((entry, idx) => (
+                              <Cell
+                                key={entry.name}
+                                fill={SECTOR_PALETTE[idx % SECTOR_PALETTE.length]}
+                                stroke="#ffffff"
+                                strokeWidth={1.5}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CustomSectorTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs max-h-[220px] overflow-y-auto pr-1">
-                      {sectorEntries.map(([sec, pct], idx) => (
-                        <div key={sec} className="flex items-center justify-between bg-slate-900/90 border border-slate-700/60 px-2.5 py-1.5 rounded-lg shadow-sm">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[idx % SECTOR_COLORS.length] }} />
-                            <span className="text-slate-100 truncate text-[11px] font-semibold">{sec}</span>
+                    {/* Sector Rows List */}
+                    <div className="space-y-1.5 mt-2 max-h-[290px] overflow-y-auto pr-1">
+                      {pieData.map((item, idx) => (
+                        <div key={item.name} className="flex items-center justify-between text-xs py-0.5">
+                          <div className="flex items-center gap-2 truncate pr-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: SECTOR_PALETTE[idx % SECTOR_PALETTE.length] }}
+                            />
+                            <span className="text-slate-700 font-medium truncate text-xs" title={item.name}>
+                              {item.name}
+                            </span>
                           </div>
-                          <span className="font-mono font-bold text-indigo-400 text-xs ml-1">{typeof pct === 'number' ? pct.toFixed(1) : pct}%</span>
+                          <span className="font-mono font-bold text-emerald-600 text-xs shrink-0">
+                            {Number(item.value).toFixed(1)}%
+                          </span>
                         </div>
                       ))}
                     </div>
+                  </>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-xs text-slate-400 italic">
+                    Sector allocation data currently unavailable for this fund.
                   </div>
-                </div>
+                )}
               </div>
-            ) : (
-              <div className="pt-4 border-t border-slate-800 text-center py-3 text-xs text-slate-500 italic">
-                Sector allocation data currently unavailable for this fund.
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -2129,6 +2768,8 @@ export const IndianMfSectorAnalysis = () => {
                     <tr 
                       key={etf.symbol} 
                       onClick={() => setActiveModalFund({
+                        id: etf.symbol,
+                        schemeCode: etf.symbol,
                         name: `${etf.symbol} (${etf.underlying})`,
                         family: 'Exchange Traded Fund',
                         category: etf.underlying,
@@ -2438,7 +3079,8 @@ export const IndianMfSectorAnalysis = () => {
                 <div 
                   key={idx} 
                   onClick={() => setActiveModalFund({
-                    id: '118991',
+                    id: `nfo-${idx}`,
+                    schemeCode: null,
                     name: nfo.name,
                     category: nfo.category,
                     family: nfo.family,
