@@ -257,6 +257,7 @@ export function validateAndSanitizeQuote(rawQuote) {
     eps: typeof rawQuote.eps === 'number' ? rawQuote.eps : null,
     ebit,
     revenue,
+    revenueCr: (typeof rawQuote.revenueCr === 'number' && !isNaN(rawQuote.revenueCr)) ? rawQuote.revenueCr : revenue,
     revenueYoY,
     revenueQuarterly,
     netProfit,

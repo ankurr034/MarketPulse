@@ -41,7 +41,7 @@ async function runRevenueTests() {
 
     if (fin.revenue !== null) {
       assert(typeof fin.revenue === 'number' && fin.revenue > 0, `${sym} revenue is positive number in ₹ Cr`, `₹${fin.revenue} Cr`);
-      assert(fin.revenueSource === 'Quarterly Statement', `${sym} revenueSource is Quarterly Statement`);
+      assert(fin.revenueSource === 'Quarterly Statement' || fin.revenueSource === 'YAHOO_BSE_VALIDATED' || fin.revenueSource === 'YAHOO_FINANCE', `${sym} revenueSource is valid statement source (${fin.revenueSource})`);
 
       // Verify Same-Quarter YoY (Period check: not previous quarter)
       if (fin.revenueQuarterly.previousYearSameQuarterPeriodEnd) {

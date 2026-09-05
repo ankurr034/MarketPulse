@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import yahooFinanceService from './YahooFinanceService.js';
+import quarterlyRevenueService from './QuarterlyRevenueService.js';
 import marketDataGateway from './MarketDataGateway.js';
 import athBaseService from './AthBaseService.js';
 import { getIndianMarketSession } from './MarketDataValidator.js';
@@ -979,12 +980,29 @@ class SectorDataService {
    */
   _getFinFromCache(sym) {
     if (!sym) return null;
-    return yahooFinanceService.financialsCache?.get(sym)?.data ||
+    const yfFin = yahooFinanceService.financialsCache?.get(sym)?.data ||
            (sym.endsWith('.NS') ? yahooFinanceService.financialsCache?.get(sym.replace('.NS', ''))?.data : null) ||
            (sym.endsWith('.BO') ? yahooFinanceService.financialsCache?.get(sym.replace('.BO', ''))?.data : null) ||
            yahooFinanceService.financialsCache?.get(`${sym}.NS`)?.data ||
            yahooFinanceService.financialsCache?.get(`${sym}.BO`)?.data ||
            null;
+    if (yfFin) return yfFin;
+
+    // Fallback to QuarterlyRevenueService cache
+    const qRev = quarterlyRevenueService.getCachedRevenue(sym);
+    if (qRev) {
+      return {
+        revenue: qRev.revenueCr ?? qRev.revenue ?? null,
+        revenueCr: qRev.revenueCr ?? qRev.revenue ?? null,
+        revenueYoY: qRev.revenueYoY ?? null,
+        revenueQuarterly: qRev.revenueQuarterly || null,
+        revenueSource: qRev.source || 'Quarterly Statement',
+        reportingPeriod: qRev.currentPeriod?.periodEnd ? `Q (${qRev.currentPeriod.periodEnd})` : '—',
+        ebit: null,
+        netProfit: null
+      };
+    }
+    return null;
   }
 
   /**
@@ -1349,6 +1367,7 @@ class SectorDataService {
           returns: stockRets,
           ebit: resolvedEbit,
           revenue: resolvedRevenue,
+          revenueCr: resolvedRevenue,
           revenueYoY: resolvedRevenueYoY,
           revenueQuarterly: resolvedRevenueQuarterly,
           netProfit: resolvedNetProfit,
@@ -1435,6 +1454,7 @@ class SectorDataService {
         eps: null,
         ebit: resolvedEbit,
         revenue: resolvedRevenue,
+        revenueCr: resolvedRevenue,
         revenueYoY: resolvedRevenueYoY,
         revenueQuarterly: resolvedRevenueQuarterly,
         netProfit: resolvedNetProfit,
@@ -2144,6 +2164,7 @@ class SectorDataService {
             globalRank,
             rank: globalRank,
             revenue: resolvedRevenue,
+            revenueCr: resolvedRevenue,
             revenueYoY: resolvedRevenueYoY,
             revenueQuarterly: resolvedRevenueQuarterly,
             netProfit: resolvedNetProfit,
@@ -2202,6 +2223,7 @@ class SectorDataService {
           rank: null,
           marketCap: null,
           revenue: resolvedRevenue,
+          revenueCr: resolvedRevenue,
           revenueYoY: resolvedRevenueYoY,
           revenueQuarterly: resolvedRevenueQuarterly,
           netProfit: resolvedNetProfit,

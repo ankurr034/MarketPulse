@@ -1,0 +1,787 @@
+{
+  "RELIANCE": {
+    "bseCode": "500325",
+    "isin": "INE002A01018",
+    "companyName": "Reliance Industries Ltd."
+  },
+  "TCS": {
+    "bseCode": "532540",
+    "isin": "INE467B01029",
+    "companyName": "Tata Consultancy Services Ltd."
+  },
+  "INFY": {
+    "bseCode": "500209",
+    "isin": "INE009A01021",
+    "companyName": "Infosys Ltd."
+  },
+  "HDFCBANK": {
+    "bseCode": "500180",
+    "isin": "INE040A01034",
+    "companyName": "HDFC Bank Ltd."
+  },
+  "ICICIBANK": {
+    "bseCode": "532174",
+    "isin": "INE090A01021",
+    "companyName": "ICICI Bank Ltd."
+  },
+  "SBIN": {
+    "bseCode": "500112",
+    "isin": "INE062A01020",
+    "companyName": "State Bank of India"
+  },
+  "BHARTIARTL": {
+    "bseCode": "532454",
+    "isin": "INE397D01024",
+    "companyName": "Bharti Airtel Ltd."
+  },
+  "ITC": {
+    "bseCode": "500875",
+    "isin": "INE154A01025",
+    "companyName": "ITC Ltd."
+  },
+  "LT": {
+    "bseCode": "500510",
+    "isin": "INE018A01030",
+    "companyName": "Larsen & Toubro Ltd."
+  },
+  "KOTAKBANK": {
+    "bseCode": "500247",
+    "isin": "INE237A01028",
+    "companyName": "Kotak Mahindra Bank Ltd."
+  },
+  "AXISBANK": {
+    "bseCode": "532215",
+    "isin": "INE238A01034",
+    "companyName": "Axis Bank Ltd."
+  },
+  "SUNPHARMA": {
+    "bseCode": "524715",
+    "isin": "INE044A01036",
+    "companyName": "Sun Pharmaceutical Industries Ltd."
+  },
+  "TATAMOTORS": {
+    "bseCode": "500570",
+    "isin": "INE155A01022",
+    "companyName": "Tata Motors Ltd."
+  },
+  "TMPV": {
+    "bseCode": "500570",
+    "isin": "INE155A01022",
+    "companyName": "Tata Motors Passenger Vehicles"
+  },
+  "TMCV": {
+    "bseCode": "500570",
+    "isin": "INE155A01022",
+    "companyName": "Tata Motors (Commercial)"
+  },
+  "BAJFINANCE": {
+    "bseCode": "500034",
+    "isin": "INE296A01024",
+    "companyName": "Bajaj Finance Ltd."
+  },
+  "MARUTI": {
+    "bseCode": "532500",
+    "isin": "INE585B01010",
+    "companyName": "Maruti Suzuki India Ltd."
+  },
+  "TITAN": {
+    "bseCode": "500114",
+    "isin": "INE280A01028",
+    "companyName": "Titan Company Ltd."
+  },
+  "HCLTECH": {
+    "bseCode": "532281",
+    "isin": "INE860A01027",
+    "companyName": "HCL Technologies Ltd."
+  },
+  "NTPC": {
+    "bseCode": "532555",
+    "isin": "INE733E01010",
+    "companyName": "NTPC Ltd."
+  },
+  "TATASTEEL": {
+    "bseCode": "500470",
+    "isin": "INE081A01020",
+    "companyName": "Tata Steel Ltd."
+  },
+  "ONGC": {
+    "bseCode": "500312",
+    "isin": "INE213A01029",
+    "companyName": "Oil & Natural Gas Corp Ltd."
+  },
+  "POWERGRID": {
+    "bseCode": "532898",
+    "isin": "INE752E01010",
+    "companyName": "Power Grid Corporation of India Ltd."
+  },
+  "M&M": {
+    "bseCode": "500520",
+    "isin": "INE101A01026",
+    "companyName": "Mahindra & Mahindra Ltd."
+  },
+  "ADANIENT": {
+    "bseCode": "512599",
+    "isin": "INE423A01024",
+    "companyName": "Adani Enterprises Ltd."
+  },
+  "ADANIPORTS": {
+    "bseCode": "532921",
+    "isin": "INE742F01042",
+    "companyName": "Adani Ports and SEZ Ltd."
+  },
+  "WIPRO": {
+    "bseCode": "507685",
+    "isin": "INE075A01022",
+    "companyName": "Wipro Ltd."
+  },
+  "ULTRACEMCO": {
+    "bseCode": "532538",
+    "isin": "INE481G01011",
+    "companyName": "UltraTech Cement Ltd."
+  },
+  "JSWSTEEL": {
+    "bseCode": "500228",
+    "isin": "INE019A01038",
+    "companyName": "JSW Steel Ltd."
+  },
+  "TECHM": {
+    "bseCode": "532755",
+    "isin": "INE669C01036",
+    "companyName": "Tech Mahindra Ltd."
+  },
+  "BAJAJFINSV": {
+    "bseCode": "532978",
+    "isin": "INE918I01026",
+    "companyName": "Bajaj Finserv Ltd."
+  },
+  "HINDALCO": {
+    "bseCode": "500440",
+    "isin": "INE038A01020",
+    "companyName": "Hindalco Industries Ltd."
+  },
+  "DRREDDY": {
+    "bseCode": "500124",
+    "isin": "INE089A01023",
+    "companyName": "Dr. Reddy's Laboratories Ltd."
+  },
+  "NESTLEIND": {
+    "bseCode": "500790",
+    "isin": "INE239A01016",
+    "companyName": "Nestle India Ltd."
+  },
+  "INDUSINDBK": {
+    "bseCode": "532187",
+    "isin": "INE095A01012",
+    "companyName": "IndusInd Bank Ltd."
+  },
+  "GRASIM": {
+    "bseCode": "500300",
+    "isin": "INE047A01021",
+    "companyName": "Grasim Industries Ltd."
+  },
+  "CIPLA": {
+    "bseCode": "500087",
+    "isin": "INE059A01026",
+    "companyName": "Cipla Ltd."
+  },
+  "DIVISLAB": {
+    "bseCode": "532488",
+    "isin": "INE361B01024",
+    "companyName": "Divi's Laboratories Ltd."
+  },
+  "HEROMOTOCO": {
+    "bseCode": "500182",
+    "isin": "INE158A01026",
+    "companyName": "Hero MotoCorp Ltd."
+  },
+  "BRITANNIA": {
+    "bseCode": "500825",
+    "isin": "INE216A01030",
+    "companyName": "Britannia Industries Ltd."
+  },
+  "COALINDIA": {
+    "bseCode": "533278",
+    "isin": "INE522F01014",
+    "companyName": "Coal India Ltd."
+  },
+  "EICHERMOT": {
+    "bseCode": "505200",
+    "isin": "INE066A01021",
+    "companyName": "Eicher Motors Ltd."
+  },
+  "BPCL": {
+    "bseCode": "500547",
+    "isin": "INE029A01011",
+    "companyName": "Bharat Petroleum Corp Ltd."
+  },
+  "TATACONSUM": {
+    "bseCode": "500800",
+    "isin": "INE192A01025",
+    "companyName": "Tata Consumer Products Ltd."
+  },
+  "APOLLOHOSP": {
+    "bseCode": "508869",
+    "isin": "INE437A01024",
+    "companyName": "Apollo Hospitals Enterprise Ltd."
+  },
+  "SBILIFE": {
+    "bseCode": "540719",
+    "isin": "INE123W01016",
+    "companyName": "SBI Life Insurance Company Ltd."
+  },
+  "HDFCLIFE": {
+    "bseCode": "540777",
+    "isin": "INE795G01014",
+    "companyName": "HDFC Life Insurance Company Ltd."
+  },
+  "HINDUNILVR": {
+    "bseCode": "500696",
+    "isin": "INE030A01027",
+    "companyName": "Hindustan Unilever Ltd."
+  },
+  "BAJAJ-AUTO": {
+    "bseCode": "532977",
+    "isin": "INE917I01010",
+    "companyName": "Bajaj Auto Ltd."
+  },
+  "LTIM": {
+    "bseCode": "540005",
+    "isin": "INE214T01019",
+    "companyName": "LTIMindtree Ltd."
+  },
+  "TATAPOWER": {
+    "bseCode": "500400",
+    "isin": "INE245A01021",
+    "companyName": "Tata Power Company Ltd."
+  },
+  "SHRIRAMFIN": {
+    "bseCode": "511218",
+    "isin": "INE721A01013",
+    "companyName": "Shriram Finance Ltd."
+  },
+  "DLF": {
+    "bseCode": "532868",
+    "isin": "INE271C01023",
+    "companyName": "DLF Ltd."
+  },
+  "GODREJPROP": {
+    "bseCode": "533150",
+    "isin": "INE484J01027",
+    "companyName": "Godrej Properties Ltd."
+  },
+  "OBEROIRLTY": {
+    "bseCode": "533273",
+    "isin": "INE093I01010",
+    "companyName": "Oberoi Realty Ltd."
+  },
+  "PRESTIGE": {
+    "bseCode": "533274",
+    "isin": "INE811K01011",
+    "companyName": "Prestige Estates Projects Ltd."
+  },
+  "PHOENIXLTD": {
+    "bseCode": "512839",
+    "isin": "INE211B01039",
+    "companyName": "The Phoenix Mills Ltd."
+  },
+  "BRIGADE": {
+    "bseCode": "532929",
+    "isin": "INE791I01019",
+    "companyName": "Brigade Enterprises Ltd."
+  },
+  "SOBHA": {
+    "bseCode": "532784",
+    "isin": "INE671H01015",
+    "companyName": "Sobha Ltd."
+  },
+  "BANKBARODA": {
+    "bseCode": "532134",
+    "isin": "INE028A01039",
+    "companyName": "Bank of Baroda"
+  },
+  "PNB": {
+    "bseCode": "532461",
+    "isin": "INE160A01022",
+    "companyName": "Punjab National Bank"
+  },
+  "IDFCFIRSTB": {
+    "bseCode": "539437",
+    "isin": "INE092T01019",
+    "companyName": "IDFC First Bank Ltd."
+  },
+  "FEDERALBNK": {
+    "bseCode": "500469",
+    "isin": "INE171A01029",
+    "companyName": "The Federal Bank Ltd."
+  },
+  "CANBK": {
+    "bseCode": "532483",
+    "isin": "INE476A01014",
+    "companyName": "Canara Bank"
+  },
+  "UNIONBANK": {
+    "bseCode": "532477",
+    "isin": "INE692A01016",
+    "companyName": "Union Bank of India"
+  },
+  "IOB": {
+    "bseCode": "532388",
+    "isin": "INE565A01014",
+    "companyName": "Indian Overseas Bank"
+  },
+  "INDIANB": {
+    "bseCode": "532814",
+    "isin": "INE562A01011",
+    "companyName": "Indian Bank"
+  },
+  "MAHABANK": {
+    "bseCode": "532525",
+    "isin": "INE457A01014",
+    "companyName": "Bank of Maharashtra"
+  },
+  "CHOLAFIN": {
+    "bseCode": "511243",
+    "isin": "INE121A01024",
+    "companyName": "Cholamandalam Investment & Finance Company Ltd."
+  },
+  "MUTHOOTFIN": {
+    "bseCode": "533398",
+    "isin": "INE414G01012",
+    "companyName": "Muthoot Finance Ltd."
+  },
+  "ZEEL": {
+    "bseCode": "505537",
+    "isin": "INE256A01028",
+    "companyName": "Zee Entertainment Enterprises Ltd."
+  },
+  "PVRINOX": {
+    "bseCode": "532689",
+    "isin": "INE191H01014",
+    "companyName": "PVR INOX Ltd."
+  },
+  "SUNTV": {
+    "bseCode": "532733",
+    "isin": "INE424H01027",
+    "companyName": "Sun TV Network Ltd."
+  },
+  "NETWORK18": {
+    "bseCode": "532798",
+    "isin": "INE870H01013",
+    "companyName": "Network18 Media & Investments Ltd."
+  },
+  "NDTV": {
+    "bseCode": "532529",
+    "isin": "INE155G01029",
+    "companyName": "New Delhi Television Ltd."
+  },
+  "NAZARA": {
+    "bseCode": "543280",
+    "isin": "INE418L01014",
+    "companyName": "Nazara Technologies Ltd."
+  },
+  "HAVELLS": {
+    "bseCode": "517354",
+    "isin": "INE176B01034",
+    "companyName": "Havells India Ltd."
+  },
+  "VOLTAS": {
+    "bseCode": "500575",
+    "isin": "INE226A01021",
+    "companyName": "Voltas Ltd."
+  },
+  "WHIRLPOOL": {
+    "bseCode": "500238",
+    "isin": "INE716A01013",
+    "companyName": "Whirlpool of India Ltd."
+  },
+  "BLUESTARCO": {
+    "bseCode": "500067",
+    "isin": "INE472A01039",
+    "companyName": "Blue Star Ltd."
+  },
+  "CROMPTON": {
+    "bseCode": "539876",
+    "isin": "INE299U01018",
+    "companyName": "Crompton Greaves Consumer Electricals Ltd."
+  },
+  "BATAINDIA": {
+    "bseCode": "500043",
+    "isin": "INE176A01028",
+    "companyName": "Bata India Ltd."
+  },
+  "DIXON": {
+    "bseCode": "540699",
+    "isin": "INE935N01020",
+    "companyName": "Dixon Technologies (India) Ltd."
+  },
+  "KALYANKJIL": {
+    "bseCode": "543278",
+    "isin": "INE303R01014",
+    "companyName": "Kalyan Jewellers India Ltd."
+  },
+  "VEDL": {
+    "bseCode": "500295",
+    "isin": "INE205A01025",
+    "companyName": "Vedanta Ltd."
+  },
+  "NMDC": {
+    "bseCode": "526371",
+    "isin": "INE584A01023",
+    "companyName": "NMDC Ltd."
+  },
+  "SAIL": {
+    "bseCode": "500113",
+    "isin": "INE114A01011",
+    "companyName": "Steel Authority of India Ltd."
+  },
+  "NATIONALUM": {
+    "bseCode": "532234",
+    "isin": "INE139A01034",
+    "companyName": "National Aluminium Company Ltd."
+  },
+  "JINDALSTEL": {
+    "bseCode": "532286",
+    "isin": "INE220G01021",
+    "companyName": "Jindal Steel & Power Ltd."
+  },
+  "GODREJCP": {
+    "bseCode": "532424",
+    "isin": "INE102D01028",
+    "companyName": "Godrej Consumer Products Ltd."
+  },
+  "DABUR": {
+    "bseCode": "500096",
+    "isin": "INE016A01026",
+    "companyName": "Dabur India Ltd."
+  },
+  "MARICO": {
+    "bseCode": "531642",
+    "isin": "INE196A01026",
+    "companyName": "Marico Ltd."
+  },
+  "COLPAL": {
+    "bseCode": "500830",
+    "isin": "INE259A01022",
+    "companyName": "Colgate-Palmolive (India) Ltd."
+  },
+  "VBL": {
+    "bseCode": "540180",
+    "isin": "INE200M01039",
+    "companyName": "Varun Beverages Ltd."
+  },
+  "PERSISTENT": {
+    "bseCode": "533179",
+    "isin": "INE262H01013",
+    "companyName": "Persistent Systems Ltd."
+  },
+  "COFORGE": {
+    "bseCode": "532541",
+    "isin": "INE858B01018",
+    "companyName": "Coforge Ltd."
+  },
+  "MPHASIS": {
+    "bseCode": "526299",
+    "isin": "INE356A01018",
+    "companyName": "Mphasis Ltd."
+  },
+  "LTTS": {
+    "bseCode": "540115",
+    "isin": "INE010V01017",
+    "companyName": "L&T Technology Services Ltd."
+  },
+  "TATAELXSI": {
+    "bseCode": "500408",
+    "isin": "INE670A01012",
+    "companyName": "Tata Elxsi Ltd."
+  },
+  "BALKRISIND": {
+    "bseCode": "502355",
+    "isin": "INE787D01026",
+    "companyName": "Balkrishna Industries Ltd."
+  },
+  "ASHOKLEY": {
+    "bseCode": "500477",
+    "isin": "INE208A01029",
+    "companyName": "Ashok Leyland Ltd."
+  },
+  "TVSMOTOR": {
+    "bseCode": "532343",
+    "isin": "INE494B01023",
+    "companyName": "TVS Motor Company Ltd."
+  },
+  "IOC": {
+    "bseCode": "530965",
+    "isin": "INE242A01010",
+    "companyName": "Indian Oil Corporation Ltd."
+  },
+  "ADANIGREEN": {
+    "bseCode": "541450",
+    "isin": "INE364U01010",
+    "companyName": "Adani Green Energy Ltd."
+  },
+  "GAIL": {
+    "bseCode": "532155",
+    "isin": "INE129A01019",
+    "companyName": "GAIL (India) Ltd."
+  },
+  "SIEMENS": {
+    "bseCode": "500550",
+    "isin": "INE003A01024",
+    "companyName": "Siemens Ltd."
+  },
+  "LUPIN": {
+    "bseCode": "500257",
+    "isin": "INE326A01037",
+    "companyName": "Lupin Ltd."
+  },
+  "AUROPHARMA": {
+    "bseCode": "524804",
+    "isin": "INE406A01037",
+    "companyName": "Aurobindo Pharma Ltd."
+  },
+  "BIOCON": {
+    "bseCode": "532523",
+    "isin": "INE376G01013",
+    "companyName": "Biocon Ltd."
+  },
+  "MANKIND": {
+    "bseCode": "543904",
+    "isin": "INE634S01028",
+    "companyName": "Mankind Pharma Ltd."
+  },
+  "ZYDUSLIFE": {
+    "bseCode": "532321",
+    "isin": "INE010B01027",
+    "companyName": "Zydus Lifesciences Ltd."
+  },
+  "TV18BRDCST": {
+    "bseCode": "532800",
+    "isin": "INE886H01027",
+    "companyName": "TV18 Broadcast Ltd."
+  },
+  "DISHTV": {
+    "bseCode": "532839",
+    "isin": "INE836F01026",
+    "companyName": "Dish TV India Ltd."
+  },
+  "JIOFIN": {
+    "bseCode": "543940",
+    "isin": "INE758E01017",
+    "companyName": "Jio Financial Services Ltd."
+  },
+  "ZOMATO": {
+    "bseCode": "543320",
+    "isin": "INE758T01015",
+    "companyName": "Zomato Ltd."
+  },
+  "PAYTM": {
+    "bseCode": "543396",
+    "isin": "INE982J01020",
+    "companyName": "One97 Communications Ltd."
+  },
+  "POLICYBZR": {
+    "bseCode": "543390",
+    "isin": "INE417T01026",
+    "companyName": "PB Fintech Ltd."
+  },
+  "NYKAA": {
+    "bseCode": "543384",
+    "isin": "INE388Y01029",
+    "companyName": "FSN E-Commerce Ventures Ltd."
+  },
+  "DMART": {
+    "bseCode": "540376",
+    "isin": "INE192R01011",
+    "companyName": "Avenue Supermarts Ltd."
+  },
+  "BEL": {
+    "bseCode": "500049",
+    "isin": "INE263A01024",
+    "companyName": "Bharat Electronics Ltd."
+  },
+  "MAZDOCK": {
+    "bseCode": "543237",
+    "isin": "INE249Z01012",
+    "companyName": "Mazagon Dock Shipbuilders Ltd."
+  },
+  "COCHINSHIP": {
+    "bseCode": "540678",
+    "isin": "INE704P01017",
+    "companyName": "Cochin Shipyard Ltd."
+  },
+  "BSE": {
+    "bseCode": "540528",
+    "isin": "INE118H01025",
+    "companyName": "BSE Ltd."
+  },
+  "CDSL": {
+    "bseCode": "540673",
+    "isin": "INE736A01011",
+    "companyName": "Central Depository Services (India) Ltd."
+  },
+  "ANGELONE": {
+    "bseCode": "543235",
+    "isin": "INE732I01013",
+    "companyName": "Angel One Ltd."
+  },
+  "TRENT": {
+    "bseCode": "500251",
+    "isin": "INE849A01020",
+    "companyName": "Trent Ltd."
+  },
+  "SUZLON": {
+    "bseCode": "532667",
+    "isin": "INE040H01021",
+    "companyName": "Suzlon Energy Ltd."
+  },
+  "IRFC": {
+    "bseCode": "543257",
+    "isin": "INE053F01010",
+    "companyName": "Indian Railway Finance Corp Ltd."
+  },
+  "RVNL": {
+    "bseCode": "542649",
+    "isin": "INE415G01027",
+    "companyName": "Rail Vikas Nigam Ltd."
+  },
+  "IRCON": {
+    "bseCode": "541956",
+    "isin": "INE962Y01021",
+    "companyName": "Ircon International Ltd."
+  },
+  "RECLTD": {
+    "bseCode": "532955",
+    "isin": "INE020B01018",
+    "companyName": "REC Ltd."
+  },
+  "IRCTC": {
+    "bseCode": "542830",
+    "isin": "INE335Y01020",
+    "companyName": "Indian Railway Catering And Tourism Corp Ltd."
+  },
+  "RAILTEL": {
+    "bseCode": "543265",
+    "isin": "INE0DMD01029",
+    "companyName": "Railtel Corporation Of India Ltd."
+  },
+  "SJVN": {
+    "bseCode": "533206",
+    "isin": "INE002L01015",
+    "companyName": "SJVN Ltd."
+  },
+  "NHPC": {
+    "bseCode": "533098",
+    "isin": "INE848E01016",
+    "companyName": "NHPC Ltd."
+  },
+  "IREDA": {
+    "bseCode": "544026",
+    "isin": "INE202E01016",
+    "companyName": "Indian Renewable Energy Development Agency Ltd."
+  },
+  "HUDCO": {
+    "bseCode": "540530",
+    "isin": "INE031A01017",
+    "companyName": "Housing & Urban Development Corp Ltd."
+  },
+  "BOMDYEING": {
+    "bseCode": "500020",
+    "isin": "INE032A01023",
+    "companyName": "Bombay Dyeing & Mfg Company Ltd."
+  },
+  "SEJALLTD": {
+    "bseCode": "532993",
+    "isin": "INE955I01036",
+    "companyName": "Sejal Glass Ltd."
+  },
+  "CENTRALBK": {
+    "bseCode": "532885",
+    "isin": "INE483A01010",
+    "companyName": "Central Bank of India"
+  },
+  "UCOBANK": {
+    "bseCode": "532505",
+    "isin": "INE691A01018",
+    "companyName": "UCO Bank"
+  },
+  "PSB": {
+    "bseCode": "533295",
+    "isin": "INE608A01012",
+    "companyName": "Punjab & Sind Bank"
+  },
+  "DELHIVERY": {
+    "bseCode": "543529",
+    "isin": "INE148O01028",
+    "companyName": "Delhivery Ltd."
+  },
+  "IDEA": {
+    "bseCode": "532822",
+    "isin": "INE669E01016",
+    "companyName": "Vodafone Idea Ltd."
+  },
+  "HAL": {
+    "bseCode": "541154",
+    "isin": "INE066F01020",
+    "companyName": "Hindustan Aeronautics Ltd."
+  },
+  "ASIANPAINT": {
+    "bseCode": "500820",
+    "isin": "INE021A01026",
+    "companyName": "Asian Paints Ltd."
+  },
+  "ADANIPOWER": {
+    "bseCode": "533096",
+    "isin": "INE814H01011",
+    "companyName": "Adani Power Ltd."
+  },
+  "INDIGO": {
+    "bseCode": "539448",
+    "isin": "INE646L01027",
+    "companyName": "InterGlobe Aviation Ltd."
+  },
+  "ABB": {
+    "bseCode": "500002",
+    "isin": "INE117A01022",
+    "companyName": "ABB India Ltd."
+  },
+  "AMBUJACEM": {
+    "bseCode": "500425",
+    "isin": "INE079A01024",
+    "companyName": "Ambuja Cements Ltd."
+  },
+  "PIDILITIND": {
+    "bseCode": "500331",
+    "isin": "INE318A01026",
+    "companyName": "Pidilite Industries Ltd."
+  },
+  "LODHA": {
+    "bseCode": "543287",
+    "isin": "INE670K01029",
+    "companyName": "Macrotech Developers Ltd."
+  },
+  "POLYCAB": {
+    "bseCode": "542652",
+    "isin": "INE455K01017",
+    "companyName": "Polycab India Ltd."
+  },
+  "KEI": {
+    "bseCode": "517569",
+    "isin": "INE878B01027",
+    "companyName": "KEI Industries Ltd."
+  },
+  "KPITTECH": {
+    "bseCode": "542651",
+    "isin": "INE04I401011",
+    "companyName": "KPIT Technologies Ltd."
+  },
+  "PFC": {
+    "bseCode": "532810",
+    "isin": "INE134E01011",
+    "companyName": "Power Finance Corporation Ltd."
+  },
+  "MAXHEALTH": {
+    "bseCode": "543220",
+    "isin": "INE027H01010",
+    "companyName": "Max Healthcare Institute Ltd."
+  }
+}

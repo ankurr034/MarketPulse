@@ -212,11 +212,10 @@ async function runFinalAcceptanceCheck() {
   console.log(`  Lookup 1 (Cached): ${latency1}ms, timestamp=${cachedQuote1.data[0]?.fetchedAt}`);
   assert(latency1 < 10, 'Cached lookup is instantaneous (<10ms)');
 
-  // 2. Clear cache to simulate exact expiry
-  console.log(`  Simulating cache expiration by ageing entry past 20,000ms TTL...`);
+  console.log(`  Simulating cache expiration by ageing entry past ${yahooFinanceService.QUOTE_CACHE_TTL}ms TTL...`);
   const existingEntry = yahooFinanceService.quoteCache.get(testSymbol);
   if (existingEntry) {
-    existingEntry.timestamp = Date.now() - 25000; // Force expired
+    existingEntry.timestamp = Date.now() - (yahooFinanceService.QUOTE_CACHE_TTL + 5000); // Force expired
   }
 
   const tCache2 = Date.now();

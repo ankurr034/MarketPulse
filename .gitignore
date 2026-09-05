@@ -20,6 +20,7 @@ yarn-error.log*
 /data/
 /backend/data/*
 !/backend/data/amc_disclosures/
+!/backend/data/bse_scrip_mapping.json
 .vite/
 *.vite
 

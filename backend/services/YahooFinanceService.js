@@ -1,6 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 import { getIndianMarketSession, getUSMarketSession, isFinancialEntity, validateAndSanitizeQuote } from './MarketDataValidator.js';
 import athBaseService from './AthBaseService.js';
+import quarterlyRevenueService from './QuarterlyRevenueService.js';
 
 export const yahooFinance = new YahooFinance({
   suppressNotices: ['yahooSurvey'],
@@ -443,51 +444,23 @@ class YahooFinanceService {
           }
         }
 
-        // --- REVENUE: Latest Reported Quarter and YoY vs Same Quarter 1 Year Ago ---
-        const revenueQuarters = quarters.filter(q => typeof q.rawRevenue === 'number' && !isNaN(q.rawRevenue));
-        let currentQuarterRevenue = null;
-        let currentQuarterRevenuePeriodEnd = null;
-        let previousYearSameQuarterRevenue = null;
-        let previousYearSameQuarterRevenuePeriodEnd = null;
-        let revenueYoYPercent = null;
-        let revenueDataStatus = 'NO_DATA';
+        // --- REVENUE: Authoritative Quarterly Resolution via QuarterlyRevenueService ---
+        const resolvedRevObj = await quarterlyRevenueService.resolveQuarterlyRevenue(
+          sym,
+          yahooSym,
+          summary,
+          timeseriesData
+        );
 
-        if (revenueQuarters.length > 0) {
-          const curr = revenueQuarters[0];
-          currentQuarterRevenuePeriodEnd = curr.dateStr;
-          currentQuarterRevenue = Math.round((curr.rawRevenue * statementRate) / 10000000);
+        const currentQuarterRevenue = (typeof resolvedRevObj.revenueCr === 'number') ? resolvedRevObj.revenueCr : 
+                                      (typeof resolvedRevObj.revenue === 'number') ? resolvedRevObj.revenue : null;
+        const currentQuarterRevenuePeriodEnd = resolvedRevObj.currentPeriod?.periodEnd || resolvedRevObj.currentQuarterPeriodEnd || null;
+        const previousYearSameQuarterRevenue = (typeof resolvedRevObj.previousYearSameQuarterRevenue === 'number') ? resolvedRevObj.previousYearSameQuarterRevenue : null;
+        const previousYearSameQuarterRevenuePeriodEnd = resolvedRevObj.previousYearPeriod?.periodEnd || resolvedRevObj.previousYearSameQuarterPeriodEnd || null;
+        const revenueYoYPercent = (typeof resolvedRevObj.revenueYoY === 'number') ? resolvedRevObj.revenueYoY : null;
+        const revenueDataStatus = resolvedRevObj.dataStatus || 'NO_DATA';
 
-          const currDate = new Date(curr.dateStr);
-          const targetYear = currDate.getUTCFullYear() - 1;
-          const targetMonth = currDate.getUTCMonth();
-
-          // Period Validation: Find same quarter 1 year prior (matching targetYear and month within 1 month boundary)
-          const prior = revenueQuarters.find(q => {
-            const d = new Date(q.dateStr);
-            return d.getUTCFullYear() === targetYear && Math.abs(d.getUTCMonth() - targetMonth) <= 1;
-          });
-
-          if (prior) {
-            previousYearSameQuarterRevenuePeriodEnd = prior.dateStr;
-            previousYearSameQuarterRevenue = Math.round((prior.rawRevenue * statementRate) / 10000000);
-
-            // Zero denominator check & formula calculation:
-            // YoY % = ((current - prior) / ABS(prior)) * 100
-            if (previousYearSameQuarterRevenue !== 0) {
-              const rawYoY = ((currentQuarterRevenue - previousYearSameQuarterRevenue) / Math.abs(previousYearSameQuarterRevenue)) * 100;
-              if (!isNaN(rawYoY) && isFinite(rawYoY)) {
-                revenueYoYPercent = parseFloat(rawYoY.toFixed(2));
-                revenueDataStatus = 'VALID_SAME_QUARTER_YOY';
-              }
-            } else {
-              revenueDataStatus = 'ZERO_PRIOR_YEAR_DENOMINATOR';
-            }
-          } else {
-            revenueDataStatus = 'MISSING_PRIOR_YEAR_SAME_QUARTER';
-          }
-        }
-
-        const revenueQuarterly = {
+        const revenueQuarterly = resolvedRevObj.revenueQuarterly || {
           symbol: sym,
           companyName: ap.longName || null,
           currentQuarterRevenue,
@@ -565,9 +538,10 @@ class YahooFinanceService {
         const res = { 
           ebit: (typeof ebit === 'number' && ebit > 0) ? ebit : null, 
           revenue: (typeof currentQuarterRevenue === 'number') ? currentQuarterRevenue : null,
+          revenueCr: (typeof currentQuarterRevenue === 'number') ? currentQuarterRevenue : null,
           revenueYoY: revenueYoYPercent,
           revenueQuarterly,
-          revenueSource: currentQuarterRevenuePeriodEnd ? 'Quarterly Statement' : '—',
+          revenueSource: resolvedRevObj.source || (currentQuarterRevenuePeriodEnd ? 'Quarterly Statement' : '—'),
           netProfit: (typeof netProfit === 'number') ? netProfit : null,
           netProfitYoY: netProfitYoYPercent,
           netProfitQuarterly,
