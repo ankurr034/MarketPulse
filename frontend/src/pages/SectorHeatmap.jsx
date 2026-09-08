@@ -1138,7 +1138,9 @@ export default function SectorHeatmap() {
 
                         {/* Market Cap (₹ Cr) */}
                         <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200 font-semibold">
-                          {stock.marketCap ? formatIndianNumber(stock.marketCap, 0, 0) : '—'}
+                          {(stock.marketCapCr ?? (stock.marketCap ? (stock.marketCap > 1e9 ? Math.round(stock.marketCap / 10000000) : stock.marketCap) : null)) != null
+                            ? formatIndianNumber(stock.marketCapCr ?? (stock.marketCap > 1e9 ? Math.round(stock.marketCap / 10000000) : stock.marketCap), 0, 0)
+                            : '—'}
                         </td>
 
                         {/* Base / ATH Metrics */}
@@ -1316,7 +1318,9 @@ export default function SectorHeatmap() {
 
                           {/* Market Cap (₹ Cr) */}
                           <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                            {sector.totalMarketCap ? formatIndianNumber(sector.totalMarketCap, 0, 0) : '—'}
+                            {(sector.totalMarketCap ? (sector.totalMarketCap > 1e9 ? Math.round(sector.totalMarketCap / 10000000) : sector.totalMarketCap) : null) != null
+                              ? formatIndianNumber(sector.totalMarketCap > 1e9 ? Math.round(sector.totalMarketCap / 10000000) : sector.totalMarketCap, 0, 0)
+                              : '—'}
                           </td>
 
                           {/* 52W High / Low (Base Recovery % / Distance from ATH %) */}
@@ -1545,7 +1549,9 @@ export default function SectorHeatmap() {
 
                                                 {/* Market Cap (₹ Cr) */}
                                                 <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                                                  {stock.marketCap ? formatIndianNumber(stock.marketCap, 0, 0) : '—'}
+                                                  {(stock.marketCapCr ?? (stock.marketCap ? (stock.marketCap > 1e9 ? Math.round(stock.marketCap / 10000000) : stock.marketCap) : null)) != null
+                                                    ? formatIndianNumber(stock.marketCapCr ?? (stock.marketCap > 1e9 ? Math.round(stock.marketCap / 10000000) : stock.marketCap), 0, 0)
+                                                    : '—'}
                                                 </td>
 
                                                 {/* Base / ATH Metrics */}

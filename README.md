@@ -75,7 +75,15 @@ MarketPulse is a modern, full-stack financial market analytics platform providin
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** 18+ and **npm** 9+
+- **Node.js** 18+ (tested on Node.js 18, 20, 24) and **npm** 9+
+
+> [!IMPORTANT]
+> **Cross-Platform Compatibility & Node Modules:**
+> Pre-built native modules (such as `@rollup` native binaries) are platform-specific. **Never commit, archive, or zip `node_modules` across platforms.**
+> On each target machine or CI/CD runner (especially Linux environments), always perform a fresh install using:
+> ```bash
+> npm run install-all
+> ```
 
 ### Installation & Setup
 
@@ -84,16 +92,8 @@ MarketPulse is a modern, full-stack financial market analytics platform providin
 git clone https://github.com/ankurr034/MarketPulse.git
 cd MarketPulse
 
-# Install backend dependencies
-cd backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
-
-# Return to root directory
-cd ..
+# Install all dependencies cleanly across root, backend, and frontend
+npm run install-all
 ```
 
 ### Run the Application

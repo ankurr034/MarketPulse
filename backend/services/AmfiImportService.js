@@ -532,6 +532,11 @@ class AmfiImportService {
               s.metricProvenance = metricMeta;
               s.sharpeRatio = metrics.sharpeRatio;
               s.sortinoRatio = metrics.sortinoRatio;
+              s.riskRatios = metrics.riskRatios;
+              s.sharpeRatio3Y = metrics.sharpeRatio3Y;
+              s.sortinoRatio3Y = metrics.sortinoRatio3Y;
+              s.sharpeRatioInception = metrics.sharpeRatioInception;
+              s.sortinoRatioInception = metrics.sortinoRatioInception;
               enriched++;
             }
           } catch (enrichErr) {

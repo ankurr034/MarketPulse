@@ -8,7 +8,9 @@
     "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend",
-    "build": "npm run build --prefix frontend"
+    "build": "npm run build --prefix frontend",
+    "test": "npm run test:marketpulse",
+    "test:marketpulse": "node backend/tests/test_dateRangeUtils.js && node backend/tests/regression_mf_data.test.js && node backend/tests/test_quarterly_revenue_correctness.test.js && node backend/tests/test_quarterly_revenue_suite.js && node backend/tests/test_stocks_performance_pipeline.js && node backend/tests/final_acceptance_check.js && node backend/tests/test_cross_fund_holdings_isolation.test.js && node backend/tests/test_aum_universe_separation.test.js && node backend/tests/test_indian_stock_ranking.js && node backend/tests/test_indian_mf_ranking.js && node backend/scripts/master_production_audit.js && npm run build --prefix frontend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

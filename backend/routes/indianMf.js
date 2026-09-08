@@ -285,11 +285,23 @@ router.get('/all-direct-schemes', async (req, res) => {
       const canonicalKey = `${s.schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
       const classification = resolveSchemeClassification(s.schemeName, s.category);
 
+      let displayName = s.schemeName;
+      if (String(s.schemeCode) === '146951' || (s.schemeName && s.schemeName.includes('Bharat Consumption Fund') && !s.schemeName.includes('Series'))) {
+        if (!displayName.includes('(Open-Ended)')) {
+          displayName = displayName.replace('Bharat Consumption Fund', 'Bharat Consumption Fund (Open-Ended)');
+        }
+      }
+
+      const primarySharpe = (s.sharpeRatio3Y !== undefined && s.sharpeRatio3Y !== null) ? s.sharpeRatio3Y : (s.sharpeRatio ?? null);
+      const primarySortino = (s.sortinoRatio3Y !== undefined && s.sortinoRatio3Y !== null) ? s.sortinoRatio3Y : (s.sortinoRatio ?? null);
+
       return {
         id: String(s.schemeCode),
         schemeCode: String(s.schemeCode),
-        name: s.schemeName,
-        schemeName: s.schemeName,
+        name: displayName,
+        schemeName: displayName,
+        rawSchemeName: s.schemeName,
+        fundStructure: (String(s.schemeCode) === '146951' || displayName.includes('Open-Ended')) ? 'Open-Ended' : 'Open-Ended',
         amc: resolvedAmc,
         fundHouse: resolvedAmc,
         family: resolvedAmc,
@@ -329,8 +341,16 @@ router.get('/all-direct-schemes', async (req, res) => {
         fiveYearCagr: s.fiveYearCagr ?? null,
         inceptionCagr: s.inceptionCagr ?? null,
         returns: s.returns ?? null,
-        sharpeRatio: s.sharpeRatio ?? null,
-        sortinoRatio: s.sortinoRatio ?? null,
+        sharpeRatio: primarySharpe,
+        sortinoRatio: primarySortino,
+        sharpeRatio3Y: s.sharpeRatio3Y ?? primarySharpe,
+        sortinoRatio3Y: s.sortinoRatio3Y ?? primarySortino,
+        sharpeRatioInception: s.sharpeRatioInception ?? s.sharpeRatio ?? null,
+        sortinoRatioInception: s.sortinoRatioInception ?? s.sortinoRatio ?? null,
+        riskRatios: s.riskRatios || {
+          '3Y': { sharpe: primarySharpe, sortino: primarySortino },
+          'All': { sharpe: s.sharpeRatioInception ?? s.sharpeRatio ?? null, sortino: s.sortinoRatioInception ?? s.sortinoRatio ?? null }
+        },
         launchDate: s.launchDate ?? null,
         launchYear: launchYearVal,
         inceptionYear: launchYearVal

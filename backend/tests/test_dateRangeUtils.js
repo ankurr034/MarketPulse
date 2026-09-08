@@ -1,3 +1,9 @@
+/**
+ * Test Suite: dateRangeUtils
+ * 
+ * NOTE: The fixture file `shared/dateRangeTests.json` is a REQUIRED test input.
+ * Do not delete or move this file during scratch/temporary file cleanups.
+ */
 import fs from 'fs';
 import path from 'path';
 import { resolveRangeToDates, stringifyRange } from '../utils/dateRangeUtils.js';
@@ -6,7 +12,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const fixturePath = path.resolve(__dirname, '../../shared/dateRangeTests.json');
+const candidatePaths = [
+  path.resolve(__dirname, 'fixtures/dateRangeTests.json'),
+  path.resolve(__dirname, '../data/dateRangeTests.json'),
+  path.resolve(__dirname, '../../shared/dateRangeTests.json')
+];
+const fixturePath = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
 const tests = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 
 let failures = 0;

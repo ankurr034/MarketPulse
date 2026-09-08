@@ -35,15 +35,14 @@ export const Sectors = ({ setActiveTab }) => {
       const res = await axios.get(`${API_BASE}/sectors/${secName}`);
       setSectorDetail(res.data);
       
-      // Generate some chart data for the sector
-      const trendPositive = res.data.sector.changePercent >= 0;
+      // Chart data from sector performance or deterministic points
+      const changePct = res.data.sector?.changePercent || 0;
       const data = [];
-      let baseVal = 100;
       const now = new Date();
       for (let i = 7; i >= 0; i--) {
         const dateStr = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        baseVal += (Math.random() - (trendPositive ? 0.45 : 0.55)) * 4;
-        data.push({ date: dateStr, performance: parseFloat(baseVal.toFixed(2)) });
+        const perfVal = 100 + ((7 - i) / 7) * changePct;
+        data.push({ date: dateStr, performance: parseFloat(perfVal.toFixed(2)) });
       }
       setChartData(data);
       setShowDetailMode(true);
@@ -229,11 +228,17 @@ export const Sectors = ({ setActiveTab }) => {
                       >
                         <td className="py-3 font-bold text-white">{s.symbol}</td>
                         <td className="py-3 font-sans text-slate-400">{s.name}</td>
-                        <td className="py-3 text-right text-slate-200">₹{s.ltp != null ? s.ltp.toLocaleString() : '—'}</td>
-                        <td className={`py-3 text-right font-bold ${s.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {s.changePercent >= 0 ? '+' : ''}{s.changePercent}%
+                        <td className="py-3 text-right text-slate-200">
+                          {s.ltp != null ? `₹${Number(s.ltp).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                         </td>
-                        <td className="py-3 text-right text-slate-500">{(s.volume / 1000).toFixed(0)}k</td>
+                        <td className={`py-3 text-right font-bold ${s.changePercent != null ? (s.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-500'}`}>
+                          {s.changePercent != null ? `${s.changePercent >= 0 ? '+' : ''}${Number(s.changePercent).toFixed(2)}%` : '—'}
+                        </td>
+                        <td className="py-3 text-right text-slate-500">
+                          {s.volume != null && s.volume > 0
+                            ? (s.volume >= 10000000 ? `${(s.volume / 10000000).toFixed(2)} Cr` : (s.volume >= 100000 ? `${(s.volume / 100000).toFixed(2)} L` : (s.volume >= 1000 ? `${(s.volume / 1000).toFixed(1)} k` : s.volume)))
+                            : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

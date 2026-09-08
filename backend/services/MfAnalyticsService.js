@@ -48,38 +48,6 @@ class MfAnalyticsService {
     }));
     
     results = results.filter(r => r !== null);
-
-    // Fallback if the upstream API (mfdata.in) is completely down (e.g. 522 error)
-    if (results.length === 0) {
-      console.warn('API is down. Using mock fallback data for analytics.');
-      return [
-        {
-          schemeCode: '122639',
-          schemeName: 'Parag Parikh Flexi Cap Fund - Direct Plan - Growth',
-          sectorBreakdown: { 'Financials': 30, 'Technology': 20, 'FMCG': 15, 'Automobile': 10 },
-          available: true
-        },
-        {
-          schemeCode: '118989',
-          schemeName: 'HDFC Mid-Cap Opportunities Fund - Direct Plan - Growth',
-          sectorBreakdown: { 'Financials': 25, 'Capital Goods': 20, 'Healthcare': 15, 'Services': 10 },
-          available: true
-        },
-        {
-          schemeCode: '125464',
-          schemeName: 'SBI Small Cap Fund - Direct Plan - Growth',
-          sectorBreakdown: { 'Capital Goods': 25, 'Services': 20, 'Financials': 15, 'FMCG': 10 },
-          available: true
-        },
-        {
-          schemeCode: '119062',
-          schemeName: 'ICICI Prudential Bluechip Fund - Direct Plan - Growth',
-          sectorBreakdown: { 'Financials': 35, 'Energy': 20, 'Technology': 15, 'Automobile': 10 },
-          available: true
-        }
-      ];
-    }
-    
     return results;
   }
 

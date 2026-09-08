@@ -57,7 +57,7 @@ const sectorBasket = {
     description: "FMCG, retail, consumer products, and lifestyle brands.",
     funds: [
       { id: '120575', name: 'SBI Consumption Opportunities Fund Direct Growth', family: 'SBI', region: 'india', currency: 'INR' },
-      { id: '146951', name: 'ICICI Prudential Bharat Consumption Fund Direct Growth', family: 'ICICI Prudential', region: 'india', currency: 'INR' },
+      { id: '146951', name: 'ICICI Prudential Bharat Consumption Fund (Open-Ended) Direct Growth', family: 'ICICI Prudential', region: 'india', currency: 'INR' },
       { id: '135805', name: 'Tata India Consumer Fund Direct Growth', family: 'Tata', region: 'india', currency: 'INR' },
       { id: 'XLY', name: 'Consumer Discretionary Select Sector SPDR Fund', family: 'ETF', region: 'global', currency: 'USD' },
       { id: 'XLP', name: 'Consumer Staples Select Sector SPDR Fund', family: 'ETF', region: 'global', currency: 'USD' }

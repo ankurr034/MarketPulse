@@ -7,28 +7,30 @@ class CountryIntelligenceService {
     const cached = cacheService.get(cacheKey);
     if (cached) return cached;
 
-    const countriesMacro = await macroEconomicService.getAllCountriesMacro();
+    const countriesMacro = (await macroEconomicService.getAllCountriesMacro?.()) || {};
     
     // Map return rates and colors based on macro stability
     const countries = Object.keys(countriesMacro).map(code => {
-      const macro = countriesMacro[code];
-      const marketReturn = parseFloat(((macro.gdp || 3.0) * 1.5 + (Math.random() - 0.5) * 8).toFixed(2));
+      const macro = countriesMacro[code] || {};
+      const marketReturn = typeof macro.marketReturn === 'number' ? parseFloat(macro.marketReturn.toFixed(2)) : null;
       
       let color = 'neutral';
-      if (marketReturn > 5) color = 'gain';
-      else if (marketReturn < -2) color = 'loss';
+      if (marketReturn !== null) {
+        if (marketReturn > 5) color = 'gain';
+        else if (marketReturn < -2) color = 'loss';
+      }
 
       return {
         code,
-        name: macro.country,
+        name: macro.country || code,
         marketReturn,
-        gdpGrowth: macro.gdp,
-        inflation: macro.inflation,
+        gdpGrowth: macro.gdp ?? null,
+        inflation: macro.inflation ?? null,
         color
       };
     });
 
-    const result = { countries };
+    const result = { countries, dataStatus: countries.length > 0 ? 'AVAILABLE' : 'DATA_UNAVAILABLE' };
     cacheService.set(cacheKey, result, 'STANDARD');
     return result;
   }

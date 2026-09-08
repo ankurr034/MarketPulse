@@ -71,6 +71,28 @@ router.get('/:symbol', async (req, res) => {
       } catch (e) {
         console.warn(`Could not attach athBaseMetrics for ${sym}:`, e.message);
       }
+      try {
+        const rankMap = await sectorDataService._getOrComputeGlobalRankMap().catch(() => null);
+        const sRank = rankMap ? (rankMap.get(sym) ?? (sym.endsWith('.NS') ? rankMap.get(sym.replace('.NS', '')) : null)) : null;
+        const defs = sectorDataService.getSectorDefinitions();
+        let matchedSec = null;
+        for (const d of defs) {
+          if (d.stocks && d.stocks.some(st => st.symbol === sym || st.symbol === `${sym}.NS` || st.symbol.replace('.NS', '') === sym)) {
+            matchedSec = d.name;
+            break;
+          }
+        }
+        stock = {
+          ...stock,
+          sector: stock.sector || matchedSec || 'General',
+          sectorName: stock.sectorName || matchedSec || 'General',
+          indiaStockRank: sRank,
+          globalRank: sRank,
+          rank: sRank
+        };
+      } catch (e) {
+        // Non-blocking
+      }
 
       res.setHeader('X-Data-Source', stock.source || 'YAHOO_FINANCE');
       res.setHeader('X-Data-Status', stock.dataStatus || 'LIVE');

@@ -1,4 +1,4 @@
-import yahooFinanceService from './YahooFinanceService.js';
+import sectorDataService from './SectorDataService.js';
 import cacheService from './CacheService.js';
 
 class SmartMoneyService {
@@ -11,20 +11,25 @@ class SmartMoneyService {
     const cached = cacheService.get(cacheKey);
     if (cached) return cached;
 
-    // Simulate sector rotation returns based on timeframe
-    const rotation = this.sectors.map(sec => {
-      let shortTermReturn = parseFloat(((Math.random() - 0.4) * 15).toFixed(2));
-      let longTermReturn = parseFloat(((Math.random() - 0.2) * 35).toFixed(2));
+    // Sourced directly from authentic sector performance data
+    const allSectors = await sectorDataService.getAllSectors('india', timeframe, 'stocks');
+    
+    const rotation = (allSectors || []).map(sec => {
+      const shortTermReturn = typeof sec.changePercent === 'number' ? parseFloat(sec.changePercent.toFixed(2)) : null;
+      const longTermReturn = typeof sec.performance?.['1Y'] === 'number' ? parseFloat(sec.performance['1Y'].toFixed(2)) : null;
 
       return {
-        name: sec,
+        name: sec.name,
+        sectorId: sec.id,
         shortTermReturn,
         longTermReturn,
-        rotationSignal: shortTermReturn > 5 ? 'Inflow' : shortTermReturn < -5 ? 'Outflow' : 'Neutral'
+        rotationSignal: shortTermReturn !== null
+          ? (shortTermReturn > 2 ? 'Inflow' : shortTermReturn < -2 ? 'Outflow' : 'Neutral')
+          : 'Neutral'
       };
     });
 
-    rotation.sort((a, b) => b.shortTermReturn - a.shortTermReturn);
+    rotation.sort((a, b) => (b.shortTermReturn ?? -999) - (a.shortTermReturn ?? -999));
 
     cacheService.set(cacheKey, rotation, 'STANDARD');
     return rotation;

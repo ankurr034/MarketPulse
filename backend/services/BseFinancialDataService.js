@@ -82,7 +82,7 @@ class BseFinancialDataService {
     };
 
     try {
-      const response = await withTimeout(axios.get(url, { headers, httpAgent, httpsAgent }), 10000, null);
+      const response = await withTimeout(axios.get(url, { insecureHTTPParser: true, headers, httpAgent, httpsAgent }), 10000, null);
       if (response && response.data) {
         return response.data;
       }

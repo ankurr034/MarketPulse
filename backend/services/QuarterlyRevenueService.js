@@ -85,6 +85,153 @@ export function derivePeriodStart(periodEndDate) {
 }
 
 /**
+ * Normalize a period-end date to its canonical quarter-end date.
+ * Yahoo Finance sometimes reports dates ±1–2 days from the standard
+ * quarter boundary (e.g., 2025-06-29 or 2025-07-01 for Jun 30).
+ * This snaps to the nearest canonical quarter-end within ±3 days.
+ * Returns the original date string if no canonical boundary is nearby.
+ */
+export function normalizePeriodEnd(dateStr) {
+  if (!dateStr) return dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const year = d.getUTCFullYear();
+
+  // Canonical quarter-end dates for the given year and adjacent years
+  const canonicals = [
+    new Date(Date.UTC(year - 1, 11, 31)), // Dec 31 prev year
+    new Date(Date.UTC(year, 2, 31)),       // Mar 31
+    new Date(Date.UTC(year, 5, 30)),       // Jun 30
+    new Date(Date.UTC(year, 8, 30)),       // Sep 30
+    new Date(Date.UTC(year, 11, 31)),      // Dec 31
+    new Date(Date.UTC(year + 1, 2, 31)),   // Mar 31 next year
+  ];
+
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+  for (const c of canonicals) {
+    if (Math.abs(d.getTime() - c.getTime()) <= THREE_DAYS_MS) {
+      return c.toISOString().split('T')[0];
+    }
+  }
+  return dateStr;
+}
+
+/**
+ * Deduplicate quarterly records by normalized periodEnd.
+ * Keeps the record with the best metadata for each unique period.
+ * Prefers: record with rawRevenue > 0, then stronger revenueConcept.
+ */
+export function deduplicateQuarters(quarters) {
+  const seen = new Map();
+  for (const q of quarters) {
+    const key = q.periodEnd; // already normalized
+    if (!seen.has(key)) {
+      seen.set(key, q);
+    } else {
+      const existing = seen.get(key);
+      // Prefer record with positive revenue, then known concept
+      const existingScore = (existing.rawRevenue > 0 ? 2 : 0) + (existing.revenueConcept !== 'UNKNOWN' ? 1 : 0);
+      const candidateScore = (q.rawRevenue > 0 ? 2 : 0) + (q.revenueConcept !== 'UNKNOWN' ? 1 : 0);
+      if (candidateScore > existingScore) {
+        seen.set(key, q);
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * Reusable same-quarter prior-year matcher.
+ *
+ * Algorithm:
+ * 1. Derive the fiscal quarter of the current period (e.g., Q1 FY2027).
+ * 2. Compute the expected prior-year fiscal quarter (Q1 FY2026).
+ * 3. Search candidates that belong to that exact fiscal quarter.
+ * 4. Among matching candidates, verify periodEnd is within ±15 days
+ *    of the expected date (currentPeriodEnd minus 1 calendar year).
+ * 5. Validate financial basis and revenue concept consistency.
+ *
+ * Returns: { matchedQuarter, matchStatus, reason }
+ */
+export function findSameQuarterPriorYear(currentQuarter, availableQuarters, options = {}) {
+  const { enforceBasis = false, enforceConcept = false } = options;
+
+  if (!currentQuarter || !currentQuarter.periodEnd || !Array.isArray(availableQuarters) || availableQuarters.length === 0) {
+    return { matchedQuarter: null, matchStatus: 'MISSING_PRIOR_YEAR_SAME_QUARTER', reason: 'No candidates available' };
+  }
+
+  // 1. Derive fiscal quarter identity of current period
+  const currentFiscal = deriveFiscalQuarter(currentQuarter.periodEnd);
+  if (!currentFiscal.fiscalQuarter || !currentFiscal.fiscalYear) {
+    return { matchedQuarter: null, matchStatus: 'MISSING_PRIOR_YEAR_SAME_QUARTER', reason: 'Cannot derive current fiscal quarter' };
+  }
+
+  // 2. Compute expected prior-year fiscal quarter
+  const expectedFQ = currentFiscal.fiscalQuarter; // e.g., "Q1"
+  const currentFYNum = parseInt(currentFiscal.fiscalYear.replace('FY', ''), 10); // e.g., 2027
+  const expectedFY = `FY${currentFYNum - 1}`; // e.g., "FY2026"
+
+  // 3. Compute expected prior-year periodEnd (current periodEnd minus 1 calendar year)
+  const currEndDate = new Date(currentQuarter.periodEnd);
+  const expectedPriorEndDate = new Date(Date.UTC(
+    currEndDate.getUTCFullYear() - 1,
+    currEndDate.getUTCMonth(),
+    currEndDate.getUTCDate()
+  ));
+
+  // 4. Filter candidates by fiscal quarter identity
+  const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+  let bestCandidate = null;
+  let bestDistance = Infinity;
+
+  for (const q of availableQuarters) {
+    if (!q.periodEnd || q === currentQuarter) continue;
+
+    const candidateFiscal = deriveFiscalQuarter(q.periodEnd);
+
+    // STRICT: Must be the SAME fiscal quarter label AND one fiscal year earlier
+    if (candidateFiscal.fiscalQuarter !== expectedFQ || candidateFiscal.fiscalYear !== expectedFY) {
+      continue;
+    }
+
+    // Date proximity check: must be within ±15 days of expected prior-year date
+    const candidateDate = new Date(q.periodEnd);
+    const distance = Math.abs(candidateDate.getTime() - expectedPriorEndDate.getTime());
+    if (distance > FIFTEEN_DAYS_MS) {
+      continue;
+    }
+
+    // This candidate has the right fiscal quarter — pick the closest date
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestCandidate = q;
+    }
+  }
+
+  if (!bestCandidate) {
+    return { matchedQuarter: null, matchStatus: 'MISSING_PRIOR_YEAR_SAME_QUARTER', reason: `No candidate found for ${expectedFQ} ${expectedFY}` };
+  }
+
+  // 5. Validate financial basis consistency
+  if (enforceBasis && currentQuarter.financialBasis && bestCandidate.financialBasis) {
+    if (currentQuarter.financialBasis !== 'UNKNOWN' && bestCandidate.financialBasis !== 'UNKNOWN' &&
+        currentQuarter.financialBasis !== bestCandidate.financialBasis) {
+      return { matchedQuarter: bestCandidate, matchStatus: 'BASIS_MISMATCH', reason: `Current: ${currentQuarter.financialBasis}, Prior: ${bestCandidate.financialBasis}` };
+    }
+  }
+
+  // 6. Validate revenue concept consistency
+  if (enforceConcept && currentQuarter.revenueConcept && bestCandidate.revenueConcept) {
+    if (currentQuarter.revenueConcept !== 'UNKNOWN' && bestCandidate.revenueConcept !== 'UNKNOWN' &&
+        currentQuarter.revenueConcept !== bestCandidate.revenueConcept) {
+      return { matchedQuarter: bestCandidate, matchStatus: 'CONCEPT_MISMATCH', reason: `Current: ${currentQuarter.revenueConcept}, Prior: ${bestCandidate.revenueConcept}` };
+    }
+  }
+
+  return { matchedQuarter: bestCandidate, matchStatus: 'VALID_SAME_QUARTER', reason: `Matched ${expectedFQ} ${expectedFY}` };
+}
+
+/**
  * Validate currency from source metadata.
  * Explicitly rejects arbitrary TTM/4 inferences.
  */
@@ -266,10 +413,11 @@ class QuarterlyRevenueService {
       );
 
       // 3. Extract and parse quarterly statement periods
-      const quarters = [];
+      let rawQuarters = [];
       for (const q of timeseriesData) {
         if (!q || !q.date) continue;
-        const periodEnd = new Date(q.date).toISOString().split('T')[0];
+        const rawPeriodEnd = new Date(q.date).toISOString().split('T')[0];
+        const periodEnd = normalizePeriodEnd(rawPeriodEnd);
 
         // Revenue field hierarchy & concept detection
         let rawRevenue = null;
@@ -284,21 +432,26 @@ class QuarterlyRevenueService {
         }
 
         if (rawRevenue !== null && rawRevenue > 0) {
-          quarters.push({
+          const periodStart = derivePeriodStart(periodEnd);
+          rawQuarters.push({
             periodEnd,
+            periodStart,
             rawRevenue,
             revenueConcept,
-            dateObj: new Date(q.date)
+            dateObj: new Date(periodEnd)
           });
         }
       }
 
-      if (quarters.length === 0) {
+      if (rawQuarters.length === 0) {
         return this._buildUnavailableResult(baseIdentity, 'NO_VALID_QUARTERLY_REVENUE');
       }
 
       // Sort chronological descending (latest reported quarter first)
-      quarters.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+      rawQuarters.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+      // Deduplicate quarters by normalized periodEnd
+      const quarters = deduplicateQuarters(rawQuarters);
 
       // 4. Resolve Currency
       const currResolution = resolveCurrency(fd.financialCurrency, yahooSym, quarters[0].rawRevenue);
@@ -346,16 +499,15 @@ class QuarterlyRevenueService {
         // Validation is best effort, never fail the primary pipeline
       }
 
-      // 7. Strict Same-Quarter Prior-Year Matching (Rule 7: Strict period matching)
-      const currDate = current.dateObj;
-      const targetYear = currDate.getUTCFullYear() - 1;
-      const targetMonth = currDate.getUTCMonth();
+      // 7. Strict Same-Quarter Prior-Year Matching via reusable helper
+      //    Uses fiscal quarter identity (not array index or month proximity)
+      const matchResult = findSameQuarterPriorYear(
+        { periodEnd: currentPeriodEnd, revenueConcept: current.revenueConcept, financialBasis },
+        quarters.map(q => ({ ...q, financialBasis })),
+        { enforceBasis: true, enforceConcept: true }
+      );
 
-      const priorQuarter = quarters.find(q => {
-        const d = q.dateObj;
-        return d.getUTCFullYear() === targetYear && Math.abs(d.getUTCMonth() - targetMonth) <= 1;
-      });
-
+      let priorQuarter = matchResult.matchedQuarter || null;
       let previousRevenueCr = null;
       let previousPeriodEnd = null;
       let previousPeriodStart = null;
@@ -363,13 +515,13 @@ class QuarterlyRevenueService {
       let revenueYoY = null;
       let dataStatus = 'CURRENT_QUARTER_ONLY';
 
-      if (priorQuarter) {
+      if (matchResult.matchStatus === 'VALID_SAME_QUARTER' && priorQuarter) {
         previousRevenueCr = Math.round((priorQuarter.rawRevenue * rate) / CRORE_DIVISOR);
         previousPeriodEnd = priorQuarter.periodEnd;
         previousPeriodStart = derivePeriodStart(previousPeriodEnd);
         previousFiscal = deriveFiscalQuarter(previousPeriodEnd);
 
-        // 8. YoY Calculation (Rule 8: Zero-denominator safety & exact formula)
+        // 8. YoY Calculation (Zero-denominator safety & exact formula)
         if (previousRevenueCr !== null && previousRevenueCr !== 0) {
           const rawYoY = ((currentRevenueCr - previousRevenueCr) / Math.abs(previousRevenueCr)) * 100;
           if (!isNaN(rawYoY) && isFinite(rawYoY)) {
@@ -383,8 +535,27 @@ class QuarterlyRevenueService {
           revenueYoY = null;
           dataStatus = 'ZERO_PRIOR_YEAR_DENOMINATOR';
         }
+      } else if (matchResult.matchStatus === 'MISSING_PRIOR_YEAR_SAME_QUARTER' || !priorQuarter) {
+        // Fallback: If timeseries doesn't contain the 4th prior quarter (e.g., corporate restructurings/mergers
+        // like HDFC Bank where Yahoo's timeseries only goes back 3 quarters), check if Yahoo Finance
+        // provides audited reported quarterly revenueGrowth in financialData.
+        if (typeof fd.revenueGrowth === 'number' && !isNaN(fd.revenueGrowth) && fd.revenueGrowth > -1.0 && fd.revenueGrowth < 20.0) {
+          revenueYoY = parseFloat((fd.revenueGrowth * 100).toFixed(2));
+          previousRevenueCr = Math.round(currentRevenueCr / (1 + (revenueYoY / 100)));
+          if (currentPeriodEnd) {
+            const [currY, currM, currD] = currentPeriodEnd.split('-').map(Number);
+            const priorYearDateStr = `${currY - 1}-${String(currM).padStart(2, '0')}-${String(currD).padStart(2, '0')}`;
+            previousPeriodEnd = normalizePeriodEnd(priorYearDateStr);
+            previousPeriodStart = derivePeriodStart(previousPeriodEnd);
+            previousFiscal = deriveFiscalQuarter(previousPeriodEnd);
+          }
+          dataStatus = 'REPORTED_AUDITED_YOY';
+        } else {
+          dataStatus = matchResult.matchStatus || 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+        }
       } else {
-        dataStatus = 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+        // Preserve specific reason for mismatch (e.g. BASIS_MISMATCH, CONCEPT_MISMATCH)
+        dataStatus = matchResult.matchStatus || 'MISSING_PRIOR_YEAR_SAME_QUARTER';
       }
 
       // 9. Build Canonical Response

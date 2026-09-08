@@ -132,4 +132,8 @@ mongoose.connect(mongoUri)
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Backend server listening on port ${PORT}`);
+  // Start non-blocking background warming only after server is actively listening
+  if (process.env.NODE_ENV !== 'test') {
+    sectorDataService.startBackgroundWarming();
+  }
 });

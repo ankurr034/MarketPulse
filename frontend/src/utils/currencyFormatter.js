@@ -21,14 +21,17 @@ export const formatPrice = (price, symbol) => {
   }).format(price);
 };
 
-export const formatMarketCap = (marketCapStr, symbol) => {
-  if (!marketCapStr && marketCapStr !== 0) return '—';
+export const formatMarketCap = (marketCapVal, symbol) => {
+  if (marketCapVal === null || marketCapVal === undefined || isNaN(marketCapVal)) return '—';
   const isGlobal = isGlobalSymbol(symbol);
   const prefix = isGlobal ? '$' : '₹';
-  const suffix = isGlobal ? 'B' : ' Cr'; // Displaying billion for USD and Cr for INR
+  const suffix = isGlobal ? 'B' : ' Cr';
   
-  // Convert number formatting
-  let formatted = marketCapStr.toLocaleString(isGlobal ? 'en-US' : 'en-IN');
+  let val = Number(marketCapVal);
+  if (!isGlobal && val > 1e8) {
+    val = Math.round(val / 10000000);
+  }
   
+  let formatted = val.toLocaleString(isGlobal ? 'en-US' : 'en-IN');
   return `${prefix}${formatted}${suffix}`;
 };

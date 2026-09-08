@@ -6,6 +6,7 @@ import quarterlyRevenueService from './QuarterlyRevenueService.js';
 import marketDataGateway from './MarketDataGateway.js';
 import athBaseService from './AthBaseService.js';
 import { getIndianMarketSession } from './MarketDataValidator.js';
+import { runWithConcurrencyLimit } from '../utils/concurrencyLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -871,7 +872,46 @@ class SectorDataService {
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     this.SYMBOL_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
     this.isWarmingFinancials = false;
-    setTimeout(() => this.warmFinancialsCache(), 1000);
+    this._warmingStarted = false;
+    this.circuitBreakerOpen = false;
+    this.circuitBreakerCooldown = 60000; // 60 seconds cooldown
+    this.circuitBreakerLastTrip = 0;
+    this.globalRankCache = null;
+    this.globalRankCacheTime = 0;
+  }
+
+  isCircuitBreakerActive() {
+    if (this.circuitBreakerOpen) {
+      if (Date.now() - this.circuitBreakerLastTrip < this.circuitBreakerCooldown) {
+        return true;
+      }
+      this.circuitBreakerOpen = false; // Cooldown elapsed, allow half-open retry
+    }
+    return false;
+  }
+
+  tripCircuitBreaker(reason = 'external failures') {
+    this.circuitBreakerOpen = true;
+    this.circuitBreakerLastTrip = Date.now();
+    console.warn(`[SectorDataService] Circuit breaker tripped (${reason}). Falling back to cached/local data for ${this.circuitBreakerCooldown / 1000}s.`);
+  }
+
+  /**
+   * Controlled non-blocking background cache warmer.
+   * Invoked after the HTTP server is listening.
+   */
+  startBackgroundWarming() {
+    if (this._warmingStarted) return;
+    this._warmingStarted = true;
+    setTimeout(async () => {
+      try {
+        console.log('[SectorDataService] Starting deferred background cache warm-up...');
+        await this.prewarmStockCache();
+        await this.warmFinancialsCache();
+      } catch (err) {
+        console.warn('[SectorDataService] Background warm-up notice:', err.message);
+      }
+    }, 5000);
   }
 
   /**
@@ -914,11 +954,14 @@ class SectorDataService {
 
       const BATCH_SIZE = 3;
       for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+        if (this.isCircuitBreakerActive()) {
+          console.log('[SectorDataService] Circuit breaker active; pausing financials cache warming.');
+          break;
+        }
         const batch = symbols.slice(i, i + BATCH_SIZE);
         await Promise.allSettled(batch.map(sym => yahooFinanceService.getStockFinancials(sym)));
         await new Promise(r => setTimeout(r, 300));
       }
-      this.cache.clear();
       console.log(`[SectorDataService] Completed quarterly financials warming for ${symbols.length} constituent stocks.`);
     } catch (err) {
       console.warn('[SectorDataService] Error warming financials cache:', err.message);
@@ -928,7 +971,8 @@ class SectorDataService {
   }
 
   /**
-   * Fast batch fetch quotes in parallel chunks of 25 with symbol-level caching.
+   * Fast batch fetch quotes in parallel chunks of 25 with symbol-level caching,
+   * bounded concurrency, circuit breaker protection, and consolidated error reporting.
    */
   async _batchFetchQuotes(symbols) {
     const now = Date.now();
@@ -944,7 +988,7 @@ class SectorDataService {
       }
     }
 
-    if (uncached.length === 0) {
+    if (uncached.length === 0 || this.isCircuitBreakerActive()) {
       return Array.from(resultsMap.values());
     }
 
@@ -954,24 +998,47 @@ class SectorDataService {
       chunks.push(uncached.slice(i, i + CHUNK_SIZE));
     }
 
-    // Process chunks concurrently with Promise.allSettled
-    const chunkPromises = chunks.map(async (chunk) => {
+    let failedChunkCount = 0;
+    let consecutiveFailures = 0;
+
+    const chunkTasks = chunks.map((chunk) => async () => {
+      if (this.isCircuitBreakerActive()) return;
+
       try {
         const quotesRes = await marketDataGateway.getQuotes(chunk);
-        if (quotesRes && quotesRes.data) {
+        if (quotesRes && quotesRes.data && quotesRes.data.length > 0) {
+          const hasValidData = quotesRes.data.some(q => q && typeof q.ltp === 'number' && q.ltp > 0 && q.dataStatus !== 'UNAVAILABLE');
+          if (hasValidData) {
+            consecutiveFailures = 0;
+          } else {
+            consecutiveFailures++;
+          }
           for (const q of quotesRes.data) {
             if (q && typeof q.ltp === 'number' && q.ltp > 0 && q.dataStatus !== 'UNAVAILABLE') {
               this.symbolCache.set(q.symbol, { data: q, timestamp: now });
             }
             resultsMap.set(q.symbol, q);
           }
+        } else {
+          failedChunkCount++;
+          consecutiveFailures++;
         }
       } catch (err) {
-        console.warn('Batch chunk quote fetch warning:', err.message);
+        failedChunkCount++;
+        consecutiveFailures++;
+      }
+
+      if (consecutiveFailures >= 2) {
+        this.tripCircuitBreaker('consecutive quote chunk failures');
       }
     });
 
-    await Promise.allSettled(chunkPromises);
+    await runWithConcurrencyLimit(chunkTasks, 3);
+
+    if (failedChunkCount > 0 && !this.isCircuitBreakerActive()) {
+      console.warn(`[SectorDataService] ${failedChunkCount}/${chunks.length} quote chunks failed, using cached data.`);
+    }
+
     return Array.from(resultsMap.values());
   }
 
@@ -1012,8 +1079,21 @@ class SectorDataService {
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
       let isStale = false;
-      // Only check staleness for stock-level datasets where items have a .symbol property
-      if (cacheKey.startsWith('all_ranked_stocks_') || cacheKey.startsWith('sector_detail_')) {
+      // Check staleness for datasets if rankings or financials are missing
+      if (cacheKey.startsWith('all_sectors_')) {
+        const sectors = Array.isArray(cached.data) ? cached.data : [];
+        const bank = sectors.find(s => s.id === 'nifty-bank');
+        const firstStock = bank?.stocks?.[0];
+        if (firstStock && (firstStock.indiaStockRank === null || firstStock.globalRank === null)) {
+          isStale = true;
+        }
+      } else if (cacheKey.startsWith('all_ranked_stocks_')) {
+        const stocks = Array.isArray(cached.data) ? cached.data : [];
+        const firstStock = stocks[0];
+        if (firstStock && (firstStock.indiaStockRank === null || firstStock.globalRank === null)) {
+          isStale = true;
+        }
+      } else if (cacheKey.startsWith('sector_detail_')) {
         const stocks = Array.isArray(cached.data) ? cached.data : (cached.data?.stocks || []);
         isStale = stocks.length > 0 && stocks.some(s => s && s.symbol && (s.revenue === null || s.revenue === undefined) && this._getFinFromCache(s.symbol));
       }
@@ -1168,26 +1248,103 @@ class SectorDataService {
       });
     });
 
-    this.globalRankCache = rankMap;
     return rankMap;
   }
 
-  async _getOrComputeGlobalRankMap() {
-    if (this.globalRankCache && this.globalRankCache.size > 1000) {
+  /**
+   * Helper to check if a rankMap contains valid, positive numerical rankings.
+   */
+  hasValidRanks(rankMap) {
+    if (!rankMap || !(rankMap instanceof Map) || rankMap.size === 0) return false;
+    let count = 0;
+    for (const val of rankMap.values()) {
+      if (typeof val === 'number' && val > 0) {
+        count++;
+        if (count >= 5) return true;
+      }
+    }
+    return false;
+  }
+
+  async _getOrComputeGlobalRankMap(passedQuotes = null) {
+    const now = Date.now();
+    const isCacheFresh = this.globalRankCacheTime && (now - this.globalRankCacheTime < this.CACHE_TTL);
+    if (this.hasValidRanks(this.globalRankCache) && isCacheFresh && !passedQuotes) {
       return this.globalRankCache;
     }
-    const allSymbols = this.getAllIndianSymbols();
-    const quotes = await this._batchFetchQuotes(allSymbols);
+
     const qMap = new Map();
-    quotes.forEach(q => {
-      if (q && q.symbol) {
-        qMap.set(q.symbol, q);
-        if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
-        if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+
+    // 1. Gather all cached quotes from SectorDataService symbolCache
+    if (this.symbolCache && typeof this.symbolCache.entries === 'function') {
+      for (const [sym, entry] of this.symbolCache.entries()) {
+        const q = entry?.data;
+        if (q && q.symbol && typeof q.marketCap === 'number' && q.marketCap > 0) {
+          qMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+          if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+        }
       }
-    });
-    this.globalRankCache = this._computeGlobalRankings(allSymbols, qMap);
-    return this.globalRankCache;
+    }
+
+    // 2. Gather quotes from yahooFinanceService.quoteCache
+    if (yahooFinanceService.quoteCache && typeof yahooFinanceService.quoteCache.entries === 'function') {
+      for (const [sym, entry] of yahooFinanceService.quoteCache.entries()) {
+        const q = entry?.data;
+        if (q && q.symbol && typeof q.marketCap === 'number' && q.marketCap > 0 && !qMap.has(q.symbol)) {
+          qMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+          if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+        }
+      }
+    }
+
+    // 3. Merge in any explicitly passed quotes (Map or Array)
+    if (passedQuotes instanceof Map) {
+      for (const [sym, q] of passedQuotes.entries()) {
+        if (q && q.symbol) {
+          qMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+          if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+        }
+      }
+    } else if (Array.isArray(passedQuotes)) {
+      passedQuotes.forEach(q => {
+        if (q && q.symbol) {
+          qMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+          if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+        }
+      });
+    }
+
+    // 4. If qMap has few quotes with marketCap (< 20), fetch priority symbols quotes
+    const quotesWithMCap = Array.from(qMap.values()).filter(q => q && typeof q.marketCap === 'number' && q.marketCap > 0);
+    if (quotesWithMCap.length < 20 && !this.isCircuitBreakerActive()) {
+      const prioritySymbols = this.getAllSymbols();
+      const freshQuotes = await this._batchFetchQuotes(prioritySymbols);
+      freshQuotes.forEach(q => {
+        if (q && q.symbol) {
+          qMap.set(q.symbol, q);
+          if (q.symbol.endsWith('.NS')) qMap.set(q.symbol.replace('.NS', ''), q);
+          if (q.symbol.endsWith('.BO')) qMap.set(q.symbol.replace('.BO', ''), q);
+        }
+      });
+    }
+
+    const computed = this._computeGlobalRankings(this.getAllIndianSymbols(), qMap);
+    if (this.hasValidRanks(computed)) {
+      this.globalRankCache = computed;
+      this.globalRankCacheTime = Date.now();
+      return computed;
+    }
+
+    // If existing cache has valid ranks, prefer it over an invalid new compute
+    if (this.hasValidRanks(this.globalRankCache)) {
+      return this.globalRankCache;
+    }
+
+    return computed;
   }
 
   /**
@@ -1204,9 +1361,14 @@ class SectorDataService {
       if (q.symbol.endsWith('.NS')) {
         quoteMap.set(q.symbol.replace('.NS', ''), q);
       }
+      if (q.symbol.endsWith('.BO')) {
+        quoteMap.set(q.symbol.replace('.BO', ''), q);
+      }
     });
 
-    const rankMap = passedRankMap || this.globalRankCache || this._computeGlobalRankings(this.getAllIndianSymbols(), quoteMap);
+    const rankMap = (this.hasValidRanks(passedRankMap) ? passedRankMap : null) || 
+                    (this.hasValidRanks(this.globalRankCache) ? this.globalRankCache : null) || 
+                    await this._getOrComputeGlobalRankMap(quoteMap);
 
     const isFinancialSector = sector.id.includes('bank') || sector.id.includes('fin') || sector.id.includes('insurance');
 
@@ -1315,9 +1477,9 @@ class SectorDataService {
       const resolvedRevenueQuarterly = stockFin?.revenueQuarterly ?? quote?.revenueQuarterly ?? null;
       const resolvedNetProfit = stockFin?.netProfit ?? quote?.netProfit ?? null;
 
-      const rawRank = rankMap.get(stock.symbol) ?? (stock.symbol.endsWith('.NS') ? rankMap.get(stock.symbol.replace('.NS', '')) : null) ?? null;
+      const rawRank = rankMap.get(stock.symbol) ?? (stock.symbol.endsWith('.NS') ? rankMap.get(stock.symbol.replace('.NS', '')) : null) ?? (stock.symbol.endsWith('.BO') ? rankMap.get(stock.symbol.replace('.BO', '')) : null) ?? null;
       const validMCap = (quote && typeof quote.marketCap === 'number' && quote.marketCap > 0 && !isNaN(quote.marketCap)) ? quote.marketCap : null;
-      const globalRank = validMCap !== null ? rawRank : null;
+      const globalRank = (typeof rawRank === 'number' && rawRank > 0) ? rawRank : (validMCap !== null ? rawRank : null);
 
       const hasValidPrice = quote && typeof quote.ltp === 'number' && quote.ltp > 0;
       const hasValidPrevClose = quote && typeof quote.previousClose === 'number' && quote.previousClose > 0;
@@ -1357,6 +1519,7 @@ class SectorDataService {
           globalRank,
           rank: globalRank,
           marketCap: validMCap,
+          marketCapCr: validMCap ? (validMCap > 1e9 ? Math.round(validMCap / 10000000) : Math.round(validMCap)) : null,
           currentPrice: quote.ltp,
           price: quote.ltp,
           previousClose: hasValidPrevClose ? quote.previousClose : (quote.previousClose || null),
@@ -1530,9 +1693,10 @@ class SectorDataService {
       // Filter sectors by region and assetClass
       let sectors = ALL_SECTORS.filter(s => (s.assetClass || 'stocks') === assetClass);
       
-      if (region === 'india') {
+      const normRegion = (region || 'all').toLowerCase();
+      if (normRegion === 'india' || normRegion === 'in') {
         sectors = sectors.filter(s => s.region === 'india');
-      } else if (region === 'global') {
+      } else if (normRegion === 'global' || normRegion === 'us') {
         sectors = sectors.filter(s => s.region === 'global');
       }
 
@@ -1592,27 +1756,35 @@ class SectorDataService {
         }
       });
 
-      const globalRankMap = await this._getOrComputeGlobalRankMap();
+      const globalRankMap = await this._getOrComputeGlobalRankMap(fullQuoteMap);
 
       // ──────────────────────────────────────────────────────
       // STEP 3: Unified Historical Analysis for Primary Index Tickers (1 pass for Returns + ATH + 52W)
-      // Concurrency controlled in chunks of 5 to prevent Yahoo connection throttling
       // ──────────────────────────────────────────────────────
       const indexAnalysisMap = new Map();
-      const INDEX_BATCH_SIZE = 5;
-      for (let i = 0; i < uniquePrimaryTickers.length; i += INDEX_BATCH_SIZE) {
-        const chunk = uniquePrimaryTickers.slice(i, i + INDEX_BATCH_SIZE);
-        const chunkResults = await Promise.allSettled(
-          chunk.map(async (ticker) => ({
-            ticker,
-            analysis: await yahooFinanceService.getHistoricalAnalysis(ticker, primaryQuoteMap.get(ticker)?.ltp)
-          }))
-        );
-        chunkResults.forEach(res => {
-          if (res.status === 'fulfilled' && res.value && res.value.analysis) {
-            indexAnalysisMap.set(res.value.ticker, res.value.analysis);
+      if (!this.isCircuitBreakerActive() && uniquePrimaryTickers.length > 0) {
+        let failedIndices = 0;
+        const indexTasks = uniquePrimaryTickers.map((ticker) => async () => {
+          if (this.isCircuitBreakerActive()) return;
+          try {
+            const ltp = primaryQuoteMap.get(ticker)?.ltp;
+            const analysis = await yahooFinanceService.getHistoricalAnalysis(ticker, ltp);
+            if (analysis && (analysis.returns['1W'] !== null || analysis.returns['1Y'] !== null)) {
+              indexAnalysisMap.set(ticker, analysis);
+            } else {
+              failedIndices++;
+            }
+          } catch (e) {
+            failedIndices++;
           }
         });
+        await runWithConcurrencyLimit(indexTasks, 3);
+        if (failedIndices > 0) {
+          console.warn(`[SectorDataService] ${failedIndices}/${uniquePrimaryTickers.length} index fetches failed, using cached data.`);
+          if (failedIndices === uniquePrimaryTickers.length) {
+            this.tripCircuitBreaker('all index historical fetches failed');
+          }
+        }
       }
 
       // ──────────────────────────────────────────────────────
@@ -1810,14 +1982,7 @@ class SectorDataService {
     const cacheKey = `sector_detail_${sector.id}_${timeframe}`;
     return this._getCachedOrFetch(cacheKey, async () => {
       // Ensure global rankings are computed
-      let rankMap = this.globalRankCache;
-      if (!rankMap || rankMap.size === 0) {
-        const allSymbols = this.getAllIndianSymbols();
-        const allQuotes = await this._batchFetchQuotes(allSymbols);
-        const qMap = new Map();
-        allQuotes.forEach(q => { if (q?.symbol) qMap.set(q.symbol, q); });
-        rankMap = this._computeGlobalRankings(allSymbols, qMap);
-      }
+      const rankMap = await this._getOrComputeGlobalRankMap();
 
       const stocksWithQuotes = await this._fetchSectorQuotes(sector, true, rankMap);
       const validStocks = stocksWithQuotes.filter(s => typeof s.ltp === 'number' && s.ltp > 0);
@@ -2033,12 +2198,14 @@ class SectorDataService {
         });
       });
 
-      // For Indian equities universe, use the pure Indian equity symbols
-      const allSymbols = region === 'global'
+      // For active stocks universe, fetch constituent and active symbols
+      const normRegion = (region || 'all').toLowerCase();
+      const isGlobal = normRegion === 'global' || normRegion === 'us';
+      const activeSymbols = isGlobal
         ? [...new Set(sectors.flatMap(s => s.stocks.map(st => st.symbol)))]
-        : this.getAllIndianSymbols();
-
-      const quotes = await this._batchFetchQuotes(allSymbols);
+        : this.getAllSymbols();
+      const allSymbols = isGlobal ? activeSymbols : this.getAllIndianSymbols();
+      const quotes = await this._batchFetchQuotes(activeSymbols);
 
       const quoteMap = new Map();
       quotes.forEach(q => {
@@ -2054,7 +2221,7 @@ class SectorDataService {
       });
 
       // Compute global rankings strictly across the Indian NSE/BSE equity universe
-      const globalRankMap = await this._getOrComputeGlobalRankMap();
+      const globalRankMap = await this._getOrComputeGlobalRankMap(quoteMap);
 
       // Use fast cached historical returns, financials, and ATH metrics without blocking endpoint
       const returnsMap = new Map();
@@ -2115,9 +2282,9 @@ class SectorDataService {
         const fin = finMap.get(sym) || this._getFinFromCache(sym) || null;
         const athBase = athBaseMap.get(sym) || null;
 
-        const rawRank = globalRankMap.get(sym) ?? null;
+        const rawRank = globalRankMap.get(sym) ?? (sym.endsWith('.NS') ? globalRankMap.get(sym.replace('.NS', '')) : null) ?? (sym.endsWith('.BO') ? globalRankMap.get(sym.replace('.BO', '')) : null) ?? null;
         const validMarketCap = (quote && typeof quote.marketCap === 'number' && quote.marketCap > 0) ? quote.marketCap : null;
-        const globalRank = validMarketCap !== null ? rawRank : null;
+        const globalRank = (typeof rawRank === 'number' && rawRank > 0) ? rawRank : (validMarketCap !== null ? rawRank : null);
 
         const resolvedEbit = isFin ? null : (fin?.ebit ?? quote?.ebit ?? null);
         const resolvedRevenue = fin?.revenue ?? quote?.revenue ?? null;
@@ -2163,6 +2330,8 @@ class SectorDataService {
             indianMarketRank: globalRank,
             globalRank,
             rank: globalRank,
+            marketCap: validMarketCap,
+            marketCapCr: validMarketCap ? (validMarketCap > 1e9 ? Math.round(validMarketCap / 10000000) : Math.round(validMarketCap)) : null,
             revenue: resolvedRevenue,
             revenueCr: resolvedRevenue,
             revenueYoY: resolvedRevenueYoY,
@@ -2222,6 +2391,7 @@ class SectorDataService {
           globalRank: null,
           rank: null,
           marketCap: null,
+          marketCapCr: null,
           revenue: resolvedRevenue,
           revenueCr: resolvedRevenue,
           revenueYoY: resolvedRevenueYoY,
@@ -2394,9 +2564,5 @@ class SectorDataService {
 }
 
 const sectorDataService = new SectorDataService();
-// Auto pre-warm background cache on startup
-setTimeout(() => {
-  sectorDataService.prewarmStockCache().catch(() => {});
-}, 100);
-
 export default sectorDataService;
+

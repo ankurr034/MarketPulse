@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, BookOpen, ChevronDown, Filter, FileText } from 'lucide-react';
-import * as ReactWindow from 'react-window';
-import * as ReactWindowInfiniteLoader from 'react-window-infinite-loader';
+import { VariableSizeList as List } from 'react-window';
+import InfiniteLoader from 'react-window-infinite-loader';
 import ExpandableAssetRow from './ExpandableAssetRow';
-
-const List = ReactWindow.VariableSizeList || ReactWindow.default?.VariableSizeList || ReactWindow.List;
-const InfiniteLoader = ReactWindowInfiniteLoader.default || ReactWindowInfiniteLoader;
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 

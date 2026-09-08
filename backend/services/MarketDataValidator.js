@@ -276,9 +276,43 @@ export function validateAndSanitizeQuote(rawQuote) {
   };
 }
 
+export const DataClassification = Object.freeze({
+  VERIFIED_REAL: 'VERIFIED_REAL',
+  REAL_BUT_DELAYED: 'REAL_BUT_DELAYED',
+  REAL_BUT_PERIODIC: 'REAL_BUT_PERIODIC',
+  CALCULATED_FROM_VERIFIED_DATA: 'CALCULATED_FROM_VERIFIED_DATA',
+  UNVERIFIED: 'UNVERIFIED',
+  STALE: 'STALE',
+  HARDCODED: 'HARDCODED',
+  FABRICATED: 'FABRICATED',
+  FALLBACK_SUBSTITUTED: 'FALLBACK_SUBSTITUTED',
+  MISSING: 'MISSING',
+  SOURCE_CONFLICT: 'SOURCE_CONFLICT'
+});
+
+/**
+ * Data Quality Gate: Determines if a data value or status is acceptable for research analysis.
+ * TRUE only for: VERIFIED_REAL, REAL_BUT_DELAYED, REAL_BUT_PERIODIC, CALCULATED_FROM_VERIFIED_DATA.
+ * FALSE for: UNVERIFIED, STALE, HARDCODED, FABRICATED, FALLBACK_SUBSTITUTED, MISSING, SOURCE_CONFLICT.
+ */
+export function isResearchUsable(statusOrObj) {
+  if (!statusOrObj) return false;
+  const status = typeof statusOrObj === 'string'
+    ? statusOrObj
+    : (statusOrObj.dataStatus || statusOrObj.status || statusOrObj.classification);
+  return [
+    DataClassification.VERIFIED_REAL,
+    DataClassification.REAL_BUT_DELAYED,
+    DataClassification.REAL_BUT_PERIODIC,
+    DataClassification.CALCULATED_FROM_VERIFIED_DATA
+  ].includes(status);
+}
+
 export default {
   getIndianMarketSession,
   getUSMarketSession,
   isFinancialEntity,
-  validateAndSanitizeQuote
+  validateAndSanitizeQuote,
+  DataClassification,
+  isResearchUsable
 };

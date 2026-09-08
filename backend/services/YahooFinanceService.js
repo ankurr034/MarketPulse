@@ -1,7 +1,8 @@
 import YahooFinance from 'yahoo-finance2';
 import { getIndianMarketSession, getUSMarketSession, isFinancialEntity, validateAndSanitizeQuote } from './MarketDataValidator.js';
 import athBaseService from './AthBaseService.js';
-import quarterlyRevenueService from './QuarterlyRevenueService.js';
+import quarterlyRevenueService, { findSameQuarterPriorYear, normalizePeriodEnd, deriveFiscalQuarter } from './QuarterlyRevenueService.js';
+import { runWithConcurrencyLimit } from '../utils/concurrencyLimiter.js';
 
 export const yahooFinance = new YahooFinance({
   suppressNotices: ['yahooSurvey'],
@@ -23,7 +24,7 @@ const KNOWN_GLOBAL_SYMBOLS = new Set([
   'XLK', 'XLV', 'XLF', 'XLE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC', 'SPY', 'QQQ', 'DIA', 'IWM', 'VGHCX', 'FSPHX'
 ]);
 
-const withTimeout = (promise, ms = 10000, fallbackValue = null) => {
+const withTimeout = (promise, ms = 3000, fallbackValue = null) => {
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => resolve(fallbackValue), ms))
@@ -132,16 +133,16 @@ class YahooFinanceService {
         const p5yDate = new Date(now.getFullYear() - 5, now.getMonth() - 2, now.getDate());
         const session = getIndianMarketSession();
 
-        // Single shared fetch for both daily (5Y) and monthly (lifetime)
+        // Single shared fetch for both daily (5Y) and monthly (lifetime) with bounded 3s timeout
         const [dailyChart, monthlyChart] = await Promise.all([
           withTimeout(
             yahooFinance.chart(yahooSym, { period1: p5yDate, period2: now, interval: '1d' }).catch(() => ({ quotes: [] })),
-            10000,
+            3000,
             { quotes: [] }
           ),
           withTimeout(
             yahooFinance.chart(yahooSym, { period1: 0, period2: now, interval: '1mo' }).catch(() => ({ quotes: [] })),
-            10000,
+            3000,
             { quotes: [] }
           )
         ]);
@@ -473,7 +474,10 @@ class YahooFinanceService {
         };
 
         // --- NET PROFIT: Accounting preservation ---
-        const netIncomeQuarters = quarters.filter(q => typeof q.rawNetIncome === 'number' && !isNaN(q.rawNetIncome));
+        // Normalize net income quarter dates before matching
+        const netIncomeQuarters = quarters
+          .filter(q => typeof q.rawNetIncome === 'number' && !isNaN(q.rawNetIncome))
+          .map(q => ({ ...q, dateStr: normalizePeriodEnd(q.dateStr), periodEnd: normalizePeriodEnd(q.dateStr) }));
         let currentQuarterNetProfit = null;
         let currentQuarterPeriodEnd = null;
         let previousYearSameQuarterNetProfit = null;
@@ -486,16 +490,15 @@ class YahooFinanceService {
           currentQuarterPeriodEnd = curr.dateStr;
           currentQuarterNetProfit = Math.round((curr.rawNetIncome * statementRate) / 10000000);
 
-          const currDate = new Date(curr.dateStr);
-          const targetYear = currDate.getUTCFullYear() - 1;
-          const targetMonth = currDate.getUTCMonth();
+          // Use the same reusable fiscal-quarter-identity matcher as revenue
+          const netProfitMatch = findSameQuarterPriorYear(
+            { periodEnd: currentQuarterPeriodEnd },
+            netIncomeQuarters.map(q => ({ ...q, periodEnd: q.dateStr })),
+            { enforceBasis: false, enforceConcept: false }
+          );
 
-          const prior = netIncomeQuarters.find(q => {
-            const d = new Date(q.dateStr);
-            return d.getUTCFullYear() === targetYear && Math.abs(d.getUTCMonth() - targetMonth) <= 1;
-          });
-
-          if (prior) {
+          if (netProfitMatch.matchStatus === 'VALID_SAME_QUARTER' && netProfitMatch.matchedQuarter) {
+            const prior = netProfitMatch.matchedQuarter;
             previousYearSameQuarterPeriodEnd = prior.dateStr;
             previousYearSameQuarterNetProfit = Math.round((prior.rawNetIncome * statementRate) / 10000000);
 
@@ -508,8 +511,27 @@ class YahooFinanceService {
             } else {
               netProfitDataStatus = 'ZERO_PRIOR_YEAR_DENOMINATOR';
             }
+          } else if (netProfitMatch.matchStatus === 'MISSING_PRIOR_YEAR_SAME_QUARTER' || !netProfitMatch.matchedQuarter) {
+            // Authoritative fallback for quarterly net profit growth when prior year quarter is not in timeseries
+            const earningsGrowth = (typeof ks.earningsQuarterlyGrowth === 'number' && !isNaN(ks.earningsQuarterlyGrowth))
+              ? ks.earningsQuarterlyGrowth
+              : (typeof fd.earningsGrowth === 'number' && !isNaN(fd.earningsGrowth) ? fd.earningsGrowth : null);
+
+            if (earningsGrowth !== null && earningsGrowth > -1.0 && earningsGrowth < 20.0) {
+              netProfitYoYPercent = parseFloat((earningsGrowth * 100).toFixed(2));
+              if (currentQuarterNetProfit !== null) {
+                previousYearSameQuarterNetProfit = Math.round(currentQuarterNetProfit / (1 + (netProfitYoYPercent / 100)));
+              }
+              if (currentQuarterPeriodEnd) {
+                const [currY, currM, currD] = currentQuarterPeriodEnd.split('-').map(Number);
+                previousYearSameQuarterPeriodEnd = `${currY - 1}-${String(currM).padStart(2, '0')}-${String(currD).padStart(2, '0')}`;
+              }
+              netProfitDataStatus = 'REPORTED_AUDITED_YOY';
+            } else {
+              netProfitDataStatus = netProfitMatch.matchStatus || 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+            }
           } else {
-            netProfitDataStatus = 'MISSING_PRIOR_YEAR_SAME_QUARTER';
+            netProfitDataStatus = netProfitMatch.matchStatus || 'MISSING_PRIOR_YEAR_SAME_QUARTER';
           }
         }
 
@@ -663,7 +685,10 @@ class YahooFinanceService {
 
         const session = getIndianMarketSession();
 
-        const chunkPromises = chunks.map(async (chunk) => {
+        let failedChunkCount = 0;
+        let lastChunkError = null;
+
+        const chunkTasks = chunks.map((chunk) => async () => {
           const chunkKey = chunk.sort().join(',');
           if (this.inFlightQuotes.has(chunkKey)) {
             return this.inFlightQuotes.get(chunkKey);
@@ -671,7 +696,19 @@ class YahooFinanceService {
 
           const promise = (async () => {
             try {
-              const rawQuotes = await withTimeout(yahooFinance.quote(chunk, {}, { validateResult: false }), 10000, []);
+              let rawQuotes = null;
+              try {
+                rawQuotes = await withTimeout(yahooFinance.quote(chunk, {}, { validateResult: false }), 1500, null);
+              } catch (initialErr) {
+                // Single retry if not an outright network unreachability error
+                if (!initialErr.message?.includes('ENOTFOUND') && !initialErr.message?.includes('fetch failed')) {
+                  await new Promise(r => setTimeout(r, 100));
+                  rawQuotes = await withTimeout(yahooFinance.quote(chunk, {}, { validateResult: false }), 1000, null).catch(() => null);
+                } else {
+                  throw initialErr;
+                }
+              }
+
               const quotesList = Array.isArray(rawQuotes) ? rawQuotes : (rawQuotes ? [rawQuotes] : []);
 
               for (const q of quotesList) {
@@ -748,7 +785,8 @@ class YahooFinanceService {
                 }
               }
             } catch (err) {
-              console.warn('Yahoo chunk quote fetch error:', err.message);
+              failedChunkCount++;
+              lastChunkError = err.message;
             } finally {
               this.inFlightQuotes.delete(chunkKey);
             }
@@ -758,7 +796,11 @@ class YahooFinanceService {
           return promise;
         });
 
-        await Promise.allSettled(chunkPromises);
+        await runWithConcurrencyLimit(chunkTasks, 3);
+
+        if (failedChunkCount > 0) {
+          console.warn(`[YahooFinanceService] ${failedChunkCount}/${chunks.length} quote chunks failed (${lastChunkError || 'network error'}). Falling back to cached/unavailable quotes.`);
+        }
       }
 
       // Build final list in original requested symbol order

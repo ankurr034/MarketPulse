@@ -611,6 +611,16 @@ export default function MfRankingTable({
             <span className="font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800/60">
               {fund.planType || 'Direct Growth'}
             </span>
+            {(fund.fundStructure === 'Open-Ended' || fund.name?.includes('Open-Ended')) && (
+              <span className="font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800/60" title="Open-Ended Scheme (Distinct from Closed-Ended Series)">
+                Open-Ended
+              </span>
+            )}
+            {(fund.fundStructure === 'Closed-Ended' || fund.name?.includes('Series')) && (
+              <span className="font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800/60" title="Closed-Ended Series (Maturity Gated)">
+                Closed-Ended
+              </span>
+            )}
             <span>•</span>
             <span className="truncate">{fund.amc || fund.family || 'Mutual Fund'}</span>
             {(fund.launchYear || fund.inceptionYear) && (

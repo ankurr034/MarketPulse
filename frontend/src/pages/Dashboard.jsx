@@ -9,13 +9,12 @@ import { formatPrice } from '../utils/currencyFormatter.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-// Sparkline Mock Points for aesthetic
+// Deterministic Sparkline Points
 const generateSparkData = (isPositive) => {
   const points = [];
-  let cur = 50;
   for (let i = 0; i < 12; i++) {
-    cur += (Math.random() - (isPositive ? 0.4 : 0.6)) * 8;
-    points.push({ val: parseFloat(cur.toFixed(2)) });
+    const val = isPositive ? 50 + i * 1.8 : 50 - i * 1.8;
+    points.push({ val: parseFloat(val.toFixed(2)) });
   }
   return points;
 };

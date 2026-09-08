@@ -356,9 +356,16 @@ class LiveMfAnalyticsService {
       'All': returnAll
     };
 
+    // Primary Metric Engine: 3-Year Trailing Sharpe and Sortino (industry standard)
+    // Falls back to Since Inception only if history is under 36 months
+    const primarySharpe = sharpeRatio3Y !== null ? sharpeRatio3Y : sharpeRatio;
+    const primarySortino = sortinoRatio3Y !== null ? sortinoRatio3Y : sortinoRatio;
+
     return { 
       return1D, return1W, return1M, return3M, return6M, return1Y, return3Y, return5Y, returnAll,
-      returns, sharpeRatio, sortinoRatio,
+      returns, 
+      sharpeRatio: primarySharpe, 
+      sortinoRatio: primarySortino,
       riskRatios,
       sharpeRatio1Y, sortinoRatio1Y,
       sharpeRatio3Y, sortinoRatio3Y,
