@@ -348,7 +348,17 @@ class HoldingsFallbackService {
   async getHoldings(ticker, schemeName) {
     const cleanTicker = String(ticker).trim();
     if (/^\d+$/.test(cleanTicker)) {
-      // 1. Primary authoritative source: Official AMC Portfolio Disclosure
+      // 1. Primary provider for fund stock portfolios & holdings: FinAPI (Upvaly)
+      try {
+        const finapiResult = await this.fetchFinapiHoldings(cleanTicker);
+        if (finapiResult && finapiResult.available !== false && finapiResult.holdings && finapiResult.holdings.length > 0) {
+          return finapiResult;
+        }
+      } catch (finErr) {
+        console.warn(`FinAPI (Upvaly) holdings lookup failed for ${cleanTicker}:`, finErr.message);
+      }
+
+      // 2. Official AMC Portfolio Disclosure (Direct filing supplement / fallback)
       try {
         const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanTicker);
         if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanTicker) {
@@ -360,17 +370,11 @@ class HoldingsFallbackService {
             aum: resolvedAum,
             aumCr: resolvedAum,
             aumAsOf: officialRes.holdingsAsOf || cachedAum?.asOf || null,
-            aumSource: officialRes.source || cachedAum?.source || null
+            aumSource: officialRes.source || cachedAum?.source || 'FinAPI (Upvaly) / AMC Disclosure'
           };
         }
       } catch (amcErr) {
         console.warn(`Official AMC holdings lookup failed for ${cleanTicker}:`, amcErr.message);
-      }
-
-      // 2. Secondary fallback: FinAPI
-      const directResult = await this.fetchFinapiHoldings(cleanTicker);
-      if (directResult && directResult.available !== false && directResult.holdings && directResult.holdings.length > 0) {
-        return directResult;
       }
 
       const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
@@ -388,7 +392,8 @@ class HoldingsFallbackService {
         aumCr: aumVal,
         aumAsOf: cachedAum?.asOf || null,
         aumSource: cachedAum?.source || null,
-        reason: "Official portfolio holdings disclosure unavailable for this fund"
+        source: 'FinAPI (Upvaly)',
+        reason: "Portfolio holdings disclosure unavailable from FinAPI (Upvaly) for this fund"
       };
     }
     

@@ -132,38 +132,18 @@ class MfDataAggregatorService {
 
     let officialMeta = null;
 
-    // 1. Primary authoritative source: Official AMC Portfolio Disclosure
+    // 1. Primary authoritative source for fund stock portfolios & holdings: FinAPI (Upvaly)
     try {
-      const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanCode);
-      if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanCode) {
-        officialMeta = officialRes;
-        positions = officialRes.positions;
-        holdings = officialRes.positions;
-        sectorBreakdown = officialRes.sectorBreakdown || {};
-        holdingsAvailable = true;
-        holdingsReason = null;
-        holdingsAsOf = officialRes.holdingsAsOf;
-        holdingsSource = officialRes.source;
-        if (officialRes.portfolioAumCr && !isNaN(officialRes.portfolioAumCr)) {
-          aum = Number(officialRes.portfolioAumCr);
-        }
-      }
-    } catch (amcErr) {
-      console.warn(`Official AMC portfolio check warning for scheme ${cleanCode}:`, amcErr.message);
-    }
-
-    // 2. Fetch FinAPI for auxiliary fundamentals (expenseRatio, pe, pb) or fallback holdings
-    try {
-      finapiRes = await holdingsFallbackService.fetchFinapiHoldings(schemeCode);
+      finapiRes = await holdingsFallbackService.fetchFinapiHoldings(cleanCode);
       if (finapiRes) {
-        if (!holdingsAvailable && finapiRes.available && finapiRes.holdings && finapiRes.holdings.length > 0) {
+        if (finapiRes.available && finapiRes.holdings && finapiRes.holdings.length > 0) {
           positions = finapiRes.holdings;
           holdings = finapiRes.holdings;
           sectorBreakdown = finapiRes.sector_weightings || {};
           holdingsAvailable = true;
           holdingsReason = null;
           holdingsAsOf = finapiRes.holdings[0]?.portfolioAsOf || null;
-          holdingsSource = 'Upvaly FinAPI Disclosure';
+          holdingsSource = 'FinAPI (Upvaly)';
         }
         expenseRatio = finapiRes.expenseRatio ?? null;
         high52 = finapiRes.high52 ?? null;
@@ -176,6 +156,28 @@ class MfDataAggregatorService {
       }
     } catch (finErr) {
       console.warn(`FinAPI fetch warning for scheme ${schemeCode}:`, finErr.message);
+    }
+
+    // 2. Fallback: Official AMC Portfolio Disclosure
+    if (!holdingsAvailable) {
+      try {
+        const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanCode);
+        if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanCode) {
+          officialMeta = officialRes;
+          positions = officialRes.positions;
+          holdings = officialRes.positions;
+          sectorBreakdown = officialRes.sectorBreakdown || {};
+          holdingsAvailable = true;
+          holdingsReason = null;
+          holdingsAsOf = officialRes.holdingsAsOf;
+          holdingsSource = officialRes.source;
+          if (aum === null && officialRes.portfolioAumCr && !isNaN(officialRes.portfolioAumCr)) {
+            aum = Number(officialRes.portfolioAumCr);
+          }
+        }
+      } catch (amcErr) {
+        console.warn(`Official AMC portfolio check warning for scheme ${cleanCode}:`, amcErr.message);
+      }
     }
 
     if (aum === null) {
