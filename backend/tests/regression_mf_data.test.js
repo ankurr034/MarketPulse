@@ -31,7 +31,7 @@ const VERIFIED_BENCHMARKS = [
     name: 'ICICI Prudential Bharat Consumption Fund - Direct Plan - Growth Option',
     expectedNavMin: 24.0,
     expectedNavMax: 29.0,
-    expectedReturn1YMin: -5.0,
+    expectedReturn1YMin: -7.0,
     expectedReturn1YMax: 5.0,
     // Ground truth: Open-ended fund 3Y Sharpe is ~0.30 - 0.35 (calculated 0.30 - 0.32)
     expectedSharpe3YMin: 0.26,

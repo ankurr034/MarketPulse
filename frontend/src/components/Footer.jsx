@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux';
+import { FileText } from 'lucide-react';
 
 export default function Footer() {
   const lastUpdated = useSelector(state => state.market.lastUpdated);
@@ -19,6 +20,17 @@ export default function Footer() {
           For informational purposes only — not investment advice
         </span>
         <span>Data source: Yahoo Finance (delayed ~15 min)</span>
+        <a
+          href="/MarketPulse_Final_Technical_Documentation.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 transition-colors hover:underline"
+          style={{ color: 'var(--accent)' }}
+          title="MarketPulse Data, Terms, Sources & Calculation Guide"
+        >
+          <FileText size={12} />
+          Data Guide & Methodology
+        </a>
         <span>Last updated: {formatTime(lastUpdated)}</span>
       </div>
     </footer>

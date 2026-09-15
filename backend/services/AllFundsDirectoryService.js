@@ -58,9 +58,13 @@ class AllFundsDirectoryService {
     const mappedSchemes = filtered.map(s => {
       const returns = s.returns || {};
       const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
-      const cleanAum = (s.aumCr !== null && s.aumCr !== undefined && !isNaN(s.aumCr) && Number(s.aumCr) > 0)
+      const isAAUM = s.aumMetric === 'AAUM';
+      const cleanAum = (!isAAUM && s.aumCr !== null && s.aumCr !== undefined && !isNaN(s.aumCr) && Number(s.aumCr) > 0)
         ? Number(s.aumCr)
-        : ((s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null);
+        : ((!isAAUM && s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null);
+      const cleanAaum = (s.aaumCr !== null && s.aaumCr !== undefined && !isNaN(s.aaumCr) && Number(s.aaumCr) > 0)
+        ? Number(s.aaumCr)
+        : (isAAUM && (s.aumCr || s.aum) ? Number(s.aumCr || s.aum) : null);
       const resolvedAmc = s.amc || s.fundHouse || s.family || resolveAmcName(s.schemeName);
       const { plan, option } = resolvePlanAndOption(s.schemeName);
       const isin = s.isinGrowth || s.isin || null;
@@ -122,9 +126,11 @@ class AllFundsDirectoryService {
         sortinoRatio: s.sortinoRatio ?? null,
         aum: cleanAum,
         aumCr: cleanAum,
+        aaumCr: cleanAaum,
+        aumMetric: cleanAum ? 'AUM' : (cleanAaum ? 'AAUM' : null),
         aumAsOf: s.aumProvenance?.asOf || s.aumAsOf || null,
-        aumSource: s.aumProvenance?.source || s.aumSource || (cleanAum ? 'Upvaly FinAPI Disclosure' : null),
-        aumReason: cleanAum ? null : 'AUM disclosure unavailable',
+        aumSource: s.aumProvenance?.source || s.aumSource || (cleanAum ? 'Upvaly FinAPI Disclosure' : (cleanAaum ? 'AMFI Scheme-Wise Disclosure' : null)),
+        aumReason: cleanAum ? null : (cleanAaum ? 'AAUM disclosure available (AUM strictly null)' : 'AUM disclosure unavailable'),
         expenseRatio: s.expenseRatio ?? null,
         high52: s.high52 ?? null,
         low52: s.low52 ?? null,

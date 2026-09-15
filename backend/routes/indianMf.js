@@ -105,12 +105,29 @@ router.get('/sectors/flat', async (req, res) => {
       for (const fund of sector.topFunds) {
         const code = String(fund.schemeCode || fund.id);
         const cachedAum = holdingsFallbackService._getCached(`aum_details_${code}`);
-        const cleanAum = (fund.aum !== null && fund.aum !== undefined && !isNaN(fund.aum) && Number(fund.aum) > 0)
-          ? Number(fund.aum)
-          : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null);
+        const isAum = fund.aumMetric === 'AUM' || (fund.aumMetric == null && cachedAum?.aumMetric === 'AUM');
+        const isAaum = fund.aumMetric === 'AAUM' || (fund.aumMetric == null && cachedAum?.aumMetric === 'AAUM');
+
+        let cleanAum = null;
+        let cleanAaum = null;
+        let metric = fund.aumMetric || cachedAum?.aumMetric || null;
+
+        if (isAum) {
+          cleanAum = (fund.aumCr !== null && fund.aumCr !== undefined && !isNaN(fund.aumCr) && Number(fund.aumCr) > 0)
+            ? Number(fund.aumCr)
+            : ((fund.aum !== null && fund.aum !== undefined && !isNaN(fund.aum) && Number(fund.aum) > 0)
+              ? Number(fund.aum)
+              : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null));
+          cleanAaum = fund.aaumCr ?? cachedAum?.aaumCr ?? null;
+          metric = 'AUM';
+        } else if (isAaum) {
+          cleanAaum = fund.aaumCr ?? fund.aumCr ?? fund.aum ?? cachedAum?.aaumCr ?? cachedAum?.value ?? null;
+          cleanAum = null; // NEVER copy AAUM into aum or aumCr!
+          metric = 'AAUM';
+        }
 
         const navDateVal = fund.navDate || fund.date || 'Data Unavailable';
-        const aumDateVal = fund.aumProvenance?.asOf || fund.aumDate || (cleanAum ? '30 Jun 2026' : null);
+        const aumDateVal = fund.aumProvenance?.asOf || fund.aumDate || ((cleanAum || cleanAaum) ? '30 Jun 2026' : null);
 
         const launchYearVal = fund.launchYear ?? fund.inceptionYear ?? null;
 
@@ -118,6 +135,8 @@ router.get('/sectors/flat', async (req, res) => {
           ...fund,
           aum: cleanAum,
           aumCr: cleanAum,
+          aaumCr: cleanAaum,
+          aumMetric: metric,
           indiaMfRank: fund.indiaMfRank ?? null,
           globalMfRank: fund.indiaMfRank ?? null,
           rank: fund.indiaMfRank ?? null,
@@ -258,7 +277,7 @@ const EXTRA_SCHEMES_REGISTRY = [
 
   // Nifty Bank & Banking Schemes
   { id: '140087', name: 'Nippon India ETF Nifty Bank BeES', family: 'Nippon India Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
-  { id: '134013', name: 'SBI Nifty Bank ETF', family: 'SBI Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
+  { id: '153250', name: 'SBI Nifty Bank Index Fund Direct Growth', family: 'SBI Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '149858', name: 'ICICI Prudential Nifty Bank Index Fund Direct Growth', family: 'ICICI Prudential Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '135853', name: 'HDFC Nifty Bank Index Fund Direct Growth', family: 'HDFC Mutual Fund', sectorName: 'Nifty Bank Index', specifiedType: 'index', specifiedSub: 'niftybank' },
   { id: '123693', name: 'Kotak Banking & PSU Debt Fund Direct Growth', family: 'Kotak Mahindra Mutual Fund', sectorName: 'Banking & PSU Debt', specifiedType: 'debt', specifiedSub: 'banking' },
@@ -278,7 +297,28 @@ router.get('/all-direct-schemes', async (req, res) => {
     const activeList = await amfiImportService.getActiveSchemes() || [];
     const formatted = activeList.map(s => {
       const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
-      const cleanAum = (s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0) ? Number(s.aum) : null;
+      const cachedAum = holdingsFallbackService._getCached(`aum_details_${s.schemeCode}`);
+      const isAum = s.aumMetric === 'AUM' || (s.aumMetric == null && cachedAum?.aumMetric === 'AUM');
+      const isAaum = s.aumMetric === 'AAUM' || (s.aumMetric == null && cachedAum?.aumMetric === 'AAUM');
+
+      let cleanAum = null;
+      let cleanAaum = null;
+      let metric = s.aumMetric || cachedAum?.aumMetric || null;
+
+      if (isAum) {
+        cleanAum = (s.aumCr !== null && s.aumCr !== undefined && !isNaN(s.aumCr) && Number(s.aumCr) > 0)
+          ? Number(s.aumCr)
+          : ((s.aum !== null && s.aum !== undefined && !isNaN(s.aum) && Number(s.aum) > 0)
+            ? Number(s.aum)
+            : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null));
+        cleanAaum = s.aaumCr ?? cachedAum?.aaumCr ?? null;
+        metric = 'AUM';
+      } else if (isAaum) {
+        cleanAaum = s.aaumCr ?? s.aumCr ?? s.aum ?? cachedAum?.aaumCr ?? cachedAum?.value ?? null;
+        cleanAum = null; // NEVER copy AAUM into aum or aumCr!
+        metric = 'AAUM';
+      }
+
       const resolvedAmc = s.amc || s.fundHouse || s.family || resolveAmcName(s.schemeName);
       const { plan, option } = resolvePlanAndOption(s.schemeName);
       const isin = s.isinGrowth || s.isin || null;
@@ -323,15 +363,28 @@ router.get('/all-direct-schemes', async (req, res) => {
         navDate: s.navDate || s.date || 'Data Unavailable',
         asOfDate: s.navDate || s.date || null,
         navAsOfDate: s.navDate || s.date || null,
-        aumAsOfDate: s.aumProvenance?.asOf || s.aumDate || (cleanAum ? '30 Jun 2026' : null),
+        aumAsOfDate: s.aumProvenance?.asOf || s.aumDate || ((cleanAum || cleanAaum) ? '30 Jun 2026' : null),
         performanceAsOfDate: s.navDate || s.date || null,
         aum: cleanAum,
         aumCr: cleanAum,
+        aaumCr: cleanAaum,
+        aumMetric: metric,
         indiaMfRank: s.indiaMfRank ?? null,
+        indiaMfCategoryRank: s.indiaMfCategoryRank ?? null,
+        indiaMfSubcategoryRank: s.indiaMfSubcategoryRank ?? null,
+        indiaMfSectorRank: s.indiaMfSectorRank ?? null,
         globalMfRank: s.indiaMfRank ?? null,
         rank: s.indiaMfRank ?? null,
         overallRank: s.indiaMfRank ?? null,
-        aumProvenance: s.aumProvenance || { value: cleanAum, aumCr: cleanAum, source: cleanAum ? 'Upvaly FinAPI Disclosure' : null, status: cleanAum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE', asOf: s.aumProvenance?.asOf || (cleanAum ? '30 Jun 2026' : null) },
+        aumProvenance: s.aumProvenance || {
+          value: cleanAum,
+          aumCr: cleanAum,
+          aaumCr: cleanAaum,
+          aumMetric: metric,
+          source: cleanAum ? 'Official AMC Factsheet / AMFI Disclosure' : (cleanAaum ? 'AMFI Scheme-Wise Disclosure' : null),
+          status: cleanAum ? 'VERIFIED' : (cleanAaum ? 'AAUM_AVAILABLE' : 'UNAVAILABLE'),
+          asOf: s.aumProvenance?.asOf || ((cleanAum || cleanAaum) ? '30 Jun 2026' : null)
+        },
         oneWeekChangePct: s.oneWeekChangePct ?? null,
         oneMonthChangePct: s.oneMonthChangePct ?? null,
         threeMonthChangePct: s.threeMonthChangePct ?? null,
@@ -380,17 +433,40 @@ router.get('/extra-schemes', async (req, res) => {
       return res.json(extraSchemesCache);
     }
 
+    const activeList = await amfiImportService.getActiveSchemes() || [];
+    const activeByCode = new Map(activeList.map(item => [String(item.schemeCode || item.id), item]));
+
     const chunkSize = 10;
     const enriched = [];
 
     for (let i = 0; i < EXTRA_SCHEMES_REGISTRY.length; i += chunkSize) {
       const chunk = EXTRA_SCHEMES_REGISTRY.slice(i, i + chunkSize);
       const results = await Promise.all(chunk.map(async s => {
+        const activeScheme = activeByCode.get(String(s.id));
         const assetSummary = await unifiedAssetService.getAssetSummary('mf', s.id, 'india');
         const cachedAum = holdingsFallbackService._getCached(`aum_details_${s.id}`);
-        const cleanAum = (assetSummary?.aum !== null && assetSummary?.aum !== undefined && !isNaN(assetSummary?.aum) && Number(assetSummary?.aum) > 0)
-          ? Number(assetSummary.aum)
-          : (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null);
+        const isAum = assetSummary?.aumMetric === 'AUM' || activeScheme?.aumMetric === 'AUM' || (assetSummary?.aumMetric == null && cachedAum?.aumMetric === 'AUM');
+        const isAaum = !isAum && (assetSummary?.aumMetric === 'AAUM' || activeScheme?.aumMetric === 'AAUM' || cachedAum?.aumMetric === 'AAUM');
+
+        let cleanAum = null;
+        let cleanAaum = null;
+        let metric = assetSummary?.aumMetric || activeScheme?.aumMetric || cachedAum?.aumMetric || null;
+
+        if (isAum) {
+          cleanAum = (assetSummary?.aumCr !== null && assetSummary?.aumCr !== undefined && !isNaN(assetSummary?.aumCr) && Number(assetSummary?.aumCr) > 0)
+            ? Number(assetSummary.aumCr)
+            : ((assetSummary?.aum !== null && !isNaN(assetSummary?.aum) && Number(assetSummary?.aum) > 0)
+              ? Number(assetSummary.aum)
+              : ((activeScheme?.aumCr !== null && activeScheme?.aumCr !== undefined && !isNaN(activeScheme?.aumCr) && Number(activeScheme?.aumCr) > 0)
+                ? Number(activeScheme.aumCr)
+                : ((cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0 ? Number(cachedAum.value) : null))));
+          cleanAaum = assetSummary?.aaumCr ?? activeScheme?.aaumCr ?? cachedAum?.aaumCr ?? null;
+          metric = 'AUM';
+        } else if (isAaum) {
+          cleanAaum = assetSummary?.aaumCr ?? activeScheme?.aaumCr ?? assetSummary?.aumCr ?? assetSummary?.aum ?? cachedAum?.aaumCr ?? cachedAum?.value ?? null;
+          cleanAum = null;
+          metric = 'AAUM';
+        }
         
         // Canonical scheme identity: authoritative name and AMC from assetSummary strictly prevail
         const resolvedName = assetSummary?.schemeName || assetSummary?.name || s.name;
@@ -424,6 +500,15 @@ router.get('/extra-schemes', async (req, res) => {
           fundHouse: resolvedAmc,
           aum: cleanAum,
           aumCr: cleanAum,
+          aaumCr: cleanAaum,
+          aumMetric: metric,
+          indiaMfRank: activeScheme?.indiaMfRank ?? assetSummary?.indiaMfRank ?? null,
+          indiaMfCategoryRank: activeScheme?.indiaMfCategoryRank ?? assetSummary?.indiaMfCategoryRank ?? null,
+          indiaMfSubcategoryRank: activeScheme?.indiaMfSubcategoryRank ?? assetSummary?.indiaMfSubcategoryRank ?? null,
+          indiaMfSectorRank: activeScheme?.indiaMfSectorRank ?? assetSummary?.indiaMfSectorRank ?? null,
+          globalMfRank: activeScheme?.indiaMfRank ?? assetSummary?.indiaMfRank ?? null,
+          rank: activeScheme?.indiaMfRank ?? assetSummary?.indiaMfRank ?? null,
+          overallRank: activeScheme?.indiaMfRank ?? assetSummary?.indiaMfRank ?? null,
           navDate: navDateVal,
           asOfDate: navDateVal,
           navAsOfDate: navDateVal,

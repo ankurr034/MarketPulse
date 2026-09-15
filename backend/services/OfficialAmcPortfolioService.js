@@ -21,6 +21,13 @@ const POSSIBLE_EQUITY_MASTER_PATHS = [
   path.resolve('data/indian_equity_master.json')
 ];
 
+const POSSIBLE_BSE_PATHS = [
+  path.resolve(__dirname, '../data/bse_scrip_mapping.json'),
+  path.resolve(__dirname, '../../data/bse_scrip_mapping.json'),
+  path.resolve('backend/data/bse_scrip_mapping.json'),
+  path.resolve('data/bse_scrip_mapping.json')
+];
+
 class OfficialAmcPortfolioService {
   constructor() {
     this.cache = new Map();
@@ -33,6 +40,29 @@ class OfficialAmcPortfolioService {
   }
 
   _initEquityMaster() {
+    // 1. Load from BSE scrip mapping
+    for (const p of POSSIBLE_BSE_PATHS) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const data = JSON.parse(raw);
+          for (const [sym, info] of Object.entries(data)) {
+            if (info.isin) {
+              this.equityMasterMap.set(info.isin.trim().toUpperCase(), {
+                symbol: sym.trim().toUpperCase(),
+                name: info.companyName ? info.companyName.trim() : sym.trim()
+              });
+            }
+          }
+          console.log(`⚡ OfficialAmcPortfolioService: Loaded ${this.equityMasterMap.size} ISIN mappings from ${p}`);
+          break;
+        }
+      } catch (err) {
+        console.warn(`Failed reading BSE mapping from ${p}:`, err.message);
+      }
+    }
+
+    // 2. Load from equity master if exists
     for (const p of POSSIBLE_EQUITY_MASTER_PATHS) {
       try {
         if (fs.existsSync(p)) {
@@ -41,13 +71,13 @@ class OfficialAmcPortfolioService {
           if (Array.isArray(list)) {
             for (const item of list) {
               if (item.isin && item.symbol) {
-                this.equityMasterMap.set(item.isin.trim(), {
-                  symbol: item.symbol.trim(),
+                this.equityMasterMap.set(item.isin.trim().toUpperCase(), {
+                  symbol: item.symbol.trim().toUpperCase(),
                   name: item.name ? item.name.trim() : null
                 });
               }
             }
-            console.log(`⚡ OfficialAmcPortfolioService: Loaded ${this.equityMasterMap.size} ISIN-to-Symbol mappings from ${p}`);
+            console.log(`⚡ OfficialAmcPortfolioService: Loaded ${this.equityMasterMap.size} total ISIN-to-Symbol mappings from ${p}`);
             return;
           }
         }
@@ -107,6 +137,8 @@ class OfficialAmcPortfolioService {
         normName.includes('triparty repo') || 
         normName.includes('reverse repo') || 
         normName.includes('net receivables') || 
+        normName.includes('net current assets') || 
+        normName.includes('current assets') || 
         normName.includes('cash & cash equivalent') || 
         normName.includes('bank margin') || 
         normName.includes('clearing corporation')) {
@@ -166,36 +198,106 @@ class OfficialAmcPortfolioService {
    */
   parseDisclosureFile(filePath, schemeMeta = {}) {
     const wb = xlsx.readFile(filePath);
-    const sheetName = wb.SheetNames[0];
+    const sheetName = (schemeMeta.sheetName && wb.Sheets[schemeMeta.sheetName])
+      ? schemeMeta.sheetName
+      : wb.SheetNames[0];
     const sheet = wb.Sheets[sheetName];
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
     if (!rows || rows.length < 5) {
-      throw new Error(`Insufficient data rows in disclosure file ${filePath}`);
+      throw new Error(`Insufficient data rows in disclosure file ${filePath} (sheet: ${sheetName})`);
     }
 
     // 1. Extract Statement Date
-    let holdingsAsOf = 'July 31, 2026';
+    let holdingsAsOf = schemeMeta.portfolioDate || 'August 31, 2026';
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
       const rowText = (rows[i] || []).join(' ');
-      const match = rowText.match(/Monthly Portfolio Statement as on\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
-      if (match && match[1]) {
-        holdingsAsOf = match[1].trim();
+      const match1 = rowText.match(/Monthly Portfolio Statement as on\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
+      const match2 = rowText.match(/Portfolio as on\s+(\d{1,2}-[A-Za-z]+-\d{4})/i);
+      const match3 = rowText.match(/as on\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
+      if (match1 && match1[1]) {
+        holdingsAsOf = match1[1].trim();
+        break;
+      } else if (match2 && match2[1]) {
+        holdingsAsOf = match2[1].trim();
+        break;
+      } else if (match3 && match3[1]) {
+        holdingsAsOf = match3[1].trim();
         break;
       }
     }
 
-    // 2. Identify end of holdings table (GRAND TOTAL / TOTAL NET ASSETS)
+    // 2. Dynamic Header & Column Identification
+    let headerRowIdx = -1;
+    let isinIdx = -1;
+    let nameIdx = -1;
+    let indIdx = -1;
+    let qtyIdx = -1;
+    let valIdx = -1;
+    let wtIdx = -1;
+
+    for (let rIdx = 0; rIdx < Math.min(rows.length, 12); rIdx++) {
+      const row = rows[rIdx];
+      if (!row || row.length === 0) continue;
+
+      let foundIsin = -1, foundName = -1, foundInd = -1, foundQty = -1, foundVal = -1, foundWt = -1;
+      for (let c = 0; c < row.length; c++) {
+        const cell = String(row[c] || '').trim().toLowerCase();
+        if (!cell) continue;
+
+        if (cell === 'isin' || cell.startsWith('isin')) {
+          foundIsin = c;
+        } else if ((cell.includes('name of') || cell.includes('instrument') || cell.includes('company')) && !cell.includes('rating')) {
+          foundName = c;
+        } else if (cell.includes('industry') || cell.includes('rating') || cell.includes('sector')) {
+          foundInd = c;
+        } else if (cell === 'quantity' || cell.startsWith('quantity') || cell.startsWith('qty')) {
+          foundQty = c;
+        } else if (cell.includes('market') || cell.includes('fair value') || cell.includes('value (rs') || cell.includes('market/fair value')) {
+          foundVal = c;
+        } else if (cell === '% to nav' || cell === '% to net assets' || cell.startsWith('% to nav') || cell.startsWith('% to net') || cell.includes('weight')) {
+          if (!cell.includes('derivative') && !cell.includes('unhedged')) {
+            foundWt = c;
+          }
+        }
+      }
+
+      if (foundName !== -1 && (foundIsin !== -1 || foundWt !== -1)) {
+        headerRowIdx = rIdx;
+        isinIdx = foundIsin;
+        nameIdx = foundName;
+        indIdx = foundInd;
+        qtyIdx = foundQty;
+        valIdx = foundVal;
+        wtIdx = foundWt;
+        break;
+      }
+    }
+
+    // Default fallback indices if header row detection was fuzzy
+    if (headerRowIdx === -1) {
+      headerRowIdx = 3;
+      isinIdx = 2;
+      nameIdx = 1;
+      indIdx = 3;
+      qtyIdx = 4;
+      valIdx = 5;
+      wtIdx = 6;
+    }
+
+    // 3. Identify end of holdings table (GRAND TOTAL / TOTAL NET ASSETS)
     let grandTotalRowIdx = -1;
     let declaredNetAssetsLakhs = null;
 
-    for (let i = 4; i < rows.length; i++) {
-      const name = String(rows[i]?.[1] || '').trim().toUpperCase();
-      if (name === 'GRAND TOTAL' || name === 'TOTAL NET ASSETS') {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
+      const name = String(rows[i]?.[nameIdx] || rows[i]?.[1] || '').trim().toUpperCase();
+      if (name === 'GRAND TOTAL' || name === 'TOTAL NET ASSETS' || name === 'TOTAL NET ASSET') {
         grandTotalRowIdx = i;
-        const valLakhs = typeof rows[i][5] === 'number' ? rows[i][5] : (typeof rows[i][5] === 'string' ? parseFloat(rows[i][5].replace(/,/g, '')) : null);
-        if (valLakhs && !isNaN(valLakhs)) {
-          declaredNetAssetsLakhs = valLakhs;
+        if (valIdx !== -1) {
+          const valLakhs = typeof rows[i][valIdx] === 'number' ? rows[i][valIdx] : (typeof rows[i][valIdx] === 'string' ? parseFloat(rows[i][valIdx].replace(/,/g, '')) : null);
+          if (valLakhs && !isNaN(valLakhs)) {
+            declaredNetAssetsLakhs = valLakhs;
+          }
         }
         break;
       }
@@ -203,58 +305,90 @@ class OfficialAmcPortfolioService {
 
     const endIdx = grandTotalRowIdx !== -1 ? grandTotalRowIdx : rows.length;
 
-    // 3. Parse positions between header row and grand total row
+    // 4. Parse positions between header row and grand total row
+    // First determine if the sheet stores weights as fractions (sum <= 2.0, e.g. 0.0755 = 7.55%) or percentages (e.g. 1.37 = 1.37%)
+    let maxObservedWeight = 0;
+    let sumObservedWeight = 0;
+    if (wtIdx !== -1) {
+      for (let i = headerRowIdx + 1; i < endIdx; i++) {
+        const rawW = rows[i]?.[wtIdx];
+        const numW = typeof rawW === 'number' ? rawW : (typeof rawW === 'string' ? parseFloat(rawW.replace(/,/g, '')) : null);
+        if (numW !== null && !isNaN(numW) && numW > 0) {
+          if (numW > maxObservedWeight) maxObservedWeight = numW;
+          sumObservedWeight += numW;
+        }
+      }
+    }
+    const isFractionFormat = (maxObservedWeight <= 1.0 && sumObservedWeight <= 2.0);
+
     const rawPositions = [];
     let currentSectionHeader = 'Equity & Equity related';
 
-    for (let i = 4; i < endIdx; i++) {
+    for (let i = headerRowIdx + 1; i < endIdx; i++) {
       const r = rows[i];
       if (!r || r.length === 0) continue;
 
-      const rawName = String(r[1] || '').trim();
+      const rawName = String(r[nameIdx] || '').trim();
       if (!rawName) continue;
 
       // Track section headers
-      if (!r[2] && !r[4] && !r[5] && !r[6]) {
+      const hasDataCells = (isinIdx !== -1 && r[isinIdx]) || (qtyIdx !== -1 && r[qtyIdx]) || (valIdx !== -1 && r[valIdx]) || (wtIdx !== -1 && r[wtIdx]);
+      if (!hasDataCells) {
         currentSectionHeader = rawName;
         continue;
       }
 
       // Skip subtotal or total rows
       const upperName = rawName.toUpperCase();
-      if (upperName === 'SUB TOTAL' || upperName === 'TOTAL' || upperName === 'GRAND TOTAL' || upperName === 'TOTAL NET ASSETS' || rawName.startsWith('(a) Listed') || rawName.startsWith('(b) Listed') || rawName.startsWith('(c) Unlisted')) {
+      if (upperName === 'SUB TOTAL' || upperName === 'TOTAL' || upperName === 'GRAND TOTAL' || upperName === 'TOTAL NET ASSETS' || rawName.startsWith('(a) Listed') || rawName.startsWith('(b) Listed') || rawName.startsWith('(c) Unlisted') || rawName.startsWith('(d) Unlisted')) {
         continue;
       }
 
-      const valLakhs = typeof r[5] === 'number' ? r[5] : (typeof r[5] === 'string' ? parseFloat(r[5].replace(/,/g, '')) : null);
-      let weight = typeof r[6] === 'number' ? r[6] : (typeof r[6] === 'string' ? parseFloat(r[6].replace(/,/g, '')) : null);
+      const rawVal = valIdx !== -1 ? r[valIdx] : null;
+      const valLakhs = typeof rawVal === 'number' ? rawVal : (typeof rawVal === 'string' ? parseFloat(rawVal.replace(/,/g, '')) : null);
+
+      const rawWeight = wtIdx !== -1 ? r[wtIdx] : null;
+      let weight = typeof rawWeight === 'number' ? rawWeight : (typeof rawWeight === 'string' ? parseFloat(rawWeight.replace(/,/g, '')) : null);
 
       // Skip invalid / NIL rows
       if (valLakhs === null || isNaN(valLakhs) || weight === null || isNaN(weight)) {
         continue;
       }
 
-      const rawIsin = r[2] ? String(r[2]).trim() : null;
+      const rawIsin = (isinIdx !== -1 && r[isinIdx]) ? String(r[isinIdx]).trim().toUpperCase() : null;
       const cleanIsin = (rawIsin && /^[A-Z0-9]{12}$/.test(rawIsin)) ? rawIsin : null;
-      const rawInd = r[3] ? String(r[3]).replace(/##/g, '').trim() : '';
-      const quantity = typeof r[4] === 'number' ? r[4] : null;
+      const rawInd = (indIdx !== -1 && r[indIdx]) ? String(r[indIdx]).replace(/##/g, '').trim() : '';
+      const rawQty = qtyIdx !== -1 ? r[qtyIdx] : null;
+      const quantity = typeof rawQty === 'number' ? rawQty : (typeof rawQty === 'string' ? parseInt(rawQty.replace(/,/g, ''), 10) || null : null);
 
-      // Weight conversion: PPFAS provides decimals (0.0755 = 7.55%)
-      const weightPercent = (Math.abs(weight) <= 1.0 && weight !== 0) 
-        ? Number((weight * 100).toFixed(4)) 
-        : Number(weight.toFixed(4));
+      // Weight conversion: check calculated percentage vs reported weight
+      let weightPercent = Number(weight.toFixed(4));
+      if (declaredNetAssetsLakhs && declaredNetAssetsLakhs > 0 && valLakhs && valLakhs > 0) {
+        const calculatedPct = (valLakhs / declaredNetAssetsLakhs) * 100;
+        if (Math.abs(weight * 100 - calculatedPct) < 0.5) {
+          // Reported as fraction (e.g. 0.0755 for 7.55%)
+          weightPercent = Number((weight * 100).toFixed(4));
+        } else if (Math.abs(weight - calculatedPct) < 0.5) {
+          // Reported as percentage points (e.g. 1.37 for 1.37%)
+          weightPercent = Number(weight.toFixed(4));
+        }
+      } else if (String(schemeMeta.amc || '').includes('PPFAS') && Math.abs(weight) <= 0.35) {
+        // PPFAS fraction fallback
+        weightPercent = Number((weight * 100).toFixed(4));
+      }
       
       const valueCr = Number((valLakhs / 100).toFixed(2));
 
-      // Resolve friendly name & canonical symbol
-      let displayName = rawName;
+      // Resolve friendly name & clean footnote symbols (like £, *, ^, ~)
+      let displayName = rawName.replace(/[\*£#\^~]/g, '').trim();
       if (displayName.startsWith('TRP_')) displayName = 'Triparty Repo (TREPS)';
       else if (/^REP\d+/i.test(displayName)) displayName = `Repo (${displayName})`;
       else if (displayName.includes('Net Receivables')) displayName = 'Net Receivables / (Payables)';
+      else if (displayName.toLowerCase().includes('treps')) displayName = 'Triparty Repo (TREPS)';
 
       const securityType = this.classifyAssetType(displayName, cleanIsin, rawInd, currentSectionHeader);
 
-      // Equity master lookup for canonical NSE symbol
+      // Lookup canonical NSE symbol from equity master / BSE mapping
       const masterRecord = cleanIsin ? this.equityMasterMap.get(cleanIsin) : null;
       const canonicalSymbol = masterRecord ? masterRecord.symbol : (securityType === 'Foreign Equity' ? cleanIsin : null);
 
@@ -287,28 +421,27 @@ class OfficialAmcPortfolioService {
         marketValue: valueCr.toFixed(2),
         portfolioAsOf: holdingsAsOf,
         asOf: holdingsAsOf,
-        source: 'Official PPFAS AMC Portfolio Disclosure'
+        source: schemeMeta.amc ? `Official ${schemeMeta.amc} Portfolio Disclosure` : 'Official AMC Portfolio Disclosure'
       });
     }
 
-    // 4. Deterministic Sort: weightPercent DESC, companyName ASC
+    // 5. Deterministic Sort: weightPercent DESC, companyName ASC
     rawPositions.sort((a, b) => {
       const diff = b.weightPercent - a.weightPercent;
       if (Math.abs(diff) > 0.000001) return diff;
       return a.companyName.localeCompare(b.companyName);
     });
 
-    // 5. Assign sequential ranks
+    // 6. Assign sequential ranks
     const positions = rawPositions.map((pos, idx) => ({
       rank: idx + 1,
       ...pos
     }));
 
-    // 6. Compute Authentic Sector Breakdown
+    // 7. Compute Authentic Sector Breakdown
     const sectorBreakdown = {};
     for (const pos of positions) {
       let sec = pos.sector || 'Other';
-      // Group fixed-income credit ratings into Debt & Money Market for clean sector charting
       if (pos.securityType === 'Debt' || pos.securityType === 'Money Market') {
         sec = 'Debt & Money Market';
       } else if (pos.securityType === 'Government Securities') {
@@ -324,16 +457,19 @@ class OfficialAmcPortfolioService {
     const portfolioAumCr = declaredNetAssetsLakhs ? Number((declaredNetAssetsLakhs / 100).toFixed(2)) : null;
     const totalDisclosedWeightPercent = Number(positions.reduce((sum, p) => sum + p.weightPercent, 0).toFixed(2));
 
+    const amcName = schemeMeta.amc || 'Mutual Fund';
     return {
       available: true,
       holdingsAvailable: true,
       dataStatus: 'DATA_AVAILABLE',
-      source: 'Official AMC Portfolio Disclosure',
-      amc: 'PPFAS Mutual Fund',
-      AMC: 'PPFAS Mutual Fund',
-      amcProvider: this.manifest?.provider || 'PPFAS Mutual Fund Official Portal',
+      source: `Official ${amcName} Portfolio Disclosure`,
+      amc: amcName,
+      AMC: amcName,
+      category: schemeMeta.category || 'Equity Scheme',
+      amcProvider: schemeMeta.amc ? `${schemeMeta.amc} Official Portal` : (this.manifest?.provider || 'Official AMC Portal'),
       sourceUrl: schemeMeta.sourceUrl || null,
       sourceFile: schemeMeta.fileName || null,
+      sheetName: sheetName,
       holdingsAsOf: holdingsAsOf,
       asOfDate: holdingsAsOf,
       fetchedAt: schemeMeta.fetchedAt || this.manifest?.fetchedAt || new Date().toISOString(),
@@ -341,8 +477,8 @@ class OfficialAmcPortfolioService {
       schemeName: schemeMeta.schemeName || 'Mutual Fund Scheme',
       isin: schemeMeta.isin || null,
       ISIN: schemeMeta.isin || null,
-      plan: 'Direct Plan',
-      option: 'Growth',
+      plan: schemeMeta.plan || 'Direct Plan',
+      option: schemeMeta.option || 'Growth',
       portfolioAumCr: portfolioAumCr,
       positions: positions,
       holdings: positions, // alias for frontend backward compatibility

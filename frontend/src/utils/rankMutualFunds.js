@@ -49,6 +49,8 @@ function minMaxNormalize(value, min, max) {
   return Math.max(0, Math.min(1, (value - min) / range));
 }
 
+export const getFundKey = (f) => String(f?.schemeCode ?? f?.id ?? f?.canonicalKey ?? f?.name ?? '').trim();
+
 export function calculateFundRankings(funds = []) {
   if (!Array.isArray(funds) || funds.length === 0) return [];
 
@@ -56,7 +58,7 @@ export function calculateFundRankings(funds = []) {
   const peerGroups = {};
   funds.forEach(fund => {
     // Prefer Direct Growth variants to ensure apples-to-apples comparisons
-    const groupKey = fund.subType || fund.type || 'general';
+    const groupKey = (fund.subType || fund.normalizedSubcategory || fund.subcategory || fund.specifiedSub || fund.type || 'general').trim().toLowerCase();
     if (!peerGroups[groupKey]) peerGroups[groupKey] = [];
     peerGroups[groupKey].push(fund);
   });
@@ -146,8 +148,11 @@ export function calculateFundRankings(funds = []) {
     });
 
     // 3-way Star Ranking: Top 10 5Y CAGR ∩ Top 10 Since-Inception CAGR -> Top 3 by AUM large to small
-    const getFundKey = (f) => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim();
-    const getAum = (f) => (f.aum != null && !isNaN(f.aum) && Number(f.aum) > 0 ? Number(f.aum) : null);
+    const getAum = (f) => {
+      if (f.aumMetric === 'AAUM') return null;
+      const val = f.aumCr ?? f.aum;
+      return (val != null && !isNaN(val) && Number(val) > 0) ? Number(val) : null;
+    };
     const get5Y = (f) => {
       const v = f.returns?.['5Y'] ?? f.fiveYearCagr;
       return v != null && !isNaN(v) ? Number(v) : null;
@@ -256,9 +261,24 @@ export function groupFundsBySubCategory(funds = [], limitPerGroup = 5) {
 
 /**
  * UI rank resolver function.
- * Returns total funds global rank (indiaMfRank) for all contexts.
+ * Returns the contextually appropriate rank based on the view context.
+ * - 'all': Global rank across all Indian MF schemes (indiaMfRank)
+ * - 'subcategory': Rank within the fund's subcategory (e.g. Flexi Cap #1)
+ * - 'category': Rank within the fund's broad category (e.g. Equity #12)
+ * - 'sector': Rank within the fund's sector/theme (e.g. Technology #1)
  */
 export function getDisplayedMfRank(fund, context = 'all') {
   if (!fund) return null;
-  return fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
+
+  switch (context) {
+    case 'subcategory':
+      return fund.indiaMfSubcategoryRank ?? fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
+    case 'category':
+      return fund.indiaMfCategoryRank ?? fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
+    case 'sector':
+      return fund.indiaMfSectorRank ?? fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
+    case 'all':
+    default:
+      return fund.indiaMfRank ?? fund.globalMfRank ?? fund.rank ?? fund.overallRank ?? null;
+  }
 }

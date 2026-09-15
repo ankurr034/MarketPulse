@@ -19,7 +19,7 @@ import MarketFilterStrip from '../components/mfExplorer/MarketFilterStrip';
 import MfCategorySidebar from '../components/mfExplorer/MfCategorySidebar';
 import MfRankingTable from '../components/mfExplorer/MfRankingTable';
 import MfMarketOverview from '../components/mfExplorer/MfMarketOverview';
-import { calculateFundRankings, groupFundsBySubCategory } from '../utils/rankMutualFunds';
+import { calculateFundRankings } from '../utils/rankMutualFunds';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -158,9 +158,9 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
     : (typeof fund?.sortinoRatio === 'number' ? fund.sortinoRatio : 0);
 
   const navValue = Number(fund?.nav ?? fund?.currentPrice_or_nav);
-  const aumValue = Number(fund?.aum);
+  const aumValue = Number(fund?.aumCr ?? fund?.aum);
   const formattedNav = Number.isFinite(navValue) ? navValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
-  const formattedAum = Number.isFinite(aumValue) ? aumValue.toLocaleString('en-IN') : '—';
+  const formattedAum = Number.isFinite(aumValue) && aumValue > 0 ? aumValue.toLocaleString('en-IN') : '—';
 
   const formatNavDate = (dateStr) => {
     if (!dateStr || dateStr === 'Data Unavailable') return 'Date unavailable';
@@ -216,9 +216,9 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
   const navDisplay = Number.isFinite(Number(fund?.nav ?? fund?.currentPrice_or_nav))
     ? `₹${Number(fund?.nav ?? fund?.currentPrice_or_nav).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
     : '₹—';
-  const aumDisplay = Number.isFinite(Number(fund?.aum))
-    ? `₹${Number(fund?.aum).toLocaleString('en-IN')} Cr`
-    : '₹— Cr';
+  const aumDisplay = Number.isFinite(Number(fund?.aumCr ?? fund?.aum)) && Number(fund?.aumCr ?? fund?.aum) > 0
+    ? `₹${Number(fund?.aumCr ?? fund?.aum).toLocaleString('en-IN')} Cr`
+    : '—';
   const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? 0);
   const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
 
@@ -271,7 +271,7 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
         >
           ₹{formattedNav}
         </td>
-        <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">₹{formattedAum} Cr</td>
+        <td className="py-2 px-1 text-right font-mono text-[10.5px] text-slate-300 whitespace-nowrap align-middle">{formattedAum !== '—' ? `₹${formattedAum} Cr` : '—'}</td>
         <td className={`py-2 px-1 text-right whitespace-nowrap align-middle ${sortBy === 'sharpe' ? 'bg-indigo-500/5' : ''}`}>
           <MiniRatioIndicator value={currentSharpe} type="sharpe" />
         </td>
@@ -775,10 +775,10 @@ const FundDetailModal = ({ fund, onClose }) => {
   const navDisplay = Number.isFinite(Number(currentNavVal))
     ? `₹${Number(currentNavVal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : '₹—';
-  const aumVal = fund?.aum ?? detail?.aum;
-  const aumDisplay = Number.isFinite(Number(aumVal))
+  const aumVal = fund?.aumCr ?? fund?.aum ?? detail?.aumCr ?? detail?.aum;
+  const aumDisplay = Number.isFinite(Number(aumVal)) && Number(aumVal) > 0
     ? `₹${Number(aumVal).toLocaleString('en-IN')} Cr`
-    : '₹— Cr';
+    : '—';
   const oneYReturnRaw = Number(fund?.returns?.['1Y'] ?? fund?.oneYearChangePct ?? detail?.oneYearChangePct ?? 0);
   const oneYReturnDisplay = `${oneYReturnRaw >= 0 ? '+' : ''}${Number.isFinite(oneYReturnRaw) ? oneYReturnRaw.toFixed(2) : '0.00'}%`;
 
@@ -1914,7 +1914,13 @@ export const IndianMfSectorAnalysis = () => {
           specifiedSub: fund.specifiedSub || existing.specifiedSub,
           sectorName: fund.sectorName || existing.sectorName,
           aum: resolvedAum,
-          aumCr: resolvedAumCr
+          aumCr: resolvedAumCr,
+          aaumCr: existing.aaumCr ?? fund.aaumCr ?? null,
+          aumMetric: existing.aumMetric ?? fund.aumMetric ?? null,
+          indiaMfRank: existing.indiaMfRank ?? fund.indiaMfRank ?? null,
+          indiaMfCategoryRank: existing.indiaMfCategoryRank ?? fund.indiaMfCategoryRank ?? null,
+          indiaMfSubcategoryRank: existing.indiaMfSubcategoryRank ?? fund.indiaMfSubcategoryRank ?? null,
+          indiaMfSectorRank: existing.indiaMfSectorRank ?? fund.indiaMfSectorRank ?? null
         });
       } else {
         seenMap.set(fundId, { ...fund });
@@ -1935,11 +1941,13 @@ export const IndianMfSectorAnalysis = () => {
         ? fund.currentPrice_or_nav 
         : (fund.nav > 0 ? fund.nav : null);
       
-      // Real AUM in ₹ Crores (strictly using verified per-fund provider)
-      const rawAum = fund.aum ?? fund.aumInCr ?? fund.totalAum;
+      // Real AUM in ₹ Crores (strictly using authoritative scheme AUM, never AAUM)
+      const isAum = fund.aumMetric === 'AUM' || (fund.aumMetric == null && (fund.aumCr != null || fund.aum != null));
+      const rawAum = isAum ? (fund.aumCr ?? fund.aum ?? fund.aumInCr ?? fund.totalAum) : null;
       const aum = rawAum !== null && rawAum !== undefined && rawAum > 0 
         ? (typeof rawAum === 'string' ? parseFloat(rawAum.replace(/[^0-9.]/g, '')) : Number(rawAum))
-        : null; // STRICTLY NULL if missing from live dataset - ZERO hardcoded overrides or synthetic fallbacks!
+        : null; // STRICTLY NULL if missing or AAUM only - ZERO hardcoded overrides or synthetic fallbacks!
+      const aaum = fund.aaumCr ?? (fund.aumMetric === 'AAUM' ? (fund.aumCr ?? fund.aum) : null);
 
       // Real Per-Scheme NAV Returns dynamically fetched from live mfapi.in NAV time series
       const r1D = fund.oneDayChangePct ?? fund.returns1d ?? fund.returns?.['1D'] ?? null;
@@ -1995,12 +2003,18 @@ export const IndianMfSectorAnalysis = () => {
         subType,
         nav: (nav !== null && nav !== undefined) ? parseFloat(nav.toFixed(2)) : null,
         aum,
+        aumCr: aum,
+        aaumCr: aaum,
+        aumMetric: fund.aumMetric || (aum ? 'AUM' : (aaum ? 'AAUM' : null)),
         returns,
         sharpeRatio: finalSharpe,
         sortinoRatio: finalSortino,
         sharpeRatios,
         sortinoRatios,
-        category,
+        indiaMfRank: fund.indiaMfRank ?? null,
+        indiaMfCategoryRank: fund.indiaMfCategoryRank ?? null,
+        indiaMfSubcategoryRank: fund.indiaMfSubcategoryRank ?? null,
+        indiaMfSectorRank: fund.indiaMfSectorRank ?? null,
         isSIP: !name.toLowerCase().includes('etf')
       };
     });
@@ -2072,7 +2086,7 @@ export const IndianMfSectorAnalysis = () => {
         if (sub === 'mid_cap' || sub === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
         if (sub === 'large_cap' || sub === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
         if (sub === 'large_mid_cap' || sub === 'largemidcap') return nameLower.includes('large & mid') || nameLower.includes('large and mid');
-        if (sub === 'flexi_cap' || sub === 'flexicap') return nameLower.includes('flexi cap') || nameLower.includes('flexicap');
+        if (sub === 'flexi_cap' || sub === 'flexicap') return f.subType === 'flexi_cap' || f.subType === 'flexicap' || nameLower.includes('flexi cap') || nameLower.includes('flexicap') || catLower.includes('flexi cap') || catLower.includes('flexicap');
         if (sub === 'multi_cap' || sub === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
         if (sub === 'elss' || sub === 'large_elss' || sub === 'flexi_elss') return nameLower.includes('elss') || nameLower.includes('tax saver');
         if (sub === 'corporate') return f.subType === 'corporate_bond' || nameLower.includes('corporate bond') || catLower.includes('corporate bond');
@@ -2106,7 +2120,7 @@ export const IndianMfSectorAnalysis = () => {
 
       if (marketFilter === 'equity') {
         if (name.includes('large & mid') || name.includes('large and mid') || cat.includes('large & mid') || cat.includes('large and mid')) return 'Large & Mid Cap';
-        if (name.includes('flexi cap') || cat.includes('flexi cap')) return 'Flexi Cap';
+        if (name.includes('flexi cap') || name.includes('flexicap') || cat.includes('flexi cap') || cat.includes('flexicap')) return 'Flexi Cap';
         if (name.includes('small cap') || cat.includes('small cap')) return 'Small Cap';
         if (name.includes('mid cap') || cat.includes('mid cap')) return 'Mid Cap';
         if (name.includes('large cap') || name.includes('bluechip') || cat.includes('large cap')) return 'Large Cap';

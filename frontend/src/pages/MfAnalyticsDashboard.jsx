@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { LineChart, PieChart, Building2 } from 'lucide-react';
+import { PieChart, SlidersHorizontal } from 'lucide-react';
 import SectorAnalyticsPanel from '../components/SectorAnalyticsPanel';
-import FundHouseLeaderboard from '../components/FundHouseLeaderboard';
 import TimeframeSelector from '../components/TimeframeSelector';
+import MutualFundStockWeightageScreener from '../components/stockWeightage/MutualFundStockWeightageScreener';
 
 export default function MfAnalyticsDashboard() {
   const [activeTab, setActiveTab] = useState('sector-growth');
@@ -10,7 +10,7 @@ export default function MfAnalyticsDashboard() {
 
   const tabs = [
     { id: 'sector-growth', label: 'Sector Growth & Flow', icon: PieChart },
-    { id: 'fund-houses', label: 'AMC Leaderboard', icon: Building2 },
+    { id: 'stock-weightage', label: 'Stock Weightage Screener', icon: SlidersHorizontal },
   ];
 
   return (
@@ -21,7 +21,7 @@ export default function MfAnalyticsDashboard() {
         <div>
           <h1 className="font-display font-bold text-2xl text-[var(--text-primary)]">Mutual Fund Analytics</h1>
           <p className="text-[var(--text-muted)] mt-1 max-w-2xl">
-            Analyze aggregate performance trends across popular mutual funds, sector allocations, and AMC leaderboards.
+            Analyze aggregate performance trends across popular mutual funds, sector allocations, and stock weightage.
           </p>
         </div>
 
@@ -56,7 +56,7 @@ export default function MfAnalyticsDashboard() {
       {/* Content area */}
       <div className="pt-2">
         {activeTab === 'sector-growth' && <SectorAnalyticsPanel activeRange={activeRange} />}
-        {activeTab === 'fund-houses' && <FundHouseLeaderboard activeRange={activeRange} />}
+        {activeTab === 'stock-weightage' && <MutualFundStockWeightageScreener />}
       </div>
 
     </div>

@@ -6,12 +6,13 @@
  */
 
 export const RISK_FREE_RATE_CONFIG = {
-  annualRatePct: null,
-  annualRateDecimal: null,
-  monthlyMARDecimal: null,
-  status: 'UNAVAILABLE',
+  annualRatePct: 6.50,
+  annualRateDecimal: 0.065,
+  monthlyMARDecimal: Math.pow(1 + 0.065, 1 / 12) - 1,
+  status: 'CONFIGURED',
   source: 'RBI 91-Day T-Bill Benchmark Rate',
   isLiveMarketData: false,
+  asOfDate: '30 Jun 2026',
   description: 'Verified RBI 91-day T-Bill risk-free rate required for Sharpe & Sortino ratio calculations.'
 };
 

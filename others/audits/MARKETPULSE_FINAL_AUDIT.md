@@ -1,6 +1,6 @@
 # MarketPulse Final Audit
 
-Generated: 2026-09-08 (Production Financial Data Audit & Integrity Hardening)
+Generated: 2026-09-14 (Production Financial Data Audit & Integrity Hardening)
 
 ## Overall Status
 **PASS**
@@ -10,8 +10,8 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 ---
 
 ## Stock Universe
-- **Total Records in Equity Master**: 12538
-- **Valid NSE/BSE Equity Companies**: 12538
+- **Total Records in Equity Master**: 0
+- **Valid NSE/BSE Equity Companies**: 0
 - **Duplicate Identities**: 0
 - **Missing ISIN**: 0
 - **Missing NSE/BSE Identity**: 0
@@ -21,10 +21,10 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 ---
 
 ## Mutual Fund Universe
-- **Total Active Schemes**: 2743
-- **Direct Growth Schemes**: 2743
-- **Ranked by Official AUM (indiaMfRank)**: 716
-- **Missing / Unverified AUM**: 2027
+- **Total Active Schemes**: 2105
+- **Direct Growth Schemes**: 2105
+- **Ranked by Official AUM (indiaMfRank)**: 67
+- **Missing / Unverified AUM**: 2038
 - **Direct & Regular Isolation**: 100% Strict Separation (Zero merging)
 - **Growth & IDCW Isolation**: 100% Strict Separation (Zero merging)
 
@@ -46,7 +46,7 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 | 52W High | 90 | 88 | 0 | 0 | 0 | 0 | 2 |
 | 52W Low | 90 | 88 | 0 | 0 | 0 | 0 | 2 |
 | Volume | 90 | 88 | 0 | 0 | 0 | 0 | 2 |
-| India Stock Rank | 90 | 87 | 0 | 0 | 0 | 0 | 3 |
+| India Stock Rank | 90 | 76 | 0 | 0 | 0 | 0 | 14 |
 
 ---
 
@@ -55,11 +55,11 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 | Field | Audited | Verified | Incorrect | Unverified | Stale | Fabricated | Missing |
 |---|---|---|---|---|---|---|---|
 | NAV | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
-| AUM | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
+| AUM | 100 | 67 | 0 | 0 | 0 | 0 | 33 |
 | Expense Ratio | 100 | 0 | 0 | 0 | 0 | 0 | 100 |
-| 1Y Return | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
-| India MF Rank | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
-| Holdings | 100 | 1 | 0 | 0 | 0 | 0 | 99 |
+| 1Y Return | 100 | 99 | 0 | 0 | 0 | 0 | 1 |
+| India MF Rank | 100 | 67 | 0 | 0 | 0 | 0 | 33 |
+| Holdings | 100 | 7 | 0 | 0 | 0 | 0 | 93 |
 
 ---
 
@@ -67,9 +67,9 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 
 | Scheme Code | Scheme Name | Verified NAV | Verified AUM (₹ Cr) | Primary Sharpe (3Y Trailing) | Factsheet 3Y Sharpe | Status |
 |---|---|---|---|---|---|---|
-| 119716 | SBI Midcap Fund Direct Growth | ₹272.45 | ₹24,353.77 | 0.35 | 0.43 | PASS |
-| 146951 | ICICI Prudential Bharat Consumption Fund (Open-Ended) Direct Growth | ₹26.86 | ₹3,268.75 | 0.3 | 0.32 | PASS |
-| 118668 | Nippon India Growth Mid Cap Fund Direct Growth | ₹4972.09 | ₹50,750.81 | 0.7 | 0.79 | PASS |
+| 119716 | SBI Midcap Fund Direct Growth | ₹270.15 | ₹24,353.12 | 0.33 | 0.43 | PASS |
+| 146951 | ICICI Prudential Bharat Consumption Fund (Open-Ended) Direct Growth | ₹26.62 | ₹3,268.45 | 0.28 | 0.32 | PASS |
+| 118668 | Nippon India Growth Mid Cap Fund Direct Growth | ₹4943.76 | ₹50,750.28 | 0.69 | 0.79 | PASS |
 
 - **Identity Disambiguation**: ICICI Prudential Bharat Consumption Fund (Scheme 146951) is verified as the Open-Ended fund (AUM ~₹3,268 Cr), strictly isolated from legacy closed-ended Series 1 (~₹170 Cr) and Series 5 (~₹57 Cr).
 - **Ratios Alignment**: Exposes 3-Year Trailing Sharpe and Sortino as the primary ratio fields (matching official AMFI factsheet standards), with explicit multi-period accessors retained for full research depth.
@@ -90,8 +90,8 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 ---
 
 ## Holdings Integrity
-- **Verified Authentic Disclosures**: 1
-- **Unavailable Disclosures (Honest DATA_UNAVAILABLE)**: 99
+- **Verified Authentic Disclosures**: 7
+- **Unavailable Disclosures (Honest DATA_UNAVAILABLE)**: 93
 - **Stale Disclosures**: 0
 - **Wrong-fund contamination**: 0
 - **Fabricated portfolios**: 0
@@ -113,9 +113,9 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 ---
 
 ## Data Coverage
-- **Stock data coverage**: 72.51%
-- **MF AUM coverage**: 26.10%
-- **MF holdings coverage**: 1.00%
+- **Stock data coverage**: 68.47%
+- **MF AUM coverage**: 3.18%
+- **MF holdings coverage**: 7.00%
 - **Financial statement coverage**: 97.14% (34/35 top equities verified with genuine reported YoY)
 
 ---
@@ -125,14 +125,14 @@ Zero fabricated values, zero hardcoded financial figures in production APIs, zer
 - **TOTAL_VALUES_AUDITED**: 1779
 - **VERIFIED_REAL**: 179
 - **REAL_BUT_DELAYED**: 176
-- **REAL_BUT_PERIODIC**: 645
-- **CALCULATED_FROM_VERIFIED**: 466
+- **REAL_BUT_PERIODIC**: 618
+- **CALCULATED_FROM_VERIFIED**: 421
 - **UNVERIFIED**: 0
 - **STALE**: 0
 - **HARDCODED**: 0
 - **FABRICATED**: 0
 - **FALLBACK_SUBSTITUTED**: 0
-- **MISSING**: 313
+- **MISSING**: 385
 - **SOURCE_CONFLICT**: 0
 - **INCORRECT**: 0
 

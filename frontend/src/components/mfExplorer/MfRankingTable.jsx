@@ -221,8 +221,7 @@ export default function MfRankingTable({
   const formatAUM = (aum) => {
     if (aum == null || isNaN(aum) || Number(aum) <= 0) return '—';
     const num = Number(aum);
-    if (num >= 100000) return `₹ ${(num / 100000).toFixed(2)} Lakh Cr`;
-    return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
+    return `₹ ${num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Cr`;
   };
 
   const formatNAV = (nav) => {
@@ -277,7 +276,8 @@ export default function MfRankingTable({
     if (!fund) return null;
 
     if (field === 'aum') {
-      const val = fund.aum != null ? Number(fund.aum) : null;
+      if (fund.aumMetric === 'AAUM') return null;
+      const val = (fund.aumCr ?? fund.aum) != null ? Number(fund.aumCr ?? fund.aum) : null;
       return val != null && !isNaN(val) && val > 0 ? val : null;
     }
 
@@ -433,6 +433,17 @@ export default function MfRankingTable({
     return sorted.slice(start, start + pageSize);
   }, [allRankedFunds, sortCriteria, currentPage, pageSize]);
 
+  // Compute Sharpe/Sortino ranges for the current page in All Funds Mode (for star tooltips)
+  const allFundsSharpeRange = useMemo(() => {
+    const vals = paginatedAllFunds.map(f => f.sharpeRatio).filter(v => v != null && !isNaN(v));
+    return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
+  }, [paginatedAllFunds]);
+
+  const allFundsSortinoRange = useMemo(() => {
+    const vals = paginatedAllFunds.map(f => f.sortinoRatio).filter(v => v != null && !isNaN(v));
+    return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
+  }, [paginatedAllFunds]);
+
   const totalPages = Math.ceil(allRankedFunds.length / pageSize) || 1;
 
   const renderSortHeader = (label, field, alignment = 'text-right') => {
@@ -472,97 +483,52 @@ export default function MfRankingTable({
     );
   };
 
-  // Helper to rank top 5 funds within a category per user requirements
+  // Helper to display top 5 funds within a category using pre-computed star flags
+  // Stars are computed once by calculateFundRankings() in the page layer — NOT re-calculated here.
+  // This prevents search/filter from falsely starring funds in filtered subsets.
   const rankCategoryTop5 = (subFunds) => {
     if (!Array.isArray(subFunds) || subFunds.length === 0) {
       return { display5: [], fullList: [], sharpeRange: null, sortinoRange: null };
     }
 
     const getAum = (f) => {
-      if (f.aum == null || isNaN(f.aum)) return null;
-      const num = Number(f.aum);
+      if (f.aumMetric === 'AAUM') return null;
+      const aumVal = f.aumCr ?? f.aum;
+      if (aumVal == null || isNaN(aumVal)) return null;
+      const num = Number(aumVal);
       return num > 0 ? num : null;
-    };
-
-    const get5Y = (f) => {
-      const val = f.returns?.['5Y'] ?? f.fiveYearCagr;
-      if (val == null || isNaN(val)) return null;
-      return Number(val);
-    };
-
-    const getInception = (f) => {
-      const val = f.returns?.['All'] ?? f.inceptionCagr ?? f.sinceInceptionReturn;
-      if (val == null || isNaN(val)) return null;
-      return Number(val);
     };
 
     const getSharpe = (f) => f.sharpeRatio;
     const getSortino = (f) => f.sortinoRatio;
 
-    // Base list sorted strictly by AUM DESC across the subcategory universe
-    const list = [...subFunds].sort((a, b) => {
-      const aAum = getAum(a) || 0;
-      const bAum = getAum(b) || 0;
-      if (bAum !== aAum) return bAum - aAum;
-      return String(a.name || a.schemeName || '').localeCompare(String(b.name || b.schemeName || ''));
-    });
+    // Separate starred funds (pre-computed by calculateFundRankings) from non-starred
+    // Strictly enforce at most 3 starred funds per subcategory
+    const starredFunds = subFunds
+      .filter(f => f.isStarred === true || f.starred === true)
+      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0))
+      .slice(0, 3)
+      .map(fund => ({
+        ...fund,
+        isStarred: true,
+        starred: true,
+        isTop3: true,
+        isTopFund: true
+      }));
 
-    const getFundKey = (f) => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim();
+    const starredKeys = new Set(starredFunds.map(f => String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim()));
 
-    // 1. Top 10 5Y CAGR Set (independently ranked in this subcategory)
-    const valid5YFunds = list.filter(f => get5Y(f) !== null);
-    valid5YFunds.sort((a, b) => get5Y(b) - get5Y(a));
-    const top10_5YFunds = valid5YFunds.slice(0, 10);
-    const top10_5YSet = new Set(top10_5YFunds.map(getFundKey));
-
-    // 2. Top 10 Since-Inception CAGR Set (independently ranked in this subcategory)
-    const validInceptionFunds = list.filter(f => getInception(f) !== null);
-    validInceptionFunds.sort((a, b) => getInception(b) - getInception(a));
-    const top10_InceptionFunds = validInceptionFunds.slice(0, 10);
-    const top10_InceptionSet = new Set(top10_InceptionFunds.map(getFundKey));
-
-    // 3. Find common funds that are in both Top 10 5Y & Top 10 Since-Inception with valid AUM
-    const commonFunds = list.filter(f => getAum(f) !== null && top10_5YSet.has(getFundKey(f)) && top10_InceptionSet.has(getFundKey(f)));
-    commonFunds.sort((a, b) => getAum(b) - getAum(a));
-
-    // 4. If fewer than 3 funds are common in Top 10 5Y & Top 10 Inception, fill up to 3 from Top 10 5Y by AUM large to small
-    let top3Starred = [];
-    if (commonFunds.length >= 3) {
-      top3Starred = commonFunds.slice(0, 3);
-    } else {
-      const commonSet = new Set(commonFunds.map(getFundKey));
-      const remainingTop10_5Y = top10_5YFunds.filter(f => getAum(f) !== null && !commonSet.has(getFundKey(f)));
-      remainingTop10_5Y.sort((a, b) => getAum(b) - getAum(a));
-      top3Starred = [...commonFunds, ...remainingTop10_5Y].slice(0, 3);
-    }
-
-    const starredSet = new Set(top3Starred.map(getFundKey));
-
-    // 5. Starred funds arranged by AUM large to small
-    const starredFunds = [...top3Starred].sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0)).map(fund => ({
-      ...fund,
-      isStarred: true,
-      starred: true,
-      isTop3: true,
-      isTopFund: true
-    }));
-
-    // 6. Rest of funds: remaining funds in Top 10 5Y arranged by AUM large to small, followed by remaining funds
-    const nonStarredTop10_5Y = top10_5YFunds
-      .filter(f => !starredSet.has(getFundKey(f)))
-      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0));
-
-    const remainingOutsideTop10 = list
-      .filter(f => !starredSet.has(getFundKey(f)) && !top10_5YSet.has(getFundKey(f)))
-      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0));
-
-    const nonStarredFunds = [...nonStarredTop10_5Y, ...remainingOutsideTop10].map(fund => ({
-      ...fund,
-      isStarred: false,
-      starred: false,
-      isTop3: false,
-      isTopFund: false
-    }));
+    // Non-starred funds sorted by AUM DESC
+    const nonStarredFunds = subFunds
+      .filter(f => !starredKeys.has(String(f.schemeCode ?? f.id ?? f.canonicalKey ?? f.name ?? '').trim()))
+      .sort((a, b) => (getAum(b) || 0) - (getAum(a) || 0))
+      .map(fund => ({
+        ...fund,
+        isStarred: false,
+        starred: false,
+        isTop3: false,
+        isTopFund: false
+      }));
 
     const fullList = [...starredFunds, ...nonStarredFunds];
     const display5 = fullList.slice(0, 5);
@@ -647,7 +613,7 @@ export default function MfRankingTable({
 
         {/* AUM */}
         <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
-          {formatAUM(fund.aum)}
+          {formatAUM(fund.aumMetric === 'AAUM' ? null : (fund.aumCr ?? fund.aum))}
         </td>
 
         {/* NAV */}
@@ -849,7 +815,7 @@ export default function MfRankingTable({
                           </tr>
 
                           {/* LEVEL 3: Individual Fund Rows (rendered when Subcategory is expanded) */}
-                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfRank, sharpeRange, sortinoRange, 'all'))}
+                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfSubcategoryRank ?? fund.indiaMfRank ?? (idx + 1), sharpeRange, sortinoRange, 'subcategory'))}
 
                           {/* View All / Show Top 5 Inline Button */}
                           {!isSubCollapsed && subFunds.length > 5 && (
@@ -875,7 +841,7 @@ export default function MfRankingTable({
               })
             ) : isAllFundsMode && paginatedAllFunds.length > 0 ? (
               // ALL FUNDS MODE: Flat list ranked by AUM DESC with numerical rank #
-              paginatedAllFunds.map((fund, idx) => renderFundRow(fund, idx))
+              paginatedAllFunds.map((fund, idx) => renderFundRow(fund, idx, null, allFundsSharpeRange, allFundsSortinoRange, 'all'))
             ) : (
               <tr>
                 <td colSpan={16} className="py-12 text-center text-slate-500 text-xs">

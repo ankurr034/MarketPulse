@@ -31,6 +31,7 @@ import sectorTrendsRouter from './routes/sectorTrends.js';
 import indianMfRouter from './routes/indianMf.js';
 import comparisonRouter from './routes/comparison.js';
 import holdingsFallbackRouter from './routes/holdingsFallback.js';
+import stockWeightageRouter from './routes/stockWeightage.js';
 import mongoose from 'mongoose';
 
 // Import services
@@ -82,6 +83,8 @@ app.use('/api/sector-trends', sectorTrendsRouter);
 app.use('/api/indian-mf', indianMfRouter);
 app.use('/api/comparison', comparisonRouter);
 app.use('/api', holdingsFallbackRouter);
+app.use('/api/analytics/mutual-fund/stock-weightage', stockWeightageRouter);
+app.use('/api/analytics/mutual-funds', stockWeightageRouter);
 
 // Health check
 app.get('/health', (req, res) => {

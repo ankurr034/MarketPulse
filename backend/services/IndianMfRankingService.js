@@ -49,17 +49,27 @@ class IndianMfRankingService {
           const parsed = JSON.parse(raw);
           if (parsed && parsed.disclosures && typeof parsed.disclosures === 'object') {
             for (const [code, item] of Object.entries(parsed.disclosures)) {
-              if (item && typeof item.value === 'number' && item.value > 0) {
+              // CRITICAL: Only load records with authoritative aumMetric === 'AUM' into verifiedAumMap!
+              const isAum = item.aumMetric === 'AUM' || (item.aumType === 'AUM' && item.aumMetric !== 'AAUM');
+              if (!isAum) continue;
+
+              const val = typeof item.aumCr === 'number' ? item.aumCr : (typeof item.value === 'number' ? item.value : null);
+              if (item && val !== null && !isNaN(val) && val > 0) {
                 const cleanCode = String(code).trim();
-                const normAum = this.normalizeAumValue(item.value, item.unit || 'Cr');
+                const normAum = this.normalizeAumValue(val, item.unit || 'Cr');
                 if (normAum !== null && normAum > 0) {
-                  this.verifiedAumMap.set(cleanCode, {
+                  const entry = {
                     value: normAum,
                     aumCr: normAum,
-                    source: item.source || 'Official Factsheet Disclosure',
+                    aumMetric: 'AUM',
+                    source: item.source || 'AMFI Scheme-Wise Disclosure',
                     status: 'PROVIDER_REPORTED',
                     asOf: item.asOf || '30 Jun 2026'
-                  });
+                  };
+                  this.verifiedAumMap.set(cleanCode, entry);
+                  if (item.isin) {
+                    this.verifiedAumMap.set(String(item.isin).trim(), entry);
+                  }
                 }
               }
             }
@@ -153,24 +163,28 @@ class IndianMfRankingService {
       };
     }
 
-    // 2. Check scheme object direct AUM properties
-    const directAum = this.normalizeAumValue(scheme.aumCr ?? scheme.aum);
-    if (directAum !== null && directAum > 0) {
-      return {
-        aumCr: directAum,
-        provenance: scheme.aumProvenance || {
-          value: directAum,
+    // 2. Check scheme object direct AUM properties (strictly excluded if AAUM)
+    const isDirectAum = scheme.aumMetric !== 'AAUM' && scheme.aumType !== 'AAUM';
+    if (isDirectAum) {
+      const directAum = this.normalizeAumValue(scheme.aumCr ?? scheme.aum);
+      if (directAum !== null && directAum > 0) {
+        return {
           aumCr: directAum,
-          source: scheme.aumSource || 'AMFI Scheme-Wise Disclosure',
-          status: 'PROVIDER_REPORTED',
-          asOf: scheme.aumAsOf || scheme.aumAsOfDate || '30 Jun 2026'
-        }
-      };
+          provenance: scheme.aumProvenance || {
+            value: directAum,
+            aumCr: directAum,
+            aumMetric: 'AUM',
+            source: scheme.aumSource || 'AMFI Scheme-Wise Disclosure',
+            status: 'PROVIDER_REPORTED',
+            asOf: scheme.aumAsOf || scheme.aumAsOfDate || '30 Jun 2026'
+          }
+        };
+      }
     }
 
     return {
       aumCr: null,
-      provenance: {
+      provenance: scheme.aumProvenance || {
         value: null,
         aumCr: null,
         source: null,

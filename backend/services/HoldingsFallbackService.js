@@ -35,11 +35,23 @@ class HoldingsFallbackService {
           const parsed = JSON.parse(raw);
           if (parsed && parsed.disclosures && typeof parsed.disclosures === 'object') {
             for (const [code, item] of Object.entries(parsed.disclosures)) {
-              if (item && typeof item.value === 'number' && item.value > 0) {
+              const isAum = item.aumMetric === 'AUM';
+              const isAaum = item.aumMetric === 'AAUM';
+              const aumVal = isAum && typeof item.aumCr === 'number' && item.aumCr > 0 ? item.aumCr : null;
+              const aaumVal = isAaum ? (typeof item.aaumCr === 'number' ? item.aaumCr : item.value) : (typeof item.aaumCr === 'number' ? item.aaumCr : null);
+
+              if (item && (aumVal !== null || aaumVal !== null)) {
+                item.value = aumVal; // strictly scheme AUM (null for AAUM)
+                item.aumCr = aumVal;
+                item.aaumCr = aaumVal;
+                item.aumMetric = isAum ? 'AUM' : (isAaum ? 'AAUM' : (aumVal !== null ? 'AUM' : 'AAUM'));
                 if (!this.cache.has(`aum_details_${code}`)) {
                   // Permanent cache marker so verified AUM survives server lifetime
                   this.cache.set(`aum_details_${code}`, { data: item, timestamp: 0, isPermanent: true });
-                  totalLoaded++;
+                  if (item.isin) {
+                    this.cache.set(`aum_details_${item.isin}`, { data: item, timestamp: 0, isPermanent: true });
+                  }
+                  if (aumVal !== null) totalLoaded++;
                 }
               }
             }
@@ -363,7 +375,9 @@ class HoldingsFallbackService {
         const officialRes = await officialAmcPortfolioService.getSchemeHoldings(cleanTicker);
         if (officialRes && officialRes.available && officialRes.positions && officialRes.positions.length > 0 && String(officialRes.schemeCode) === cleanTicker) {
           const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
-          const resolvedAum = officialRes.portfolioAumCr || (cachedAum && typeof cachedAum.value === 'number' ? Number(cachedAum.value) : null);
+          const resolvedAum = (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0)
+            ? Number(cachedAum.value)
+            : (officialRes.portfolioAumCr || null);
           return {
             ...officialRes,
             schemeCode: cleanTicker,
@@ -444,12 +458,22 @@ class HoldingsFallbackService {
    */
   async getAumDetails(schemeCode) {
     if (!schemeCode) {
-      return { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
+      return { value: null, aumCr: null, aaumCr: null, aumMetric: null, source: null, status: 'UNAVAILABLE', asOf: null };
     }
     const code = String(schemeCode).trim();
     const aumCacheKey = `aum_details_${code}`;
     const cachedAum = this._getCached(aumCacheKey);
-    if (cachedAum) return cachedAum;
+    if (cachedAum) {
+      // Ensure strict compliance for cached item
+      const isAum = cachedAum.aumMetric === 'AUM';
+      return {
+        ...cachedAum,
+        value: isAum ? (cachedAum.aumCr ?? cachedAum.value) : null,
+        aumCr: isAum ? (cachedAum.aumCr ?? cachedAum.value) : null,
+        aaumCr: cachedAum.aaumCr ?? (!isAum ? (cachedAum.aumCr ?? cachedAum.value) : null),
+        aumMetric: cachedAum.aumMetric || (isAum ? 'AUM' : 'AAUM')
+      };
+    }
 
     // Source 1: Upvaly/FinAPI (primary provider)
     try {
@@ -459,6 +483,8 @@ class HoldingsFallbackService {
         const result = {
           value: val,
           aumCr: val,
+          aaumCr: null,
+          aumMetric: 'AUM',
           source: finapiData.aumSource || 'Upvaly FinAPI Disclosure',
           status: 'PROVIDER_REPORTED',
           asOf: finapiData.aumAsOf || finapiData.latestNavDate || null
@@ -477,6 +503,8 @@ class HoldingsFallbackService {
           const result = {
             value: val,
             aumCr: val,
+            aaumCr: null,
+            aumMetric: 'AUM',
             source: 'mfdata.in',
             status: 'PROVIDER_REPORTED',
             asOf: '30 Jun 2026'
@@ -491,7 +519,7 @@ class HoldingsFallbackService {
       }
     }
 
-    const unavailable = { value: null, aumCr: null, source: null, status: 'UNAVAILABLE', asOf: null };
+    const unavailable = { value: null, aumCr: null, aaumCr: null, aumMetric: null, source: null, status: 'UNAVAILABLE', asOf: null };
     this._setCache(aumCacheKey, unavailable);
     return unavailable;
   }

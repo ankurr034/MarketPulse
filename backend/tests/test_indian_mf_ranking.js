@@ -234,21 +234,21 @@ async function runTests() {
       indiaMfSectorRank: 1
     };
 
-    assert.strictEqual(getDisplayedMfRank(fund, 'all'), 22);
-    assert.strictEqual(getDisplayedMfRank(fund, 'category'), 22);
-    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 22);
-    assert.strictEqual(getDisplayedMfRank(fund, 'sector'), 22);
+    assert.strictEqual(getDisplayedMfRank(fund, 'all'), 22, 'All context returns global rank');
+    assert.strictEqual(getDisplayedMfRank(fund, 'category'), 12, 'Category context returns category rank');
+    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 3, 'Subcategory context returns subcategory rank');
+    assert.strictEqual(getDisplayedMfRank(fund, 'sector'), 1, 'Sector context returns sector rank');
   });
 
-  await it('TEST 18: Category view displays total funds global rank (indiaMfRank)', async () => {
+  await it('TEST 18: Category view falls back to global rank when category rank is null', async () => {
     const { getDisplayedMfRank } = await import('../../frontend/src/utils/rankMutualFunds.js');
     const fund = {
       indiaMfRank: 22,
-      indiaMfCategoryRank: 12,
+      indiaMfCategoryRank: null,
       indiaMfSubcategoryRank: null
     };
 
-    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 22, 'Returns total funds global rank #22');
+    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 22, 'Falls back to global rank #22 when subcategory rank is null');
   });
 
   await it('TEST 19: All Funds view displays indiaMfRank', async () => {
@@ -257,22 +257,22 @@ async function runTests() {
     assert.strictEqual(getDisplayedMfRank(fund, 'all'), 1);
   });
 
-  await it('TEST 20: Subcategory view displays total funds rank (indiaMfRank)', async () => {
+  await it('TEST 20: Subcategory view displays subcategory rank', async () => {
     const { getDisplayedMfRank } = await import('../../frontend/src/utils/rankMutualFunds.js');
     const fund = { indiaMfRank: 22, indiaMfSubcategoryRank: 3 };
-    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 22);
+    assert.strictEqual(getDisplayedMfRank(fund, 'subcategory'), 3, 'Returns subcategory rank #3');
   });
 
-  await it('TEST 21: Category view displays total funds rank (indiaMfRank)', async () => {
+  await it('TEST 21: Category view displays category rank', async () => {
     const { getDisplayedMfRank } = await import('../../frontend/src/utils/rankMutualFunds.js');
     const fund = { indiaMfRank: 22, indiaMfCategoryRank: 12 };
-    assert.strictEqual(getDisplayedMfRank(fund, 'category'), 22);
+    assert.strictEqual(getDisplayedMfRank(fund, 'category'), 12, 'Returns category rank #12');
   });
 
-  await it('TEST 22: Sector view displays total funds rank (indiaMfRank)', async () => {
+  await it('TEST 22: Sector view displays sector rank', async () => {
     const { getDisplayedMfRank } = await import('../../frontend/src/utils/rankMutualFunds.js');
     const fund = { indiaMfRank: 110, indiaMfSectorRank: 1 };
-    assert.strictEqual(getDisplayedMfRank(fund, 'sector'), 110);
+    assert.strictEqual(getDisplayedMfRank(fund, 'sector'), 1, 'Returns sector rank #1');
   });
 
   console.log('\n================================================================');

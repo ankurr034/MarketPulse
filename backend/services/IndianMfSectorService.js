@@ -59,9 +59,14 @@ class IndianMfSectorService {
         try {
           const summary = await unifiedAssetService.getAssetSummary('mf', fund.id, 'india');
           if (summary) {
-            const cleanAum = (summary.aum !== null && summary.aum !== undefined && !isNaN(summary.aum) && Number(summary.aum) > 0)
-              ? Number(summary.aum)
-              : null;
+            const isAum = summary.aumMetric === 'AUM';
+            const isAaum = summary.aumMetric === 'AAUM';
+            const cleanAum = (isAum && summary.aumCr !== null && summary.aumCr !== undefined && !isNaN(summary.aumCr) && Number(summary.aumCr) > 0)
+              ? Number(summary.aumCr)
+              : (isAum && summary.aum !== null && !isNaN(summary.aum) && Number(summary.aum) > 0 ? Number(summary.aum) : null);
+            const cleanAaum = summary.aaumCr ?? (isAaum ? (summary.aumCr ?? summary.aum) : null);
+            const metric = isAum ? 'AUM' : (isAaum ? 'AAUM' : (cleanAum ? 'AUM' : (cleanAaum ? 'AAUM' : null)));
+
             return {
               ...summary,
               id: codeStr,
@@ -73,6 +78,8 @@ class IndianMfSectorService {
               fundHouse: summary.fundHouse || summary.amc || fund.family,
               aum: cleanAum,
               aumCr: cleanAum,
+              aaumCr: cleanAaum,
+              aumMetric: metric,
               indiaMfRank: globalRank,
               globalMfRank: globalRank,
               rank: globalRank,
