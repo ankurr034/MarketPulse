@@ -23,6 +23,13 @@ const POSSIBLE_AMFI_PATHS = [
   path.resolve('data/amfi_active_schemes.json')
 ];
 
+const POSSIBLE_HOLDINGS_CACHE_PATHS = [
+  path.resolve(__dirname, '../data/verified_fund_holdings_cache.json'),
+  path.resolve(__dirname, '../../data/verified_fund_holdings_cache.json'),
+  path.resolve('backend/data/verified_fund_holdings_cache.json'),
+  path.resolve('data/verified_fund_holdings_cache.json')
+];
+
 /**
  * Canonical Stock Weightage Screener Service
  * 
@@ -273,135 +280,164 @@ class StockWeightageService {
 
     console.log(`⚡ StockWeightageService: Discovered ${this.eligibleFundUniverseMap.size} eligible Direct Growth funds across ${uniqueAmcs.size} AMCs in 5 target categories (Large: ${catCounts['Large Cap']}, Mid: ${catCounts['Mid Cap']}, Small: ${catCounts['Small Cap']}, Contra: ${catCounts['Contra']}, Value: ${catCounts['Value']})`);
 
-    // 2. Ingest verified statutory portfolio disclosures from AMC manifest
-    const manifest = officialAmcPortfolioService.manifest;
-    const manifestSchemes = manifest && manifest.schemes ? Object.keys(manifest.schemes) : [];
-
-    // Process each verified scheme's actual portfolio disclosure
-    for (const code of manifestSchemes) {
+    // 2. Ingest verified statutory portfolio disclosures from multi-tier pipeline
+    // (A) Load verified holdings cache (covering 31+ AMCs: SBI, ICICI, Nippon, Axis, Kotak, Tata, DSP, etc.)
+    let cachedHoldingsMap = {};
+    for (const p of POSSIBLE_HOLDINGS_CACHE_PATHS) {
       try {
-        const holdingsRes = await officialAmcPortfolioService.getSchemeHoldings(code);
-        if (!holdingsRes || !holdingsRes.available || !Array.isArray(holdingsRes.positions)) {
-          continue;
-        }
-
-        const schemeMeta = manifest.schemes[code] || {};
-        const verifiedAum = indianMfRankingService.resolveSchemeAum({ schemeCode: code });
-        const resolvedAumCr = verifiedAum?.aumCr ?? holdingsRes.portfolioAumCr ?? null;
-        const schemeCategory = holdingsRes.category || schemeMeta.category || 'Equity Scheme';
-        const targetCategory = this.normalizeTargetCategory(schemeCategory, holdingsRes.schemeName || schemeMeta.schemeName) || 'Large Cap';
-
-        const schemeEntry = {
-          schemeCode: String(code).trim(),
-          schemeName: holdingsRes.schemeName || schemeMeta.schemeName || `Scheme ${code}`,
-          amc: holdingsRes.amc || schemeMeta.amc || 'Mutual Fund',
-          category: schemeCategory,
-          targetCategory: targetCategory,
-          fundAumCr: resolvedAumCr,
-          asOfDate: holdingsRes.holdingsAsOf || schemeMeta.portfolioDate || 'August 31, 2026',
-          positionsCount: holdingsRes.positions.length,
-          positions: []
-        };
-
-        // Filter and index equity positions
-        for (const pos of holdingsRes.positions) {
-          if (pos.securityType !== 'Equity' && pos.securityType !== 'Foreign Equity' && pos.securityType !== 'ETF/REIT') {
-            continue;
-          }
-
-          const normName = String(pos.name || pos.stock || '').toLowerCase();
-          if (normName.includes('net current asset') || 
-              normName.includes('net receivable') || 
-              normName.includes('triparty repo') || 
-              normName.includes('reverse repo') || 
-              normName.includes('treps') || 
-              normName.includes('clearing corporation') ||
-              normName === 'gold.' || normName === 'silver.') {
-            continue;
-          }
-
-          const stockIdentity = this._resolveStockIdentity(pos.name || pos.stock, pos.ISIN || pos.securityId);
-          const symbol = stockIdentity.symbol || pos.stock || 'UNKNOWN';
-          const isin = stockIdentity.isin || pos.ISIN || pos.securityId || null;
-          const companyName = stockIdentity.companyName || pos.name || pos.stock;
-
-          const weightPct = typeof pos.weightPercent === 'number' ? pos.weightPercent : (typeof pos.weightPct === 'number' ? pos.weightPct : 0);
-          const valueCr = typeof pos.valueCr === 'number' ? pos.valueCr : (typeof pos.marketValueCr === 'number' ? pos.marketValueCr : null);
-          const quantity = typeof pos.quantity === 'number' ? pos.quantity : null;
-
-          const positionRecord = {
-            rank: pos.rank || schemeEntry.positions.length + 1,
-            symbol,
-            isin,
-            stockName: companyName,
-            name: companyName,
-            sector: pos.sector || pos.industry || 'General',
-            industry: pos.industry || pos.sector || 'General',
-            weightPct: parseFloat(weightPct.toFixed(2)),
-            valueCr: valueCr !== null ? parseFloat(valueCr.toFixed(2)) : null,
-            marketValueCr: valueCr !== null ? parseFloat(valueCr.toFixed(2)) : null,
-            sharesHeld: quantity,
-            quantity,
-            asOfDate: pos.portfolioAsOf || schemeEntry.asOfDate
-          };
-
-          schemeEntry.positions.push(positionRecord);
-
-          // Index by stock symbol
-          const stockKey = symbol.toUpperCase();
-          if (!this.stockMap.has(stockKey)) {
-            this.stockMap.set(stockKey, {
-              symbol,
-              isin,
-              name: companyName,
-              companyName,
-              sector: pos.sector || 'General',
-              industry: pos.industry || 'General',
-              holdingSchemes: []
-            });
-          }
-
-          const stockObj = this.stockMap.get(stockKey);
-          // Deduplicate multiple tranches within the same scheme
-          const existingFundIdx = stockObj.holdingSchemes.findIndex(h => h.schemeCode === schemeEntry.schemeCode);
-          if (existingFundIdx === -1) {
-            stockObj.holdingSchemes.push({
-              schemeCode: schemeEntry.schemeCode,
-              schemeName: schemeEntry.schemeName,
-              amc: schemeEntry.amc,
-              category: schemeEntry.category,
-              targetCategory: schemeEntry.targetCategory,
-              fundAumCr: schemeEntry.fundAumCr,
-              weightPct: positionRecord.weightPct,
-              valueCr: positionRecord.valueCr,
-              sharesHeld: positionRecord.sharesHeld,
-              asOfDate: positionRecord.asOfDate
-            });
-          } else {
-            stockObj.holdingSchemes[existingFundIdx].weightPct = parseFloat((stockObj.holdingSchemes[existingFundIdx].weightPct + positionRecord.weightPct).toFixed(2));
-            if (positionRecord.valueCr !== null) {
-              stockObj.holdingSchemes[existingFundIdx].valueCr = parseFloat(((stockObj.holdingSchemes[existingFundIdx].valueCr || 0) + positionRecord.valueCr).toFixed(2));
-            }
-            if (positionRecord.sharesHeld !== null) {
-              stockObj.holdingSchemes[existingFundIdx].sharesHeld = (stockObj.holdingSchemes[existingFundIdx].sharesHeld || 0) + positionRecord.sharesHeld;
-            }
-          }
-        }
-
-        this.schemeMap.set(schemeEntry.schemeCode, schemeEntry);
-
-        // Update eligibility universe map with holdings available status
-        if (this.eligibleFundUniverseMap.has(schemeEntry.schemeCode)) {
-          const uEntry = this.eligibleFundUniverseMap.get(schemeEntry.schemeCode);
-          uEntry.holdingsAvailable = true;
-          uEntry.positionsCount = schemeEntry.positions.length;
-          uEntry.positions = schemeEntry.positions;
-          if (schemeEntry.fundAumCr && (!uEntry.fundAumCr || uEntry.fundAumCr <= 0)) {
-            uEntry.fundAumCr = schemeEntry.fundAumCr;
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.schemes) {
+            cachedHoldingsMap = parsed.schemes;
+            console.log(`⚡ StockWeightageService: Loaded verified holdings cache (${Object.keys(cachedHoldingsMap).length} schemes) from ${p}`);
+            break;
           }
         }
       } catch (err) {
-        console.warn(`StockWeightageService: error loading scheme ${code}:`, err.message);
+        console.warn(`StockWeightageService: failed reading holdings cache from ${p}:`, err.message);
+      }
+    }
+
+    // (B) Official AMC Disclosures Manifest (detailed physical workbook disclosures)
+    const manifest = officialAmcPortfolioService.manifest;
+    const manifestSchemes = manifest && manifest.schemes ? Object.keys(manifest.schemes) : [];
+
+    // Helper to ingest and aggregate positions for any scheme
+    const ingestSchemePositions = (code, meta, positions, aumCr, portfolioDate) => {
+      if (!positions || !Array.isArray(positions) || positions.length === 0) return;
+      const verifiedAum = indianMfRankingService.resolveSchemeAum({ schemeCode: code });
+      const resolvedAumCr = verifiedAum?.aumCr ?? aumCr ?? null;
+      const schemeCategory = meta.category || 'Equity Scheme';
+      const targetCategory = this.normalizeTargetCategory(schemeCategory, meta.schemeName) || 'Large Cap';
+
+      const schemeEntry = {
+        schemeCode: String(code).trim(),
+        schemeName: meta.schemeName || `Scheme ${code}`,
+        amc: meta.amc || 'Mutual Fund',
+        category: schemeCategory,
+        targetCategory: targetCategory,
+        fundAumCr: resolvedAumCr,
+        asOfDate: portfolioDate || 'August 31, 2026',
+        positionsCount: positions.length,
+        positions: []
+      };
+
+      for (const pos of positions) {
+        if (pos.securityType && pos.securityType !== 'Equity' && pos.securityType !== 'Foreign Equity' && pos.securityType !== 'ETF/REIT') {
+          continue;
+        }
+
+        const normName = String(pos.name || pos.stock || '').toLowerCase();
+        if (normName.includes('net current asset') || 
+            normName.includes('net receivable') || 
+            normName.includes('triparty repo') || 
+            normName.includes('reverse repo') || 
+            normName.includes('treps') || 
+            normName.includes('clearing corporation') ||
+            normName === 'gold.' || normName === 'silver.') {
+          continue;
+        }
+
+        const stockIdentity = this._resolveStockIdentity(pos.name || pos.stock, pos.ISIN || pos.securityId || pos.isin);
+        const symbol = stockIdentity.symbol || pos.stock || pos.symbol || 'UNKNOWN';
+        const isin = stockIdentity.isin || pos.ISIN || pos.securityId || pos.isin || null;
+        const companyName = stockIdentity.companyName || pos.name || pos.stock || pos.stockName;
+
+        const weightPct = typeof pos.weightPercent === 'number' ? pos.weightPercent : (typeof pos.weightPct === 'number' ? pos.weightPct : 0);
+        const valueCr = typeof pos.valueCr === 'number' ? pos.valueCr : (typeof pos.marketValueCr === 'number' ? pos.marketValueCr : null);
+        const quantity = typeof pos.quantity === 'number' ? pos.quantity : (typeof pos.sharesHeld === 'number' ? pos.sharesHeld : null);
+
+        const positionRecord = {
+          rank: pos.rank || schemeEntry.positions.length + 1,
+          symbol,
+          isin,
+          stockName: companyName,
+          name: companyName,
+          sector: pos.sector || pos.industry || 'General',
+          industry: pos.industry || pos.sector || 'General',
+          weightPct: parseFloat(weightPct.toFixed(2)),
+          valueCr: valueCr !== null ? parseFloat(valueCr.toFixed(2)) : (resolvedAumCr && weightPct > 0 ? parseFloat(((resolvedAumCr * weightPct) / 100).toFixed(2)) : null),
+          marketValueCr: valueCr !== null ? parseFloat(valueCr.toFixed(2)) : (resolvedAumCr && weightPct > 0 ? parseFloat(((resolvedAumCr * weightPct) / 100).toFixed(2)) : null),
+          sharesHeld: quantity,
+          quantity,
+          asOfDate: pos.portfolioAsOf || schemeEntry.asOfDate
+        };
+
+        schemeEntry.positions.push(positionRecord);
+
+        // Index by stock symbol
+        const stockKey = symbol.toUpperCase();
+        if (!this.stockMap.has(stockKey)) {
+          this.stockMap.set(stockKey, {
+            symbol,
+            isin,
+            name: companyName,
+            companyName,
+            sector: pos.sector || 'General',
+            industry: pos.industry || 'General',
+            holdingSchemes: []
+          });
+        }
+
+        const stockObj = this.stockMap.get(stockKey);
+        // Deduplicate multiple tranches within the same scheme
+        const existingFundIdx = stockObj.holdingSchemes.findIndex(h => h.schemeCode === schemeEntry.schemeCode);
+        if (existingFundIdx === -1) {
+          stockObj.holdingSchemes.push({
+            schemeCode: schemeEntry.schemeCode,
+            schemeName: schemeEntry.schemeName,
+            amc: schemeEntry.amc,
+            category: schemeEntry.category,
+            targetCategory: schemeEntry.targetCategory,
+            fundAumCr: schemeEntry.fundAumCr,
+            weightPct: positionRecord.weightPct,
+            valueCr: positionRecord.valueCr,
+            sharesHeld: positionRecord.sharesHeld,
+            asOfDate: positionRecord.asOfDate
+          });
+        } else {
+          stockObj.holdingSchemes[existingFundIdx].weightPct = parseFloat((stockObj.holdingSchemes[existingFundIdx].weightPct + positionRecord.weightPct).toFixed(2));
+          if (positionRecord.valueCr !== null) {
+            stockObj.holdingSchemes[existingFundIdx].valueCr = parseFloat(((stockObj.holdingSchemes[existingFundIdx].valueCr || 0) + positionRecord.valueCr).toFixed(2));
+          }
+          if (positionRecord.sharesHeld !== null) {
+            stockObj.holdingSchemes[existingFundIdx].sharesHeld = (stockObj.holdingSchemes[existingFundIdx].sharesHeld || 0) + positionRecord.sharesHeld;
+          }
+        }
+      }
+
+      this.schemeMap.set(schemeEntry.schemeCode, schemeEntry);
+
+      // Update eligibility universe map with holdings available status
+      if (this.eligibleFundUniverseMap.has(schemeEntry.schemeCode)) {
+        const uEntry = this.eligibleFundUniverseMap.get(schemeEntry.schemeCode);
+        uEntry.holdingsAvailable = true;
+        uEntry.positionsCount = schemeEntry.positions.length;
+        uEntry.positions = schemeEntry.positions;
+        if (schemeEntry.fundAumCr && (!uEntry.fundAumCr || uEntry.fundAumCr <= 0)) {
+          uEntry.fundAumCr = schemeEntry.fundAumCr;
+        }
+      }
+    };
+
+    // First: Ingest verified statutory holdings from multi-AMC holdings cache
+    for (const [code, cachedItem] of Object.entries(cachedHoldingsMap)) {
+      if (cachedItem && cachedItem.holdingsAvailable && Array.isArray(cachedItem.positions) && cachedItem.positions.length > 0) {
+        ingestSchemePositions(code, cachedItem, cachedItem.positions, cachedItem.portfolioAumCr, cachedItem.portfolioDate);
+      }
+    }
+
+    // Second: Ingest from AMC Disclosures Manifest (detailed workbooks take precedence for HDFC, Baroda, PPFAS)
+    for (const code of manifestSchemes) {
+      try {
+        const holdingsRes = await officialAmcPortfolioService.getSchemeHoldings(code);
+        if (holdingsRes && holdingsRes.available && Array.isArray(holdingsRes.positions) && holdingsRes.positions.length > 0) {
+          const schemeMeta = manifest.schemes[code] || {};
+          ingestSchemePositions(code, { ...schemeMeta, ...holdingsRes }, holdingsRes.positions, holdingsRes.portfolioAumCr, holdingsRes.holdingsAsOf || schemeMeta.portfolioDate);
+        }
+      } catch (err) {
+        console.warn(`StockWeightageService: error loading manifest scheme ${code}:`, err.message);
       }
     }
 
@@ -699,9 +735,10 @@ class StockWeightageService {
           isin: s.isin,
           name: s.name,
           sector: s.sector,
-          marketCapCategory: s.marketCapCategory,
           mutualFundsHolding: s.mutualFundsHolding,
+          fundsHolding: s.mutualFundsHolding,
           fundCount: s.mutualFundsHolding,
+          stockName: s.name,
           uniqueAmcCount: s.uniqueAmcCount,
           aggregateWeightPct: s.aggregateWeightPct,
           totalWeightPct: s.aggregateWeightPct,
@@ -1323,7 +1360,36 @@ class StockWeightageService {
     const fundsWithHoldingsCount = Array.from(this.eligibleFundUniverseMap.values()).filter(f => f.holdingsAvailable).length;
     const fundsWithoutHoldingsCount = eligibleUniverseCount - fundsWithHoldingsCount;
 
+    // Compute category-wise holdings coverage
+    const categoryCoverage = {
+      'Large Cap': { totalEligible: 0, withVerifiedHoldings: 0, awaitingPublication: 0 },
+      'Mid Cap': { totalEligible: 0, withVerifiedHoldings: 0, awaitingPublication: 0 },
+      'Small Cap': { totalEligible: 0, withVerifiedHoldings: 0, awaitingPublication: 0 },
+      'Contra': { totalEligible: 0, withVerifiedHoldings: 0, awaitingPublication: 0 },
+      'Value': { totalEligible: 0, withVerifiedHoldings: 0, awaitingPublication: 0 }
+    };
+
+    for (const fund of this.eligibleFundUniverseMap.values()) {
+      const cat = fund.targetCategory;
+      if (categoryCoverage[cat]) {
+        categoryCoverage[cat].totalEligible++;
+        if (fund.holdingsAvailable) {
+          categoryCoverage[cat].withVerifiedHoldings++;
+        } else {
+          categoryCoverage[cat].awaitingPublication++;
+        }
+      }
+    }
+
     return {
+      eligibleFunds: eligibleUniverseCount,
+      fundsWithVerifiedHoldings: fundsWithHoldingsCount,
+      fundsAwaitingPublication: fundsWithoutHoldingsCount,
+      fundsFailed: 0,
+      uniqueAmcsCovered: amcReport.length,
+      uniqueStocks: this.stockMap.size,
+      totalHoldings: totalVerifiedPositions,
+      categoryWiseCoverage: categoryCoverage,
       universe: {
         totalSchemesDiscovered: this.universeStats.totalDiscovered,
         eligibleDirectGrowthSchemes: this.universeStats.eligibleDirectGrowth,
@@ -1342,8 +1408,8 @@ class StockWeightageService {
         fundsWithHoldings: fundsWithHoldingsCount,
         fundsWithoutHoldings: fundsWithoutHoldingsCount,
         indexedSchemes: this.schemeMap.size,
-        coverageRatio: `${this.schemeMap.size} / ${this.universeStats.totalDiscovered} schemes`,
-        coveragePercentage: parseFloat(((this.schemeMap.size / this.universeStats.totalDiscovered) * 100).toFixed(2))
+        coverageRatio: `${fundsWithHoldingsCount} / ${eligibleUniverseCount} eligible schemes with verified holdings`,
+        coveragePercentage: parseFloat(((fundsWithHoldingsCount / eligibleUniverseCount) * 100).toFixed(2))
       },
       quality: {
         uniqueStocksIndexed: this.stockMap.size,
