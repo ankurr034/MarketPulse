@@ -22,15 +22,16 @@ export default function StockWeightageTable({
   const renderSortIcon = (columnKey) => {
     if (sortBy === columnKey) {
       return sortOrder === 'asc' 
-        ? <ArrowUp size={12} className="text-emerald-600 dark:text-emerald-400" />
-        : <ArrowDown size={12} className="text-emerald-600 dark:text-emerald-400" />;
+        ? <ArrowUp size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        : <ArrowDown size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />;
     }
-    return <ArrowUpDown size={11} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity" />;
+    return <ArrowUpDown size={11} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />;
   };
 
   const formatCurrencyCr = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '—';
-    return `₹ ${Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
+    const num = Number(val);
+    return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
   };
 
   const formatPrice = (val) => {
@@ -38,7 +39,7 @@ export default function StockWeightageTable({
     return Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 });
   };
 
-  // Generate page numbers with ellipsis like in reference: < 1 2 3 4 5 ... 239 >
+  // Generate page numbers with ellipsis matching reference: < 1 2 3 4 5 ... 239 >
   const getPageNumbers = () => {
     const pages = [];
     if (totalPages <= 7) {
@@ -56,20 +57,19 @@ export default function StockWeightageTable({
   };
 
   return (
-    <div
-      className="rounded-2xl border overflow-hidden flex flex-col bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-slate-800 shadow-xs"
-    >
+    <div className="rounded-2xl border overflow-hidden flex flex-col bg-white dark:bg-[var(--bg-card)] border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all">
+      
       {/* Table Area */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs whitespace-nowrap">
           <thead>
-            <tr className="border-b text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
-              <th className="py-3 px-3 w-10 text-center">#</th>
+            <tr className="border-b text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 select-none">
+              <th className="py-3 px-3 w-10 text-center text-slate-400">#</th>
               
               {/* Stock Column */}
               <th 
                 onClick={() => onSort('name')}
-                className="py-3 px-3 cursor-pointer select-none group min-w-[170px]"
+                className="py-3 px-3 cursor-pointer group min-w-[175px]"
               >
                 <div className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Stock</span>
@@ -78,14 +78,14 @@ export default function StockWeightageTable({
               </th>
 
               {/* Sector Column */}
-              <th className="py-3 px-3 min-w-[100px]">Sector</th>
+              <th className="py-3 px-3 min-w-[100px] font-semibold">Sector</th>
 
-              {/* Funds Holding Column */}
+              {/* Funds Holding Column (Highlighted as primary ranking column) */}
               <th 
                 onClick={() => onSort('fundCount')}
-                className="py-3 px-3 text-center cursor-pointer select-none group min-w-[110px]"
+                className="py-3 px-3 text-center cursor-pointer group min-w-[115px]"
               >
-                <div className="flex items-center justify-center gap-1 hover:text-slate-900 dark:hover:text-white transition-colors text-emerald-700 dark:text-emerald-400 font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#0D6B58] dark:text-emerald-400 font-extrabold hover:opacity-80 transition-opacity">
                   <span>Funds Holding</span>
                   {renderSortIcon('fundCount')}
                 </div>
@@ -94,7 +94,7 @@ export default function StockWeightageTable({
               {/* Avg. Weightage Column */}
               <th 
                 onClick={() => onSort('avgWeightage')}
-                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[90px]"
+                className="py-3 px-3 text-right cursor-pointer group min-w-[95px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Avg. Weightage</span>
@@ -105,7 +105,7 @@ export default function StockWeightageTable({
               {/* Max. Weightage Column */}
               <th 
                 onClick={() => onSort('maxWeightage')}
-                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[90px]"
+                className="py-3 px-3 text-right cursor-pointer group min-w-[95px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Max. Weightage</span>
@@ -116,7 +116,7 @@ export default function StockWeightageTable({
               {/* Fund AUM Exposure Column */}
               <th 
                 onClick={() => onSort('fundAum')}
-                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[130px]"
+                className="py-3 px-3 text-right cursor-pointer group min-w-[130px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Fund AUM Exposure</span>
@@ -127,7 +127,7 @@ export default function StockWeightageTable({
               {/* Total Holding Value Column */}
               <th 
                 onClick={() => onSort('holdingValue')}
-                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[130px]"
+                className="py-3 px-3 text-right cursor-pointer group min-w-[130px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Total Holding Value</span>
@@ -145,19 +145,22 @@ export default function StockWeightageTable({
               <th className="py-3 px-3 text-center min-w-[110px]">1Y Trend</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td colSpan={11} className="py-4 px-3">
-                    <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                  <td colSpan={11} className="py-3.5 px-3">
+                    <div className="h-5 bg-slate-200/70 dark:bg-slate-800/70 rounded-md w-full" />
                   </td>
                 </tr>
               ))
             ) : stocks.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-16 text-center text-slate-500 text-xs">
-                  No stocks match the selected screener filters.
+                <td colSpan={11} className="py-16 text-center text-slate-500 dark:text-slate-400 text-xs">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">No stocks found</span>
+                    <span className="text-[11px] text-slate-400">Try adjusting your filters or search criteria.</span>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -174,28 +177,26 @@ export default function StockWeightageTable({
                   <tr
                     key={stock.symbol}
                     onClick={() => onSelectStock(stock)}
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer transition-colors duration-150 select-none ${
                       isSelected 
-                        ? 'bg-sky-50/80 dark:bg-sky-950/40 border-l-4 border-l-blue-600' 
-                        : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                        ? 'bg-[#F0F7FF] dark:bg-blue-950/30 border-l-[3.5px] border-l-[#2563EB]' 
+                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40 border-l-[3.5px] border-l-transparent'
                     }`}
                   >
                     {/* # Rank */}
-                    <td className="py-3 px-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    <td className="py-2.5 px-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {stock.rank}
                     </td>
 
                     {/* Stock with Logo, Name and Symbol */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2 px-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="shrink-0">
-                          <BrandLogo symbol={stock.symbol} name={stock.name} size="md" />
-                        </div>
+                        <BrandLogo symbol={stock.symbol} name={stock.name} size="md" />
                         <div className="min-w-0">
-                          <div className="font-bold text-slate-900 dark:text-white truncate max-w-[180px] leading-tight">
+                          <div className="font-bold text-slate-900 dark:text-white truncate max-w-[170px] text-xs leading-snug">
                             {stock.name}
                           </div>
-                          <div className="text-[11px] font-mono font-medium text-slate-400 mt-0.5">
+                          <div className="text-[10.5px] font-mono font-medium text-slate-400 dark:text-slate-500">
                             {stock.symbol}
                           </div>
                         </div>
@@ -203,51 +204,51 @@ export default function StockWeightageTable({
                     </td>
 
                     {/* Sector */}
-                    <td className="py-3 px-3 text-slate-600 dark:text-slate-300 font-medium">
+                    <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 text-xs font-medium">
                       {stock.sector || 'General'}
                     </td>
 
-                    {/* Funds Holding (bold green count matching reference) */}
-                    <td className="py-3 px-3 text-center">
-                      <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+                    {/* Funds Holding (bold green/teal count matching reference) */}
+                    <td className="py-2.5 px-3 text-center">
+                      <span className="font-extrabold text-[13.5px] text-[#059669] dark:text-emerald-400">
                         {stock.mutualFundsHolding?.toLocaleString('en-IN') || 0}
                       </span>
                     </td>
 
                     {/* Avg. Weightage */}
-                    <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100 text-xs">
                       {stock.avgWeightage != null ? `${stock.avgWeightage.toFixed(2)}%` : '—'}
                     </td>
 
                     {/* Max. Weightage */}
-                    <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100 text-xs">
                       {stock.maxWeightage != null ? `${stock.maxWeightage.toFixed(2)}%` : '—'}
                     </td>
 
                     {/* Fund AUM Exposure */}
-                    <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11px]">
+                    <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11.5px]">
                       {formatCurrencyCr(stock.fundAumExposureCr || stock.totalAumOfHoldingFundsCr)}
                     </td>
 
                     {/* Total Holding Value */}
-                    <td className="py-3 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white text-[11px]">
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white text-[11.5px]">
                       {formatCurrencyCr(stock.totalHoldingValueCr)}
                     </td>
 
                     {/* Price (₹) */}
-                    <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                    <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200 text-xs">
                       {formatPrice(stock.price)}
                     </td>
 
                     {/* Market Cap */}
-                    <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11px]">
+                    <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11.5px]">
                       {formatCurrencyCr(stock.marketCapCr)}
                     </td>
 
                     {/* 1Y Trend */}
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       <div className="inline-flex items-center gap-1.5 justify-center">
-                        <TrendSparkline trend={isTrendUp ? 'up' : 'down'} width={44} height={18} />
+                        <TrendSparkline trend={isTrendUp ? 'up' : 'down'} width={44} height={16} />
                         <span className={`text-[11px] font-bold ${
                           isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
                         }`}>
@@ -264,7 +265,7 @@ export default function StockWeightageTable({
       </div>
 
       {/* Pagination Footer matching reference image: Showing 1–10 of 2,384 stocks | < 1 2 3 4 5 ... 239 > | Rows per page: 10 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-[var(--bg-card)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-[var(--bg-card)]">
         <div>
           Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{startCount}–{endCount}</span> of <span className="font-semibold text-slate-800 dark:text-slate-200">{totalStocks.toLocaleString('en-IN')}</span> stocks
         </div>
@@ -274,7 +275,8 @@ export default function StockWeightageTable({
           <button
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1 || loading}
-            className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Previous page"
           >
             <ChevronLeft size={14} />
           </button>
@@ -282,7 +284,7 @@ export default function StockWeightageTable({
           {getPageNumbers().map((p, idx) => {
             if (p === '...') {
               return (
-                <span key={`dots-${idx}`} className="px-1.5 text-slate-400 select-none">
+                <span key={`dots-${idx}`} className="px-1 text-slate-400 select-none">
                   ...
                 </span>
               );
@@ -293,10 +295,10 @@ export default function StockWeightageTable({
                 key={p}
                 onClick={() => onPageChange(p)}
                 disabled={loading}
-                className={`min-w-[26px] h-6 px-1.5 rounded text-xs font-semibold transition-all cursor-pointer ${
+                className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-emerald-800 text-white shadow-xs'
-                    : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-[#0D6B58] text-white shadow-xs font-bold'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {p}
@@ -307,19 +309,20 @@ export default function StockWeightageTable({
           <button
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage >= totalPages || loading}
-            className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Next page"
           >
             <ChevronRight size={14} />
           </button>
         </div>
 
         {/* Rows per page selector */}
-        <div className="flex items-center gap-1.5">
-          <span>Rows per page:</span>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 text-xs">Rows per page</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+            className="px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={20}>20</option>
@@ -327,6 +330,7 @@ export default function StockWeightageTable({
           </select>
         </div>
       </div>
+
     </div>
   );
 }

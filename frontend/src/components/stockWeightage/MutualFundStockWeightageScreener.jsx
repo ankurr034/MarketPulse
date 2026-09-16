@@ -546,7 +546,11 @@ export default function MutualFundStockWeightageScreener() {
               <div className="flex flex-col justify-end">
                 <button
                   onClick={() => setShowMoreFilters(!showMoreFilters)}
-                  className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer h-7"
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer h-7 ${
+                    showMoreFilters
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                  }`}
                 >
                   <SlidersHorizontal size={12} />
                   <span>More Filters</span>
@@ -565,10 +569,91 @@ export default function MutualFundStockWeightageScreener() {
                   setStockSearchQuery(e.target.value);
                   fetchStockScreener(1, sortBy, sortOrder);
                 }}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500"
               />
+              {stockSearchQuery && (
+                <button 
+                  onClick={() => {
+                    setStockSearchQuery('');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           </div>
+
+          {/* ── COLLAPSIBLE ADVANCED FILTERS DRAWER ── */}
+          {showMoreFilters && (
+            <div className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-[#0D6B58] dark:text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">Advanced Screener Filters</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setMinAvgWeight('any');
+                    setMaxAvgWeight('any');
+                    setStockPriceFilter('any');
+                    setMarketCapFilter('any');
+                    setSelectedSector('all');
+                    setSelectedAmc('all');
+                    setFundAumExposureFilter('any');
+                    setStockSearchQuery('');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+
+              {/* Quick Filter Tags */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="text-slate-400 font-medium text-[11px]">Quick Presets:</span>
+                <button
+                  onClick={() => {
+                    setMinAvgWeight('> 3%');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
+                >
+                  High Conviction (&gt; 3% Avg)
+                </button>
+                <button
+                  onClick={() => {
+                    setMarketCapFilter('Large Cap');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
+                >
+                  Bluechips Only
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedSector('Banks');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
+                >
+                  Banking Sector
+                </button>
+                <button
+                  onClick={() => {
+                    setFundAumExposureFilter('> 50000');
+                    fetchStockScreener(1, sortBy, sortOrder);
+                  }}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
+                >
+                  Giant Fund Exposure (&gt; ₹50k Cr)
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── 4. SUB-NAVIGATION TABS (ROW 3 MATCHING REFERENCE DESIGN) ── */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">

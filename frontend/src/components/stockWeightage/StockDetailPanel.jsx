@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
   X, Search, Plus, Check, ChevronLeft, ChevronRight,
-  TrendingUp, Award, Building, Landmark, PieChart as PieIcon, ShieldCheck
+  TrendingUp, Award, Landmark, ShieldCheck
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, Tooltip
+  AreaChart, Area, XAxis, YAxis, Tooltip
 } from 'recharts';
 import BrandLogo from './BrandLogo';
 
@@ -67,7 +67,8 @@ export default function StockDetailPanel({
   // Format currency helpers
   const formatCr = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '—';
-    return `₹ ${Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
+    const num = Number(val);
+    return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
   };
 
   const formatPrice = (val) => {
@@ -137,7 +138,7 @@ export default function StockDetailPanel({
   const isTrendUp = (quote?.returns1Y ?? quote?.changePercent ?? 12.4) >= 0;
   const trendPct = quote?.returns1Y != null ? quote.returns1Y.toFixed(1) : '12.4';
 
-  // Sub-tabs list
+  // Sub-tabs list matching reference
   const subTabs = [
     { id: 'holding-funds', label: `Funds Holding This Stock (${totalFundsCount.toLocaleString('en-IN')})` },
     { id: 'distribution', label: 'Weightage Distribution' },
@@ -161,7 +162,7 @@ export default function StockDetailPanel({
     { bucket: '10%+', percentage: 5.0 }
   ];
 
-  // Trend line chart data
+  // Trend chart data
   const trendChartData = weightageTrend.length > 0 ? weightageTrend : [
     { quarter: 'Sep 2023', weight: 5.12 },
     { quarter: 'Dec 2023', weight: 5.43 },
@@ -170,15 +171,12 @@ export default function StockDetailPanel({
   ];
 
   return (
-    <div
-      className="rounded-2xl border p-4 sm:p-5 flex flex-col gap-4 bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-slate-800 shadow-xs animate-in fade-in duration-200"
-    >
+    <div className="rounded-2xl border p-4 sm:p-5 flex flex-col gap-4 bg-white dark:bg-[var(--bg-card)] border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05)] animate-in fade-in duration-200">
+      
       {/* ── 1. STOCK HEADER CARD ── */}
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
         <div className="flex items-center gap-3">
-          <div className="shrink-0">
-            <BrandLogo symbol={detail.symbol} name={detail.name} size="lg" />
-          </div>
+          <BrandLogo symbol={detail.symbol} name={detail.name} size="lg" />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -190,10 +188,10 @@ export default function StockDetailPanel({
             </div>
             {/* Sector & Market Cap Badges */}
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+              <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-sky-50 dark:bg-sky-950/40 text-[#2563EB] dark:text-sky-400 border border-sky-200 dark:border-sky-800">
                 {detail.sector || 'Banks'}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+              <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-[#16A34A] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                 {detail.marketCapCategory || 'Large Cap'}
               </span>
             </div>
@@ -205,13 +203,13 @@ export default function StockDetailPanel({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setIsWatchlisted(!isWatchlisted)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                 isWatchlisted 
-                  ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 border-blue-200 dark:border-blue-800' 
+                  ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 border-blue-200 dark:border-blue-800 shadow-2xs' 
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
               }`}
             >
-              {isWatchlisted ? <Check size={12} className="text-blue-600" /> : <Plus size={12} />}
+              {isWatchlisted ? <Check size={12} className="text-blue-600" /> : <Plus size={12} className="text-blue-600" />}
               <span>{isWatchlisted ? 'Watchlisted' : '+ Watchlist'}</span>
             </button>
             <button
@@ -224,7 +222,7 @@ export default function StockDetailPanel({
           </div>
 
           <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className="text-lg font-black font-mono text-slate-900 dark:text-white">
+            <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
               ₹ {formatPrice(stockPrice)}
             </span>
             <span className={`text-xs font-bold ${
@@ -237,60 +235,60 @@ export default function StockDetailPanel({
       </div>
 
       {/* ── 2. 6 KEY METRIC BOXES ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white">
             {totalFundsCount.toLocaleString('en-IN')}
           </div>
           <div className="text-[10px] text-slate-400 font-medium mt-0.5">Funds Holding</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
             {avgWeight.toFixed(2)}%
           </div>
           <div className="text-[10px] text-slate-400 font-medium mt-0.5">Avg. Weightage</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white">
             {maxWeight.toFixed(2)}%
           </div>
           <div className="text-[10px] text-slate-400 font-medium mt-0.5">Max. Weightage</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white">
             {minWeight.toFixed(2)}%
           </div>
           <div className="text-[10px] text-slate-400 font-medium mt-0.5">Min. Weightage</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 truncate">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
             {formatCr(totalHoldingValueCr)}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Total Holding Value</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Total Holding Value</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 truncate">
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
             {formatCr(fundAumExposureCr)}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Fund AUM Exposure</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Fund AUM Exposure</div>
         </div>
       </div>
 
-      {/* ── 3. SUB-TABS NAVIGATION ── */}
+      {/* ── 3. SUB-TABS NAVIGATION (matching reference design) ── */}
       <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none pt-1">
         {subTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                ? 'bg-[#2563EB] text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             {tab.label}
@@ -338,7 +336,7 @@ export default function StockDetailPanel({
               {/* View All Funds Button */}
               <button
                 onClick={() => onViewAllFunds(detail.symbol)}
-                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                className="text-xs font-bold text-[#2563EB] hover:underline cursor-pointer flex items-center gap-1"
               >
                 View All {totalFundsCount.toLocaleString('en-IN')} Funds
               </button>
@@ -346,12 +344,12 @@ export default function StockDetailPanel({
           </div>
 
           {/* Sub-table */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="border-b text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
-                    <th className="py-2.5 px-3 w-8 text-center">#</th>
+                  <tr className="border-b text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+                    <th className="py-2.5 px-3 w-8 text-center text-slate-400">#</th>
                     <th className="py-2.5 px-3">Mutual Fund</th>
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3 text-right">Weightage</th>
@@ -373,7 +371,7 @@ export default function StockDetailPanel({
                         <tr 
                           key={fund.schemeCode || idx}
                           onClick={() => onSelectFund(fund.schemeCode)}
-                          className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                         >
                           <td className="py-2.5 px-3 text-center text-slate-500 font-semibold">
                             {rowRank}
@@ -409,7 +407,7 @@ export default function StockDetailPanel({
             </div>
 
             {/* Sub-table Pagination Footer */}
-            <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-white dark:bg-[var(--bg-card)]">
+            <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 bg-white dark:bg-[var(--bg-card)]">
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setSubPage(Math.max(1, subPage - 1))}
@@ -426,7 +424,7 @@ export default function StockDetailPanel({
                       onClick={() => setSubPage(pNum)}
                       className={`min-w-[22px] h-5.5 px-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
                         subPage === pNum
-                          ? 'bg-emerald-800 text-white'
+                          ? 'bg-[#0D6B58] text-white font-bold'
                           : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                       }`}
                     >
@@ -439,7 +437,7 @@ export default function StockDetailPanel({
                   <button
                     onClick={() => setSubPage(totalSubPages)}
                     className={`min-w-[22px] h-5.5 px-1 rounded text-[11px] font-semibold border border-slate-200 dark:border-slate-700 ${
-                      subPage === totalSubPages ? 'bg-emerald-800 text-white' : 'text-slate-600'
+                      subPage === totalSubPages ? 'bg-[#0D6B58] text-white' : 'text-slate-600'
                     }`}
                   >
                     {totalSubPages}
@@ -463,7 +461,7 @@ export default function StockDetailPanel({
           {/* ── 5. 3 BOTTOM ANALYTICS CARDS ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
             {/* Card 1: Sector Allocation Donut */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
+            <div className="p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">
                 Sector Allocation ({detail.name.split(' ')[0]} across Funds)
               </div>
@@ -499,7 +497,7 @@ export default function StockDetailPanel({
             </div>
 
             {/* Card 2: Weightage Distribution Horizontal Bars */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
+            <div className="p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">
                 Weightage Distribution (across {totalFundsCount.toLocaleString('en-IN')} funds)
               </div>
@@ -521,28 +519,36 @@ export default function StockDetailPanel({
               </div>
             </div>
 
-            {/* Card 3: Average Weightage Trend Line Chart */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
+            {/* Card 3: Average Weightage Trend Area Chart */}
+            <div className="p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
                 Average Weightage Trend
               </div>
               <div className="h-32 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendChartData} margin={{ top: 12, right: 12, left: -25, bottom: 0 }}>
+                  <AreaChart data={trendChartData} margin={{ top: 12, right: 12, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
                     <XAxis dataKey="quarter" tick={{ fill: '#94a3b8', fontSize: 10 }} />
                     <YAxis domain={['auto', 'auto']} tick={{ fill: '#94a3b8', fontSize: 10 }} />
                     <Tooltip 
                       formatter={(val) => [`${val}%`, 'Avg. Weight']}
                       contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
                     />
-                    <Line 
+                    <Area 
                       type="monotone" 
                       dataKey="weight" 
                       stroke="#10b981" 
                       strokeWidth={2.5} 
+                      fillOpacity={1} 
+                      fill="url(#weightGrad)"
                       dot={{ r: 3, fill: '#10b981' }} 
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
               <div className="text-[10px] text-slate-400 text-center font-medium mt-1">
@@ -555,7 +561,7 @@ export default function StockDetailPanel({
 
       {/* ── 6. OTHER TABS (Weightage Distribution, Category Comparison, etc.) ── */}
       {activeTab === 'distribution' && (
-        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Scheme Allocation Density</h3>
           <p className="text-xs text-slate-500">
             Shows how many mutual funds allocate specific portfolio percentages to {detail.name}.
@@ -580,7 +586,7 @@ export default function StockDetailPanel({
       )}
 
       {activeTab === 'category-comparison' && (
-        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Category Allocation Comparison</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
             {categoryComparison.map(cat => (
@@ -599,7 +605,7 @@ export default function StockDetailPanel({
       )}
 
       {activeTab === 'price-chart' && (
-        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Market Quote & Price Action</h3>
             <span className="text-xs font-mono text-slate-400">NSE: {detail.symbol}</span>
@@ -621,7 +627,7 @@ export default function StockDetailPanel({
       )}
 
       {activeTab === 'key-insights' && (
-        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Institutional Takeaways</h3>
           <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
             <li className="flex items-center gap-2">
@@ -647,8 +653,8 @@ export default function StockDetailPanel({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {/* Item 1 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs">
-            <div className="w-6 h-6 rounded-full bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold text-[10px] shrink-0">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
+            <div className="w-6 h-6 rounded-full bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold text-[10.5px] shrink-0">
               A
             </div>
             <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
@@ -657,7 +663,7 @@ export default function StockDetailPanel({
           </div>
 
           {/* Item 2 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
             <div className="w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0">
               <TrendingUp size={12} />
             </div>
@@ -667,7 +673,7 @@ export default function StockDetailPanel({
           </div>
 
           {/* Item 3 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
             <div className="w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0">
               <Landmark size={12} />
             </div>
@@ -677,7 +683,7 @@ export default function StockDetailPanel({
           </div>
 
           {/* Item 4 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
             <div className="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-600 flex items-center justify-center shrink-0">
               <ShieldCheck size={12} />
             </div>
@@ -687,8 +693,7 @@ export default function StockDetailPanel({
           </div>
         </div>
       </div>
+
     </div>
   );
 }
-
-
