@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Search, SlidersHorizontal, ChevronRight, PieChart as PieChartIcon, 
   Calendar, Info, Building2, Landmark, TrendingUp, Flag, Disc, Star, 
-  Smartphone, Monitor, HelpCircle, X, Check, Award, Layers, BarChart3,
+  HelpCircle, X, Check, Award, Layers, BarChart3,
   ExternalLink, Briefcase, FileSpreadsheet
 } from 'lucide-react';
 import StockWeightageTable from './StockWeightageTable';
@@ -13,7 +13,6 @@ import FundPortfolioModal from './FundPortfolioModal';
 import FundSelectorSidebar from './FundSelectorSidebar';
 import FundTopHoldingsPanel from './FundTopHoldingsPanel';
 import FundHoldingsSummarySidebar from './FundHoldingsSummarySidebar';
-import MobileStockWeightageView from './MobileStockWeightageView';
 import BrandLogo from './BrandLogo';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -37,9 +36,6 @@ export default function MutualFundStockWeightageScreener() {
   const [fundAumExposureFilter, setFundAumExposureFilter] = useState('any');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [stockSearchQuery, setStockSearchQuery] = useState('');
-
-  // Device mode preview: 'auto' (responsive), 'desktop', 'smartphone'
-  const [deviceMode, setDeviceMode] = useState('auto');
 
   // Master screener state
   const [stockScreenerData, setStockScreenerData] = useState({ kpis: {}, stocks: [], pagination: {} });
@@ -253,78 +249,14 @@ export default function MutualFundStockWeightageScreener() {
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
       
-      {/* ── TOP CONTROLS & DEVICE PREVIEW SWITCHER ── */}
-      <div className="flex items-center justify-between pb-1">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-          <span>Mutual Funds</span>
-          <ChevronRight size={13} className="text-slate-400" />
-          <span className="text-slate-900 dark:text-white font-bold">Stock Weightage Screener</span>
-        </nav>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pb-1">
+        <span>Mutual Funds</span>
+        <ChevronRight size={13} className="text-slate-400" />
+        <span className="text-slate-900 dark:text-white font-bold">Stock Weightage Screener</span>
+      </nav>
 
-        {/* Device Switcher Pill */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold ml-auto border border-slate-200 dark:border-slate-700">
-          <button
-            onClick={() => setDeviceMode('desktop')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-              deviceMode === 'desktop'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-            }`}
-            title="Desktop Layout"
-          >
-            <Monitor size={14} />
-            <span className="hidden sm:inline">Desktop</span>
-          </button>
-
-          <button
-            onClick={() => setDeviceMode('smartphone')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-              deviceMode === 'smartphone'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-            }`}
-            title="Smartphone Mockup View"
-          >
-            <Smartphone size={14} />
-            <span className="hidden sm:inline">Smartphone</span>
-          </button>
-
-          <button
-            onClick={() => setDeviceMode('auto')}
-            className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-[11px] ${
-              deviceMode === 'auto'
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-            }`}
-            title="Responsive Auto"
-          >
-            Auto
-          </button>
-        </div>
-      </div>
-
-      {/* ── SMARTPHONE VIEW RENDERER (active on small screens or forced smartphone preview) ── */}
-      {(deviceMode === 'smartphone' || (deviceMode === 'auto' && typeof window !== 'undefined' && window.innerWidth < 768)) && (
-        <div className={deviceMode === 'auto' ? 'block md:hidden' : 'block'}>
-          <MobileStockWeightageView
-            fund={selectedFundData}
-            funds={fundsList}
-            selectedCategory={selectedCategory}
-            categories={categoryPills.map(c => c.label)}
-            onSelectCategory={handleSelectCategory}
-            onSelectFund={(fund) => setSelectedSchemeCode(fund.schemeCode)}
-            onSelectStock={handleSelectStock}
-            onViewAllHoldings={() => setActiveFundModalCode(selectedSchemeCode)}
-          />
-        </div>
-      )}
-
-      {/* ── DESKTOP VIEW RENDERER ── */}
-      {(deviceMode === 'desktop' || deviceMode === 'auto') && (
-        <div className={`space-y-4 ${deviceMode === 'auto' ? 'hidden md:block' : 'block'}`}>
-
-          {/* ── 1. HEADER ROW WITH TITLE, DATA AS-OF BADGE & HOW TO USE BUTTON ── */}
+      {/* ── 1. HEADER ROW WITH TITLE, DATA AS-OF BADGE & HOW TO USE BUTTON ── */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -891,9 +823,6 @@ export default function MutualFundStockWeightageScreener() {
               </div>
             </div>
           )}
-
-        </div>
-      )}
 
       {/* ── ALL FUNDS HOLDING STOCK MODAL ── */}
       {activeStockAllFundsSym && (
