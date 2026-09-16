@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Building2, CheckCircle2, ChevronRight, Layers, ShieldCheck } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 export default function FundSelectorSidebar({
   funds = [],
@@ -11,11 +12,13 @@ export default function FundSelectorSidebar({
   onSearchChange = () => {}
 }) {
   const [localSearch, setLocalSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const formatAum = (aum) => {
     if (aum === null || aum === undefined || isNaN(aum) || Number(aum) <= 0) return '—';
     const num = Number(aum);
-    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
+    return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
   };
 
   const filteredFunds = useMemo(() => {
@@ -28,33 +31,32 @@ export default function FundSelectorSidebar({
     );
   }, [funds, localSearch, searchQuery]);
 
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredFunds.length / pageSize));
+  const paginatedFunds = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredFunds.slice(start, start + pageSize);
+  }, [filteredFunds, currentPage]);
+
+  const handlePageChange = (p) => {
+    if (p >= 1 && p <= totalPages) {
+      setCurrentPage(p);
+    }
+  };
+
   return (
     <div 
-      className="flex flex-col h-full rounded-2xl border overflow-hidden shadow-xs"
-      style={{ 
-        background: 'var(--bg-card)', 
-        borderColor: 'var(--border-color)' 
-      }}
+      className="flex flex-col rounded-2xl border overflow-hidden shadow-xs bg-white dark:bg-[var(--bg-card)] border-[var(--border-color)]"
     >
       {/* Sidebar Header */}
-      <div className="p-3.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
-              <Layers size={13} />
-            </div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-              Select Mutual Fund
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]">
-            {filteredFunds.length} Funds
-          </span>
-        </div>
+      <div className="p-3.5 border-b border-[var(--border-color)]">
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-2.5">
+          Select Mutual Fund
+        </h3>
 
         {/* Search Input */}
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Search fund name..."
@@ -62,92 +64,132 @@ export default function FundSelectorSidebar({
             onChange={(e) => {
               setLocalSearch(e.target.value);
               onSearchChange(e.target.value);
+              setCurrentPage(1);
             }}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
       </div>
 
-      {/* Fund List Scrollable Area */}
-      <div className="flex-1 overflow-y-auto divide-y max-h-[620px] scrollbar-thin" style={{ borderColor: 'var(--border-color)' }}>
+      {/* Fund Cards List */}
+      <div className="flex-1 divide-y divide-[var(--border-color)] overflow-y-auto">
         {loading ? (
-          <div className="p-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
+          <div className="p-8 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
             <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span>Loading verified funds...</span>
+            <span>Loading mutual funds...</span>
           </div>
         ) : filteredFunds.length === 0 ? (
-          <div className="p-6 text-center text-xs text-[var(--text-muted)]">
-            No mutual funds found matching your criteria.
+          <div className="p-6 text-center text-xs text-slate-400">
+            No mutual funds found.
           </div>
         ) : (
-          filteredFunds.map((fund) => {
+          paginatedFunds.map((fund) => {
             const isSelected = String(fund.schemeCode) === String(selectedSchemeCode);
-            const initials = (fund.amc || fund.schemeName || 'MF')
-              .split(' ')
-              .slice(0, 2)
-              .map(w => w[0])
-              .join('')
-              .toUpperCase();
+
+            // Clean scheme name for display
+            let displayName = fund.schemeName || 'Mutual Fund Scheme';
+            displayName = displayName
+              .replace(/ - Direct Plan - Growth Option/i, '')
+              .replace(/ - Direct - Growth/i, '')
+              .replace(/ - Direct Plan/i, '');
 
             return (
               <button
                 key={fund.schemeCode}
                 onClick={() => onSelectFund(fund)}
-                className={`w-full text-left p-3 flex items-start gap-2.5 transition-all cursor-pointer ${
+                className={`w-full text-left p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                   isSelected 
-                    ? 'bg-blue-500/10 border-l-3 border-blue-500' 
-                    : 'hover:bg-[var(--bg-secondary)]'
+                    ? 'bg-blue-50/70 dark:bg-blue-950/30 ring-1 ring-blue-500 rounded-lg mx-1 my-0.5 w-[calc(100%-8px)]' 
+                    : 'hover:bg-slate-50 dark:hover:bg-[var(--bg-secondary)]'
                 }`}
               >
-                {/* Logo / Initials Icon */}
-                <div 
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-[11px] shrink-0 border ${
-                    isSelected
-                      ? 'bg-blue-600 text-white border-blue-500'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'
-                  }`}
-                >
-                  {initials}
-                </div>
+                {/* Left: Logo + Info */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <BrandLogo 
+                    identifier={fund.amc || fund.schemeName}
+                    name={fund.schemeName}
+                    size={28}
+                    rounded="rounded-lg"
+                  />
 
-                {/* Fund Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
+                  <div className="min-w-0">
                     <h4 
-                      className={`text-xs font-semibold truncate ${
-                        isSelected ? 'text-blue-500 dark:text-blue-400 font-bold' : 'text-[var(--text-primary)]'
+                      className={`text-xs font-semibold truncate leading-tight ${
+                        isSelected ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-[var(--text-primary)]'
                       }`}
                       title={fund.schemeName}
                     >
-                      {fund.schemeName}
+                      {displayName}
                     </h4>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[var(--text-muted)]">
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-                      Direct · Growth
-                    </span>
-                    <span>•</span>
-                    <span className="truncate">{fund.amc || 'Mutual Fund'}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-1 text-[11px]">
-                    <span className="font-mono font-bold text-[var(--text-primary)]">
-                      {formatAum(fund.fundAumCr)}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                      {fund.positionsCount || fund.totalHoldings || 0} stocks
-                    </span>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Direct - Growth
+                    </p>
                   </div>
                 </div>
 
-                {isSelected && (
-                  <CheckCircle2 size={15} className="text-blue-500 shrink-0 self-center" />
-                )}
+                {/* Right: Green AUM font */}
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {formatAum(fund.fundAumCr)}
+                  </span>
+                </div>
               </button>
             );
           })
         )}
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="p-2.5 border-t border-[var(--border-color)] flex items-center justify-center gap-1 text-xs">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+          className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+        >
+          <ChevronLeft size={14} />
+        </button>
+
+        {[1, 2, 3, 4, 5].map((page) => {
+          if (page > totalPages) return null;
+          const isActive = currentPage === page;
+          return (
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
+              className={`w-6 h-6 flex items-center justify-center rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+                isActive
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              {page}
+            </button>
+          );
+        })}
+
+        {totalPages > 5 && (
+          <>
+            <span className="text-slate-400 px-0.5">...</span>
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              className={`w-6 h-6 flex items-center justify-center rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+                currentPage === totalPages
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+          className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+        >
+          <ChevronRight size={14} />
+        </button>
       </div>
     </div>
   );
