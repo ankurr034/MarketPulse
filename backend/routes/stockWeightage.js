@@ -60,6 +60,21 @@ router.get('/coverage', async (req, res) => {
 });
 
 /**
+  * GET /api/analytics/mutual-fund/stock-weightage/sectors
+  * GET /api/analytics/mutual-funds/sectors
+  * Returns sector allocation and holdings breakdown
+  */
+router.get('/sectors', async (req, res) => {
+  try {
+    const sectors = await stockWeightageService.getSectorBreakdown();
+    res.json(sectors);
+  } catch (err) {
+    console.error('Sector breakdown error:', err);
+    res.status(500).json({ error: 'Failed to fetch sector breakdown', details: err.message });
+  }
+});
+
+/**
  * Alias: GET /api/analytics/mutual-funds/stocks
  */
 router.get('/stocks', async (req, res) => {

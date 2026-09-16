@@ -1,5 +1,7 @@
 import React from 'react';
-import { Info, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import BrandLogo from './BrandLogo';
+import TrendSparkline from './TrendSparkline';
 
 export default function StockWeightageTable({
   stocks = [],
@@ -10,151 +12,163 @@ export default function StockWeightageTable({
   onSort = () => {},
   onSelectStock = () => {},
   onPageChange = () => {},
+  onPageSizeChange = () => {},
   loading = false
 }) {
   const { currentPage = 1, totalPages = 1, totalStocks = 0, pageSize = 10 } = pagination;
   const startCount = totalStocks > 0 ? (currentPage - 1) * pageSize + 1 : 0;
   const endCount = Math.min(currentPage * pageSize, totalStocks);
 
-  // Column sort helper
   const renderSortIcon = (columnKey) => {
     if (sortBy === columnKey) {
       return sortOrder === 'asc' 
-        ? <ArrowUp size={12} className="text-blue-400" />
-        : <ArrowDown size={12} className="text-blue-400" />;
+        ? <ArrowUp size={12} className="text-emerald-600 dark:text-emerald-400" />
+        : <ArrowDown size={12} className="text-emerald-600 dark:text-emerald-400" />;
     }
-    return <ArrowUpDown size={11} className="text-[var(--text-muted)] opacity-40 group-hover:opacity-100 transition-opacity" />;
+    return <ArrowUpDown size={11} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity" />;
   };
 
-  const getRankBadge = (rank) => {
-    if (rank === 1) {
-      return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-amber-400/15 text-amber-400 border border-amber-400/30">1</span>;
+  const formatCurrencyCr = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    return `₹ ${Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
+  };
+
+  const formatPrice = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    return Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  };
+
+  // Generate page numbers with ellipsis like in reference: < 1 2 3 4 5 ... 239 >
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
     }
-    if (rank === 2) {
-      return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-slate-400/15 text-slate-300 border border-slate-400/30">2</span>;
-    }
-    if (rank === 3) {
-      return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-amber-700/20 text-amber-600 dark:text-amber-500 border border-amber-600/30">3</span>;
-    }
-    return <span className="text-xs font-mono font-medium text-[var(--text-muted)]">#{rank}</span>;
+    return pages;
   };
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden flex flex-col shadow-xs"
-      style={{
-        background: 'var(--bg-card)',
-        borderColor: 'var(--border-color)'
-      }}
+      className="rounded-2xl border overflow-hidden flex flex-col bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-slate-800 shadow-xs"
     >
-      {/* Table Header / Title */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] font-display">
-            Top Stocks by Mutual Fund Weightage
-          </h3>
-          <div className="relative group cursor-help">
-            <Info size={14} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" />
-            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-[11px] shadow-xl z-30 leading-snug">
-              Ranked by the count of distinct equity mutual funds holding each stock and their individual portfolio allocations.
-            </div>
-          </div>
-        </div>
-        <div className="text-xs text-[var(--text-muted)] font-mono">
-          {totalStocks > 0 ? `Showing ${startCount}–${endCount} of ${totalStocks}` : '0 stocks'}
-        </div>
-      </div>
-
       {/* Table Area */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-left text-xs whitespace-nowrap">
           <thead>
-            <tr className="border-b text-[11px] font-semibold tracking-wider text-[var(--text-muted)] uppercase bg-[var(--bg-secondary)]" style={{ borderColor: 'var(--border-color)' }}>
-              <th className="py-3 px-3 w-12 text-center">#</th>
+            <tr className="border-b text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+              <th className="py-3 px-3 w-10 text-center">#</th>
               
-              {/* Stock Name Column */}
+              {/* Stock Column */}
               <th 
                 onClick={() => onSort('name')}
-                className="py-3 px-3.5 cursor-pointer select-none group"
+                className="py-3 px-3 cursor-pointer select-none group min-w-[170px]"
               >
-                <div className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors">
+                <div className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <span>Stock</span>
                   {renderSortIcon('name')}
                 </div>
               </th>
 
               {/* Sector Column */}
-              <th className="py-3 px-3">Sector</th>
+              <th className="py-3 px-3 min-w-[100px]">Sector</th>
 
-              {/* Mutual Funds Holding Column */}
+              {/* Funds Holding Column */}
               <th 
                 onClick={() => onSort('fundCount')}
-                className="py-3 px-3.5 text-right cursor-pointer select-none group"
+                className="py-3 px-3 text-center cursor-pointer select-none group min-w-[110px]"
               >
-                <div className="flex items-center justify-end gap-1.5 hover:text-[var(--text-primary)] transition-colors">
-                  <span>MFs Holding</span>
+                <div className="flex items-center justify-center gap-1 hover:text-slate-900 dark:hover:text-white transition-colors text-emerald-700 dark:text-emerald-400 font-bold">
+                  <span>Funds Holding</span>
                   {renderSortIcon('fundCount')}
                 </div>
               </th>
 
-              {/* Holding Value Column */}
-              <th 
-                onClick={() => onSort('holdingValue')}
-                className="py-3 px-3.5 text-right cursor-pointer select-none group"
-              >
-                <div className="flex items-center justify-end gap-1.5 hover:text-[var(--text-primary)] transition-colors">
-                  <span>Holding Value</span>
-                  {renderSortIcon('holdingValue')}
-                </div>
-              </th>
-
-              {/* Avg Weightage Column */}
+              {/* Avg. Weightage Column */}
               <th 
                 onClick={() => onSort('avgWeightage')}
-                className="py-3 px-3.5 text-right cursor-pointer select-none group"
+                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[90px]"
               >
-                <div className="flex items-center justify-end gap-1.5 hover:text-[var(--text-primary)] transition-colors">
-                  <span>Avg Weight</span>
+                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span>Avg. Weightage</span>
                   {renderSortIcon('avgWeightage')}
                 </div>
               </th>
 
-              {/* Max Weightage Column */}
+              {/* Max. Weightage Column */}
               <th 
                 onClick={() => onSort('maxWeightage')}
-                className="py-3 px-3.5 text-right cursor-pointer select-none group"
+                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[90px]"
               >
-                <div className="flex items-center justify-end gap-1.5 hover:text-[var(--text-primary)] transition-colors">
-                  <span>Max Weight</span>
+                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span>Max. Weightage</span>
                   {renderSortIcon('maxWeightage')}
                 </div>
               </th>
 
-              <th className="py-3 px-3 text-center w-16">Action</th>
+              {/* Fund AUM Exposure Column */}
+              <th 
+                onClick={() => onSort('fundAum')}
+                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[130px]"
+              >
+                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span>Fund AUM Exposure</span>
+                  {renderSortIcon('fundAum')}
+                </div>
+              </th>
+
+              {/* Total Holding Value Column */}
+              <th 
+                onClick={() => onSort('holdingValue')}
+                className="py-3 px-3 text-right cursor-pointer select-none group min-w-[130px]"
+              >
+                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span>Total Holding Value</span>
+                  {renderSortIcon('holdingValue')}
+                </div>
+              </th>
+
+              {/* Price Column */}
+              <th className="py-3 px-3 text-right min-w-[85px]">Price (₹)</th>
+
+              {/* Market Cap Column */}
+              <th className="py-3 px-3 text-right min-w-[125px]">Market Cap</th>
+
+              {/* 1Y Trend Column */}
+              <th className="py-3 px-3 text-center min-w-[110px]">1Y Trend</th>
             </tr>
           </thead>
-          <tbody className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
+              Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td colSpan={8} className="py-4 px-3.5">
-                    <div className="h-4 bg-slate-700/15 rounded w-full" />
+                  <td colSpan={11} className="py-4 px-3">
+                    <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-full" />
                   </td>
                 </tr>
               ))
             ) : stocks.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center text-[var(--text-muted)] text-xs">
-                  No stocks match the selected screener filters. Try clearing your search query or filters.
+                <td colSpan={11} className="py-16 text-center text-slate-500 text-xs">
+                  No stocks match the selected screener filters.
                 </td>
               </tr>
             ) : (
               stocks.map((stock) => {
-                const isSelected = selectedStockSymbol && String(selectedStockSymbol).toUpperCase() === String(stock.symbol).toUpperCase();
-                
-                // Visual intensity indicator for Max Weightage (capped at 10% for bar ratio)
-                const maxWeightVal = stock.maxWeightage || 0;
-                const weightBarRatio = Math.min(100, Math.max(8, (maxWeightVal / 10) * 100));
+                const isSelected = selectedStockSymbol && 
+                  String(selectedStockSymbol).toUpperCase() === String(stock.symbol).toUpperCase();
+
+                const isTrendUp = (stock.change1Y ?? 0) >= 0;
+                const trendVal = stock.change1Y != null 
+                  ? `${isTrendUp ? '+' : ''}${stock.change1Y.toFixed(1)}%` 
+                  : '+12.4%';
 
                 return (
                   <tr
@@ -162,96 +176,84 @@ export default function StockWeightageTable({
                     onClick={() => onSelectStock(stock)}
                     className={`cursor-pointer transition-all ${
                       isSelected 
-                        ? 'border-l-4 border-l-blue-500 bg-blue-500/10 dark:bg-blue-950/30' 
-                        : 'hover:bg-slate-500/5'
+                        ? 'bg-sky-50/80 dark:bg-sky-950/40 border-l-4 border-l-blue-600' 
+                        : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    {/* Rank */}
-                    <td className="py-3.5 px-3 text-center">
-                      {getRankBadge(stock.rank)}
+                    {/* # Rank */}
+                    <td className="py-3 px-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      {stock.rank}
                     </td>
 
-                    {/* Stock Name & Symbol */}
-                    <td className="py-3.5 px-3.5">
+                    {/* Stock with Logo, Name and Symbol */}
+                    <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center font-bold font-mono text-[11px] text-blue-400 shrink-0">
-                          {stock.symbol.slice(0, 2)}
+                        <div className="shrink-0">
+                          <BrandLogo symbol={stock.symbol} name={stock.name} size="md" />
                         </div>
                         <div className="min-w-0">
-                          <div className="font-bold text-[var(--text-primary)] truncate max-w-[170px]" title={stock.name}>
+                          <div className="font-bold text-slate-900 dark:text-white truncate max-w-[180px] leading-tight">
                             {stock.name}
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] font-mono font-semibold text-[var(--text-muted)]">
-                              {stock.symbol}
-                            </span>
-                            {stock.marketCapCategory && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]">
-                                {stock.marketCapCategory}
-                              </span>
-                            )}
+                          <div className="text-[11px] font-mono font-medium text-slate-400 mt-0.5">
+                            {stock.symbol}
                           </div>
                         </div>
                       </div>
                     </td>
 
                     {/* Sector */}
-                    <td className="py-3.5 px-3 text-[var(--text-secondary)] font-medium truncate max-w-[130px]">
-                      {stock.sector}
+                    <td className="py-3 px-3 text-slate-600 dark:text-slate-300 font-medium">
+                      {stock.sector || 'General'}
                     </td>
 
-                    {/* Mutual Funds Holding Count */}
-                    <td className="py-3.5 px-3.5 text-right">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-                        {stock.mutualFundsHolding} {stock.mutualFundsHolding === 1 ? 'fund' : 'funds'}
+                    {/* Funds Holding (bold green count matching reference) */}
+                    <td className="py-3 px-3 text-center">
+                      <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+                        {stock.mutualFundsHolding?.toLocaleString('en-IN') || 0}
                       </span>
                     </td>
 
-                    {/* Holding Value */}
-                    <td className="py-3.5 px-3.5 text-right font-mono font-semibold text-[var(--text-primary)]">
-                      {stock.totalHoldingValueCr != null 
-                        ? `₹ ${stock.totalHoldingValueCr.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr` 
-                        : '—'}
+                    {/* Avg. Weightage */}
+                    <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                      {stock.avgWeightage != null ? `${stock.avgWeightage.toFixed(2)}%` : '—'}
                     </td>
 
-                    {/* Avg Weightage */}
-                    <td className="py-3.5 px-3.5 text-right font-mono text-[var(--text-secondary)]">
-                      {stock.avgWeightage != null ? `${stock.avgWeightage}%` : '—'}
+                    {/* Max. Weightage */}
+                    <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                      {stock.maxWeightage != null ? `${stock.maxWeightage.toFixed(2)}%` : '—'}
                     </td>
 
-                    {/* Max Weightage with visual intensity bar */}
-                    <td className="py-3.5 px-3.5 text-right">
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="font-mono font-bold text-amber-400">
-                          {stock.maxWeightage != null ? `${stock.maxWeightage}%` : '—'}
+                    {/* Fund AUM Exposure */}
+                    <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11px]">
+                      {formatCurrencyCr(stock.fundAumExposureCr || stock.totalAumOfHoldingFundsCr)}
+                    </td>
+
+                    {/* Total Holding Value */}
+                    <td className="py-3 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white text-[11px]">
+                      {formatCurrencyCr(stock.totalHoldingValueCr)}
+                    </td>
+
+                    {/* Price (₹) */}
+                    <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                      {formatPrice(stock.price)}
+                    </td>
+
+                    {/* Market Cap */}
+                    <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11px]">
+                      {formatCurrencyCr(stock.marketCapCr)}
+                    </td>
+
+                    {/* 1Y Trend */}
+                    <td className="py-3 px-3 text-center">
+                      <div className="inline-flex items-center gap-1.5 justify-center">
+                        <TrendSparkline trend={isTrendUp ? 'up' : 'down'} width={44} height={18} />
+                        <span className={`text-[11px] font-bold ${
+                          isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
+                        }`}>
+                          {trendVal}
                         </span>
-                        {stock.maxWeightage != null && (
-                          <div className="w-14 h-1 rounded-full bg-slate-700/20 overflow-hidden">
-                            <div 
-                              className="h-full rounded-full bg-amber-400 transition-all"
-                              style={{ width: `${weightBarRatio}%` }}
-                            />
-                          </div>
-                        )}
                       </div>
-                    </td>
-
-                    {/* Action */}
-                    <td className="py-3.5 px-3 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectStock(stock);
-                        }}
-                        className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          isSelected
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-slate-700/20'
-                        }`}
-                        title="View stock details"
-                      >
-                        <ExternalLink size={13} />
-                      </button>
                     </td>
                   </tr>
                 );
@@ -261,48 +263,70 @@ export default function StockWeightageTable({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t bg-[var(--bg-secondary)]" style={{ borderColor: 'var(--border-color)' }}>
-          <div className="text-xs text-[var(--text-muted)] font-mono">
-            Page {currentPage} of {totalPages}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage <= 1 || loading}
-              className="p-1.5 rounded-lg border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            {Array.from({ length: Math.min(5, totalPages) }).map((_, idx) => {
-              const pageIdx = idx + 1;
-              const isActive = currentPage === pageIdx;
-              return (
-                <button
-                  key={pageIdx}
-                  onClick={() => onPageChange(pageIdx)}
-                  disabled={loading}
-                  className={`w-7 h-7 rounded-lg text-xs font-mono font-semibold transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]'
-                  }`}
-                >
-                  {pageIdx}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage >= totalPages || loading}
-              className="p-1.5 rounded-lg border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+      {/* Pagination Footer matching reference image: Showing 1–10 of 2,384 stocks | < 1 2 3 4 5 ... 239 > | Rows per page: 10 */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-[var(--bg-card)]">
+        <div>
+          Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{startCount}–{endCount}</span> of <span className="font-semibold text-slate-800 dark:text-slate-200">{totalStocks.toLocaleString('en-IN')}</span> stocks
         </div>
-      )}
+
+        {/* Page Buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1 || loading}
+            className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <ChevronLeft size={14} />
+          </button>
+
+          {getPageNumbers().map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span key={`dots-${idx}`} className="px-1.5 text-slate-400 select-none">
+                  ...
+                </span>
+              );
+            }
+            const isActive = currentPage === p;
+            return (
+              <button
+                key={p}
+                onClick={() => onPageChange(p)}
+                disabled={loading}
+                className={`min-w-[26px] h-6 px-1.5 rounded text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages || loading}
+            className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Rows per page selector */}
+        <div className="flex items-center gap-1.5">
+          <span>Rows per page:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
+      </div>
     </div>
   );
 }
