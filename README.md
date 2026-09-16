@@ -59,6 +59,18 @@ MarketPulse is a modern, full-stack financial market analytics platform providin
 
 ---
 
+### 🎯 Mutual Fund Stock Weightage Screener
+- **Stock-Centric Institutional Intelligence**: Analyzes mutual fund portfolios from the stock's perspective to discover institutional consensus.
+- **Bi-Directional Relational Model**:
+  - **Stock → Funds**: View all mutual funds holding an equity, with allocation percentages, holding value (₹ Cr), and fund AUM exposure.
+  - **Fund → Stocks**: View top 10 holdings and complete 100% verified portfolio disclosures.
+- **Complete Direct-Growth Universe**: Dynamically discovers all qualifying open-ended Direct + Growth schemes across 5 core categories (**Large Cap**, **Mid Cap**, **Small Cap**, **Contra**, and **Value**) without hardcoded AMC restrictions.
+- **Multi-Tier Verified Pipeline**: Integrates physical AMC workbooks (HDFC, Baroda BNP Paribas, PPFAS), exchange disclosures, and verified holdings cache covering 31 unique AMCs and 933 distinct stocks.
+- **Zero-Fabrication Guarantee**: Unreleased filings honestly display "Awaiting publication"; unavailable financial metrics strictly evaluate to `—`.
+- 📖 **Full Technical Documentation**: [`others/documentation/STOCK_WEIGHTAGE_SCREENER.md`](others/documentation/STOCK_WEIGHTAGE_SCREENER.md)
+
+---
+
 ## 🏗️ Tech Stack
 
 | Layer | Technology |
@@ -118,6 +130,12 @@ npm run dev
 | `/api/stocks/:symbol` | `GET` | Full stock quote, fundamentals, and support/resistance levels |
 | `/api/indian-mf/directory` | `GET` | Searchable directory of Indian mutual fund schemes |
 | `/api/indian-mf/sector-breakdown` | `GET` | Sector holdings breakdown across Indian mutual funds |
+| `/api/analytics/mutual-fund/stock-weightage` | `GET` | Master stock screener with institutional fund counts, weightages, and filters |
+| `/api/analytics/mutual-fund/stock-weightage/:symbol` | `GET` | Single-stock institutional ownership breakdown, distribution, and quarterly trend |
+| `/api/analytics/mutual-fund/stock-weightage/:symbol/funds` | `GET` | Paginated mutual funds holding the specified stock with weightages and AUM |
+| `/api/analytics/mutual-fund/stock-weightage/fund/:schemeCode` | `GET` | Reverse lookup: complete verified stock portfolio for a mutual fund scheme |
+| `/api/analytics/mutual-fund/stock-weightage/sectors` | `GET` | Sector view of mutual fund capital deployment and consensus holdings |
+| `/api/analytics/mutual-fund/stock-weightage/coverage` | `GET` | Real-time coverage diagnostics across the Direct-Growth fund universe |
 
 ---
 

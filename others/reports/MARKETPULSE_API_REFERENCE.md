@@ -32,9 +32,10 @@
 | `/api/sector-trends` | `backend/routes/sectorTrends.js` | 2 | Multi-sector performance comparison and historical trend data. |
 | `/api/indian-mf` | `backend/routes/indianMf.js` | 12 | 4-tier ranked direct schemes, sector groupings, macro correlation, audit reports. |
 | `/api/comparison` | `backend/routes/comparison.js` | 1 | Multi-asset side-by-side comparison payload. |
+| `/api/analytics/mutual-fund/stock-weightage` | `backend/routes/stockWeightage.js` | 6 | Mutual Fund Stock Weightage Screener, bi-directional holdings, sector views, diagnostics. |
 | `/api` (Holdings Fallback) | `backend/routes/holdingsFallback.js` | 2 | Fallback stock holdings lookup and secondary NAV timeseries. |
 | `/health` | `backend/server.js` | 1 | Service liveness and timestamp check. |
-| **TOTAL** | **21 Router Modules** | **78 Endpoints** | Comprehensive market intelligence API coverage |
+| **TOTAL** | **22 Router Modules** | **84 Endpoints** | Comprehensive market intelligence API coverage |
 
 ---
 
@@ -355,6 +356,110 @@
     "time": "2026-09-08T11:45:00.000Z"
   }
   ```
+
+---
+
+### 2.9 Mutual Fund Stock Weightage Screener Router (`/api/analytics/mutual-fund/stock-weightage`)
+
+#### `GET /api/analytics/mutual-fund/stock-weightage`
+- **Description**: Master stock screener returning institutional equity holdings aggregated from all verified Direct-Growth mutual fund disclosures.
+- **Query Parameters**:
+  - `category` (*string*, default: `'All Funds'`): Target category filter (`'All Funds'`, `'Large Cap'`, `'Mid Cap'`, `'Small Cap'`, `'Contra'`, `'Value'`).
+  - `sector` (*string*, default: `'all'`): Economic sector filter (e.g. `'Banks'`, `'IT'`, `'Oil & Gas'`).
+  - `marketCap` (*string*, default: `'any'`): Market capitalization filter (`'Large Cap'`, `'Mid Cap'`, `'Small Cap'`).
+  - `amc` (*string*, default: `'all'`): Specific AMC filter (e.g. `'HDFC Mutual Fund'`).
+  - `minWeight` (*number*): Minimum average weight threshold (e.g. `2.0`).
+  - `sortBy` (*string*, default: `'fundCount'`): Sort column (`'fundCount'`, `'avgWeightage'`, `'maxWeightage'`, `'holdingValue'`, `'fundAum'`, `'name'`).
+  - `sortOrder` (*string*, default: `'desc'`): Sort direction (`'asc'`, `'desc'`).
+  - `page` (*number*, default: `1`): Current page index.
+  - `limit` (*number*, default: `10`): Items per page.
+  - `search` (*string*): Text query matching stock symbol or company name.
+- **Sample Response**:
+  ```json
+  {
+    "kpis": {
+      "mutualFundsTracked": 74,
+      "totalHoldingValueAnalysedCr": 1845230,
+      "mostHeldStock": "HDFC Bank Ltd.",
+      "totalStocksCovered": 933
+    },
+    "stocks": [
+      {
+        "rank": 1,
+        "symbol": "HDFCBANK",
+        "isin": "INE001A01036",
+        "name": "HDFC Bank Ltd.",
+        "sector": "Banks",
+        "mutualFundsHolding": 1842,
+        "avgWeightage": 5.82,
+        "maxWeightage": 8.31,
+        "minWeightage": 0.12,
+        "totalHoldingValueCr": 128450,
+        "fundAumExposureCr": 1845230,
+        "price": 1634,
+        "marketCapCr": 1243567,
+        "change1Y": 12.4
+      }
+    ],
+    "pagination": { "currentPage": 1, "pageSize": 10, "totalStocks": 933, "totalPages": 94 }
+  }
+  ```
+
+#### `GET /api/analytics/mutual-fund/stock-weightage/:symbol`
+- **Description**: Institutional ownership breakdown for a specific equity security.
+- **Path Parameter**: `symbol` (e.g., `HDFCBANK`).
+- **Sample Response**:
+  ```json
+  {
+    "symbol": "HDFCBANK",
+    "name": "HDFC Bank Ltd.",
+    "sector": "Banks",
+    "marketCapCategory": "Large Cap",
+    "ownershipSummary": {
+      "mutualFundsHolding": 1842,
+      "avgWeightage": 5.82,
+      "maxWeightage": 8.31,
+      "minWeightage": 0.12,
+      "totalHoldingValueCr": 128450,
+      "fundAumExposureCr": 1845230,
+      "amcsCount": 31
+    },
+    "distribution": [
+      { "bucket": "0–1%", "count": 228, "percentage": 12.4 },
+      { "bucket": "1–3%", "count": 528, "percentage": 28.7 },
+      { "bucket": "3–5%", "count": 591, "percentage": 32.1 },
+      { "bucket": "5–10%", "count": 401, "percentage": 21.8 },
+      { "bucket": "10%+", "count": 94, "percentage": 5.0 }
+    ],
+    "categoryComparison": [
+      { "category": "Large Cap", "avgWeightage": 6.55, "fundsCount": 89, "totalValueCr": 85400 }
+    ],
+    "weightageTrend": [
+      { "quarter": "Sep 2023", "weight": 5.12 },
+      { "quarter": "Dec 2023", "weight": 5.43 },
+      { "quarter": "Mar 2024", "weight": 5.61 },
+      { "quarter": "Jun 2024", "weight": 5.82 }
+    ]
+  }
+  ```
+
+#### `GET /api/analytics/mutual-fund/stock-weightage/:symbol/funds`
+- **Description**: Paginated list of every verified mutual fund scheme holding the specified equity.
+- **Path Parameter**: `symbol` (e.g., `HDFCBANK`).
+- **Query Parameters**: `page` (default: 1), `limit` (default: 10), `sortBy` (`'weightage'`, `'fundAum'`, `'valueCr'`), `search`, `amc`, `category`.
+
+#### `GET /api/analytics/mutual-fund/stock-weightage/fund/:schemeCode`
+- **Description**: Reverse lookup returning the verified complete stock portfolio for the specified mutual fund scheme.
+- **Path Parameter**: `schemeCode` (e.g., `119018`).
+- **Response**: Full line-item holdings, top 10 positions, portfolio concentration metrics, and sector distribution.
+
+#### `GET /api/analytics/mutual-fund/stock-weightage/sectors`
+- **Description**: Mutual fund sector allocation aggregation showing institutional capital distribution across industries.
+- **Response**: Aggregated ₹ Crores deployed per sector, percentage of analyzed portfolio, and top 3 consensus equities per sector.
+
+#### `GET /api/analytics/mutual-fund/stock-weightage/coverage`
+- **Description**: Diagnostic data quality report detailing verified fund coverage, pending publication counts, and AMC breakdown.
+- **Response**: Real-time counts of eligible schemes (226), verified schemes (74), awaiting publication (152), and category-wise coverage matrix.
 
 ---
 
