@@ -30,6 +30,21 @@ router.get('/screener', async (req, res) => {
 });
 
 /**
+ * GET /api/analytics/mutual-fund/stock-weightage/funds
+ * GET /api/analytics/mutual-funds/funds
+ * Returns list of mutual funds matching category/search
+ */
+router.get('/funds', async (req, res) => {
+  try {
+    const results = await stockWeightageService.getFundsList(req.query);
+    res.json(results);
+  } catch (err) {
+    console.error('Failed to get mutual funds list:', err);
+    res.status(500).json({ error: 'Failed to fetch mutual funds list', details: err.message });
+  }
+});
+
+/**
  * GET /api/analytics/mutual-funds/coverage
  * GET /api/analytics/mutual-fund/stock-weightage/coverage
  * Returns diagnostic data quality, verified coverage ratio, and AMC distribution

@@ -85,6 +85,7 @@ app.use('/api/comparison', comparisonRouter);
 app.use('/api', holdingsFallbackRouter);
 app.use('/api/analytics/mutual-fund/stock-weightage', stockWeightageRouter);
 app.use('/api/analytics/mutual-funds', stockWeightageRouter);
+app.use('/api/mutual-funds/screener', stockWeightageRouter);
 
 // Health check
 app.get('/health', (req, res) => {
