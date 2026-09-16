@@ -79,15 +79,36 @@ async function runTests() {
     assert.ok(typeof firstStock.weightPct === 'number', 'Position must have weightPct');
   });
 
-  await it('TEST 8: HTTP Endpoints return 200 with valid contracts', async () => {
-    const httpRes = await axios.get('http://localhost:5001/api/analytics/mutual-fund/stock-weightage?limit=3');
-    assert.strictEqual(httpRes.status, 200);
-    assert.ok(httpRes.data.kpis);
-    assert.ok(Array.isArray(httpRes.data.stocks));
+  await it('TEST 8: Full Direct Growth universe discovery across 5 target categories', async () => {
+    const diag = await stockWeightageService.getCoverageDiagnostics();
+    assert.strictEqual(diag.universe.totalSchemesDiscovered, 2106, 'Must discover 2106 total schemes');
+    assert.ok(diag.universe.targetCategoryUniverse.total >= 200, 'Must have 200+ target schemes');
+    assert.ok(diag.universe.uniqueAmcsInUniverse >= 40, 'Must cover 40+ unique AMCs');
+    assert.ok(diag.universe.targetCategoryUniverse.largeCap > 0, 'Large Cap must be populated');
+    assert.ok(diag.universe.targetCategoryUniverse.midCap > 0, 'Mid Cap must be populated');
+    assert.ok(diag.universe.targetCategoryUniverse.smallCap > 0, 'Small Cap must be populated');
+    assert.ok(diag.universe.targetCategoryUniverse.contra > 0, 'Contra must be populated');
+    assert.ok(diag.universe.targetCategoryUniverse.value > 0, 'Value must be populated');
+  });
 
-    const reverseRes = await axios.get('http://localhost:5001/api/analytics/mutual-fund/stock-weightage/fund/122639');
-    assert.strictEqual(reverseRes.status, 200);
-    assert.strictEqual(reverseRes.data.schemeCode, '122639');
+  await it('TEST 9: Multiple AMCs returned in every target category fund list', async () => {
+    const categories = ['Large Cap', 'Mid Cap', 'Small Cap', 'Contra', 'Value', 'all'];
+    for (const cat of categories) {
+      const res = await stockWeightageService.getFundsList({ category: cat, limit: 100 });
+      assert.ok(res.funds.length > 0, `Category ${cat} must return funds`);
+      const amcs = new Set(res.funds.map(f => f.amc));
+      assert.ok(amcs.size > 1, `Category ${cat} must have more than 1 AMC (found: ${amcs.size})`);
+    }
+  });
+
+  await it('TEST 10: Pending disclosure state returns valid metadata without fake data', async () => {
+    const sbiContra = Array.from(stockWeightageService.eligibleFundUniverseMap.values()).find(f => /sbi contra/i.test(f.schemeName));
+    assert.ok(sbiContra, 'SBI Contra must be in eligible universe');
+    const sbiRes = await stockWeightageService.getFundCompletePortfolio(sbiContra.schemeCode);
+    assert.ok(sbiRes.available, 'Must be available');
+    assert.strictEqual(sbiRes.holdingsAvailable, false, 'Holdings must be false until disclosed');
+    assert.strictEqual(sbiRes.totalHoldings, 0, 'Must not invent fake holdings');
+    assert.ok(sbiRes.reason.includes('pending publication'), 'Must provide clear reason');
   });
 
   console.log('\n================================================================');

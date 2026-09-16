@@ -72,7 +72,7 @@ export default function MutualFundStockWeightageScreener() {
         params.set('category', queryCat);
       }
       if (search.trim()) params.set('search', search.trim());
-      params.set('limit', 100);
+      params.set('limit', 250);
 
       const res = await axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage/funds?${params.toString()}`);
       const funds = res.data.funds || [];
