@@ -13,26 +13,36 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default function StockDetailPanel({
   stockSymbol,
+  symbol,
+  selectedStock,
   isExpanded = false,
   onToggleExpand = () => {},
   onClose = () => {},
   onSelectFund = () => {}
 }) {
+  const propSymbol = stockSymbol || symbol || selectedStock;
+  const activeSymbol = (typeof propSymbol === 'object' 
+    ? (propSymbol?.symbol || propSymbol?.stock || propSymbol?.stockSymbol) 
+    : propSymbol) || '';
+
   const [detail, setDetail] = useState(null);
   const [fundsData, setFundsData] = useState({ funds: [], pagination: {} });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('mf-holdings');
   const [fundSearch, setFundSearch] = useState('');
 
-  // Load stock detail & holding funds whenever stockSymbol changes
+  // Load stock detail & holding funds whenever activeSymbol changes
   useEffect(() => {
-    if (!stockSymbol) return;
+    if (!activeSymbol) {
+      setLoading(false);
+      return;
+    }
     let isMounted = true;
     setLoading(true);
 
     Promise.all([
-      axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage/${stockSymbol}`),
-      axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage/${stockSymbol}/funds?limit=25`)
+      axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage/${activeSymbol}`),
+      axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage/${activeSymbol}/funds?limit=25`)
     ])
       .then(([detailRes, fundsRes]) => {
         if (isMounted) {
@@ -47,7 +57,7 @@ export default function StockDetailPanel({
       });
 
     return () => { isMounted = false; };
-  }, [stockSymbol]);
+  }, [activeSymbol]);
 
   // Export CSV of funds holding this stock
   const exportCsv = () => {
@@ -70,7 +80,7 @@ export default function StockDetailPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${stockSymbol}_Mutual_Fund_Holdings.csv`;
+    a.download = `${activeSymbol}_Mutual_Fund_Holdings.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -88,7 +98,7 @@ export default function StockDetailPanel({
     );
   }, [fundsData?.funds, fundSearch]);
 
-  if (!stockSymbol) {
+  if (!activeSymbol) {
     return (
       <div className="rounded-2xl border p-12 text-center text-xs shadow-xs" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
         Select a stock from the screener table to view its institutional mutual fund ownership breakdown.
@@ -100,7 +110,7 @@ export default function StockDetailPanel({
     return (
       <div className="rounded-2xl border p-16 text-center flex flex-col items-center justify-center gap-3 shadow-xs" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-mono text-[var(--text-muted)]">Loading institutional portfolio data for {stockSymbol}...</span>
+        <span className="text-xs font-mono text-[var(--text-muted)]">Loading institutional portfolio data for {activeSymbol}...</span>
       </div>
     );
   }
@@ -108,7 +118,7 @@ export default function StockDetailPanel({
   if (!detail) {
     return (
       <div className="rounded-2xl border p-12 text-center text-xs shadow-xs text-[var(--text-muted)]" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-        Institutional holdings data currently unavailable for {stockSymbol}.
+        Institutional holdings data currently unavailable for {activeSymbol}.
       </div>
     );
   }

@@ -119,16 +119,12 @@ export default function MutualFundStockWeightageScreener() {
       const res = await axios.get(`${API_BASE}/analytics/mutual-fund/stock-weightage?${params.toString()}`);
       setStockScreenerData(res.data);
       setStockPage(page);
-
-      if (!selectedStockSymbol && res.data.stocks && res.data.stocks.length > 0) {
-        setSelectedStockSymbol(res.data.stocks[0].symbol);
-      }
     } catch (err) {
       console.error('Failed to load stock weightage data:', err);
     } finally {
       setStockScreenerLoading(false);
     }
-  }, [stockSearchQuery, selectedSector, selectedMarketCap, sortBy, sortOrder, selectedStockSymbol]);
+  }, [stockSearchQuery, selectedSector, selectedMarketCap, sortBy, sortOrder]);
 
   // Initial load
   useEffect(() => {
@@ -147,6 +143,17 @@ export default function MutualFundStockWeightageScreener() {
   const handleSelectCategory = (cat) => {
     setSelectedCategory(cat);
     fetchFundsList(cat, fundSearch);
+  };
+
+  // Stock selection handler ensuring clean canonical symbol string
+  const handleSelectStock = (stockOrSym) => {
+    if (!stockOrSym) return;
+    const sym = typeof stockOrSym === 'object'
+      ? (stockOrSym.symbol || stockOrSym.stock || stockOrSym.stockSymbol)
+      : stockOrSym;
+    if (sym) {
+      setSelectedStockSymbol(String(sym).toUpperCase());
+    }
   };
 
   const asOfDate = '11-Sep-2026';
@@ -219,7 +226,7 @@ export default function MutualFundStockWeightageScreener() {
             categories={categoryPills.map(c => c.label)}
             onSelectCategory={handleSelectCategory}
             onSelectFund={(fund) => setSelectedSchemeCode(fund.schemeCode)}
-            onSelectStock={(sym) => setSelectedStockSymbol(sym)}
+            onSelectStock={handleSelectStock}
             onViewAllHoldings={() => setActiveFundModalCode(selectedSchemeCode)}
           />
         </div>
@@ -397,7 +404,7 @@ export default function MutualFundStockWeightageScreener() {
                 <FundTopHoldingsPanel
                   fund={selectedFundData}
                   loading={selectedFundLoading}
-                  onSelectStock={(sym) => setSelectedStockSymbol(sym)}
+                  onSelectStock={handleSelectStock}
                   onViewAllHoldings={() => setActiveFundModalCode(selectedSchemeCode)}
                 />
               </div>
@@ -419,7 +426,7 @@ export default function MutualFundStockWeightageScreener() {
                 loading={stockScreenerLoading}
                 pagination={stockScreenerData.pagination}
                 selectedStockSymbol={selectedStockSymbol}
-                onSelectStock={(sym) => setSelectedStockSymbol(sym)}
+                onSelectStock={handleSelectStock}
                 onPageChange={(p) => fetchStockScreener(p, sortBy, sortOrder)}
                 onSortChange={(col, ord) => {
                   setSortBy(col);
@@ -466,7 +473,7 @@ export default function MutualFundStockWeightageScreener() {
                 <FundTopHoldingsPanel
                   fund={selectedFundData}
                   loading={selectedFundLoading}
-                  onSelectStock={(sym) => setSelectedStockSymbol(sym)}
+                  onSelectStock={handleSelectStock}
                   onViewAllHoldings={() => setActiveFundModalCode(selectedSchemeCode)}
                 />
               </div>
@@ -481,6 +488,7 @@ export default function MutualFundStockWeightageScreener() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl p-6">
             <StockDetailPanel
+              stockSymbol={selectedStockSymbol}
               symbol={selectedStockSymbol}
               onClose={() => setSelectedStockSymbol(null)}
               onSelectFund={(schemeCode) => {
@@ -500,7 +508,7 @@ export default function MutualFundStockWeightageScreener() {
           onClose={() => setActiveFundModalCode(null)}
           onSelectStock={(sym) => {
             setActiveFundModalCode(null);
-            setSelectedStockSymbol(sym);
+            handleSelectStock(sym);
           }}
         />
       )}
