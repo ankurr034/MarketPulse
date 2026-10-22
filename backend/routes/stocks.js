@@ -6,6 +6,21 @@ import athBaseService from '../services/AthBaseService.js';
 
 const router = express.Router();
 
+let allStocksCache = null;
+let inFlightAllStocks = null;
+const ALL_STOCKS_ROUTE_TTL = 30000; // 30 seconds
+
+async function fetchAllStocksUniverse() {
+  const symbols = sectorDataService.getAllSymbols();
+  const quotesRes = await marketDataGateway.getQuotes(symbols);
+  const data = quotesRes.data || [];
+  const primarySource = data.length > 0 ? (data[0].source || 'YAHOO_FINANCE') : 'YAHOO_FINANCE_UNAVAILABLE';
+  const primaryStatus = data.length > 0 ? (data[0].dataStatus || 'UNAVAILABLE') : 'UNAVAILABLE';
+  const result = { data, primarySource, primaryStatus, timestamp: Date.now() };
+  allStocksCache = result;
+  return result;
+}
+
 // Get list of all stocks (supports autocomplete query)
 router.get('/', async (req, res) => {
   const query = req.query.q;
@@ -18,15 +33,59 @@ router.get('/', async (req, res) => {
       return res.json(results);
     }
     
-    // Return all stocks across all sectors with verified quotes & provenance
-    const symbols = sectorDataService.getAllSymbols();
-    const quotesRes = await marketDataGateway.getQuotes(symbols);
-    const data = quotesRes.data || [];
-    const primarySource = data.length > 0 ? (data[0].source || 'YAHOO_FINANCE') : 'YAHOO_FINANCE_UNAVAILABLE';
-    const primaryStatus = data.length > 0 ? (data[0].dataStatus || 'UNAVAILABLE') : 'UNAVAILABLE';
-    res.setHeader('X-Data-Source', primarySource);
-    res.setHeader('X-Data-Status', primaryStatus);
-    return res.json(data);
+    const now = Date.now();
+    const isFresh = allStocksCache && (now - allStocksCache.timestamp < ALL_STOCKS_ROUTE_TTL);
+
+    if (allStocksCache) {
+      res.setHeader('X-Data-Source', allStocksCache.primarySource);
+      res.setHeader('X-Data-Status', allStocksCache.primaryStatus);
+
+      if (isFresh) {
+        return res.json(allStocksCache.data);
+      }
+
+      // Stale-While-Revalidate in background
+      if (!inFlightAllStocks) {
+        inFlightAllStocks = fetchAllStocksUniverse().catch(e => {
+          console.warn('[stocks] Background revalidation failed:', e.message);
+        }).finally(() => {
+          inFlightAllStocks = null;
+        });
+      }
+      return res.json(allStocksCache.data);
+    }
+
+    if (inFlightAllStocks) {
+      const result = await inFlightAllStocks;
+      res.setHeader('X-Data-Source', result.primarySource);
+      res.setHeader('X-Data-Status', result.primaryStatus);
+      return res.json(result.data);
+    }
+
+    inFlightAllStocks = fetchAllStocksUniverse();
+    const result = await inFlightAllStocks;
+    inFlightAllStocks = null;
+
+    res.setHeader('X-Data-Source', result.primarySource);
+    res.setHeader('X-Data-Status', result.primaryStatus);
+    return res.json(result.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Search stocks by ticker or company name
+router.get('/search', async (req, res) => {
+  const query = req.query.q || req.query.query || '';
+  try {
+    if (!query || query.trim().length === 0) {
+      return res.json([]);
+    }
+    const searchRes = await yahooFinanceService.search(query.trim());
+    const results = searchRes.available ? searchRes.data : [];
+    res.setHeader('X-Data-Source', 'YAHOO_FINANCE');
+    res.setHeader('X-Data-Status', 'LIVE');
+    return res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

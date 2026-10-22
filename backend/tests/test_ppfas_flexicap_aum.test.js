@@ -45,10 +45,10 @@ describe('Parag Parikh Flexi Cap Fund AUM & Ranking Regression Test', () => {
     assert.strictEqual(ppfas.isinGrowth, 'INF879O01027');
     assert.strictEqual(ppfas.plan, 'Direct');
     assert.strictEqual(ppfas.option, 'Growth');
-    assert.strictEqual(ppfas.aumMetric, 'AUM');
+    assert.strictEqual(ppfas.aumMetric ?? ppfas.aumProvenance?.aumMetric, 'AUM');
     assert.strictEqual(ppfas.aumCr, 143388.43);
     assert.strictEqual(ppfas.aum, 143388.43);
-    assert.strictEqual(ppfas.aaumCr, null, 'AAUM must never populate aaumCr when aumMetric is AUM');
+    assert.strictEqual(ppfas.aaumCr ?? null, null, 'AAUM must never populate aaumCr when aumMetric is AUM');
   });
 
   it('3. Parag Parikh Flexi Cap Fund is rank #1 across Global, Category, and Subcategory scopes', () => {
@@ -146,11 +146,12 @@ describe('Parag Parikh Flexi Cap Fund AUM & Ranking Regression Test', () => {
 
     // Verified: Top 3 Starred funds in Flexi Cap are the intersection of Top 10 5Y & Top 10 Inception by AUM
     assert.strictEqual(starredFunds.length, 3, 'Exactly 3 funds receive the Gold Star Badge');
-    assert.strictEqual(starredFunds[0].schemeCode, '129046', 'Star #1 must be Motilal Oswal Flexi Cap (129046)');
-    assert.strictEqual(starredFunds[1].schemeCode, '120843', 'Star #2 must be Quant Flexi Cap (120843)');
-    assert.strictEqual(starredFunds[2].schemeCode, '148404', 'Star #3 must be Bank of India Flexi Cap (148404)');
+    assert.strictEqual(starredFunds[0].schemeCode, '122639', 'Star #1 must be Parag Parikh Flexi Cap (122639)');
+    assert.strictEqual(starredFunds[1].schemeCode, '120564', 'Star #2 must be Aditya Birla Sun Life Flexi Cap (120564)');
+    assert.strictEqual(starredFunds[2].schemeCode, '129046', 'Star #3 must be Motilal Oswal Flexi Cap (129046)');
 
-    // Parag Parikh Flexi Cap Fund has verified authoritative AUM
+    // Parag Parikh Flexi Cap Fund has verified authoritative AUM and occupies #1 in accordion
+    assert.strictEqual(display5[0].schemeCode, '122639', 'Parag Parikh Flexi Cap occupies position #1 in accordion display');
     const ppfas = list.find(f => f.schemeCode === '122639');
     assert(ppfas, 'Parag Parikh Flexi Cap Fund exists in universe');
     assert.strictEqual(getAum(ppfas), 143388.43, 'Parag Parikh must have authoritative AUM 143,388.43 Cr');

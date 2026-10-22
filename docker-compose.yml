@@ -3,41 +3,57 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:latest
-    container_name: delta_mongodb
+    container_name: marketpulse_mongodb
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     networks:
-      - deltatrade-network
+      - marketpulse-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: marketpulse_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - marketpulse-network
 
   backend:
     build: ./backend
-    container_name: delta_backend
+    container_name: marketpulse_backend
     ports:
       - "5001:5001"
     environment:
       - PORT=5001
+      - NODE_ENV=production
       - MONGO_URI=mongodb://mongodb:27017/trading_dashboard
-      - JWT_SECRET=super_secret_trading_dashboard_jwt_key_2026
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}
+      - FRONTEND_URL=http://localhost:3000
     depends_on:
       - mongodb
+      - redis
     networks:
-      - deltatrade-network
+      - marketpulse-network
 
   frontend:
     build: ./frontend
-    container_name: delta_frontend
+    container_name: marketpulse_frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
     networks:
-      - deltatrade-network
+      - marketpulse-network
 
 volumes:
   mongo_data:
+  redis_data:
 
 networks:
-  deltatrade-network:
+  marketpulse-network:
     driver: bridge

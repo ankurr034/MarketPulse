@@ -3,8 +3,8 @@ export const isGlobalSymbol = (symbol) => {
   // Indian stocks typically have .NS or .BO suffix, or are 6-digit MF codes
   if (symbol.endsWith('.NS') || symbol.endsWith('.BO')) return false;
   if (/^\d{5,6}$/.test(symbol)) return false; // Indian MF scheme codes
-  // Global stocks/ETFs are usually purely alphabetic without suffix (e.g. AAPL, SPY)
-  if (/^[A-Z]+$/.test(symbol)) return true;
+  // Global stocks/ETFs are alphabetic with optional hyphen/dot without Indian exchange suffixes (e.g. AAPL, BRK-B, SPY)
+  if (/^[A-Z0-9.-]+$/i.test(symbol)) return true;
   return false;
 };
 

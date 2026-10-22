@@ -1,0 +1,3160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MarketPulse — Indian Stocks & Mutual Funds Data, Terms, Sources & Calculation Guide</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 14mm 14mm 18mm 14mm;
+    @bottom-right {
+      content: counter(page);
+      font-size: 8pt;
+      color: #64748b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    color: #1e293b;
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .doc-h1 {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 5px;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+
+  .doc-h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1d4ed8;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+  }
+
+  .doc-h3 {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 12px;
+    margin-bottom: 5px;
+    page-break-after: avoid;
+  }
+
+  .doc-h4 {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #334155;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    page-break-after: avoid;
+  }
+
+  .doc-p {
+    margin: 0 0 7px 0;
+    text-align: justify;
+  }
+
+  .doc-divider {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 16px 0;
+  }
+
+  .doc-list {
+    margin: 4px 0 10px 18px;
+    padding: 0;
+  }
+
+  .doc-list li {
+    margin-bottom: 4px;
+  }
+
+  .inline-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 7.8pt;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .code-box {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 7.5pt;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-left: 3px solid #2563eb;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+
+  .formula-block {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #2563eb;
+    border-radius: 4px;
+    padding: 8px 14px;
+    margin: 8px 0 12px 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Cambria Math", monospace;
+    font-size: 8pt;
+    line-height: 1.38;
+    color: #0f172a;
+    font-weight: 500;
+    white-space: pre;
+    overflow-x: auto;
+    page-break-inside: avoid;
+  }
+
+  .formula-block code {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: transparent;
+    padding: 0;
+    border: none;
+  }
+
+  .table-container {
+    width: 100%;
+    margin: 10px 0 14px 0;
+    page-break-inside: auto;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+    line-height: 1.35;
+  }
+
+  .data-table th, .data-table td {
+    border: 1px solid #cbd5e1;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: top;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cambria Math", sans-serif;
+  }
+
+  .data-table th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .data-table tr:nth-child(even) {
+    background: #f8fafc;
+  }
+
+  .data-table tr {
+    page-break-inside: avoid;
+  }
+
+  .doc-link {
+    color: #2563eb;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+<h1 class="doc-h1">MARKETPULSE</h1>
+<h2 class="doc-h2">Indian Stocks &amp; Mutual Funds</h2>
+<h3 class="doc-h3">Data, Terms, Sources &amp; Calculation Guide</h3>
+<p class="doc-p"><strong>A simple user guide explaining MarketPulse data, rankings, ratings, formulas, sources and research metrics.</strong></p>
+<hr class="doc-divider" />
+<h3 class="doc-h3">Document Overview &amp; Control</h3>
+<ul class="doc-list">
+<li><strong>Project Name</strong>: MarketPulse (Indian Equities &amp; Mutual Fund Market Intelligence Platform)</li>
+<li><strong>Document Version</strong>: 3.2.0 (Comprehensive Reference &amp; Stock Weightage Screener Edition)</li>
+<li><strong>Publication Date</strong>: September 17, 2026</li>
+<li><strong>Purpose</strong>: Authoritative, comprehensive engineering and user guide detailing market intelligence data provenance, exact mathematical calculation formulas, institutional rankings, star evaluations, portfolio disclosure pipelines, stock weightage screener analytics, and the Zero-Fabrication Standard.</li>
+<li><strong>Coverage</strong>: 12,536 deduplicated listed Indian equities (NSE and BSE across 30 sectors), 2,743 active Direct-Growth mutual fund schemes (across 43 AMCs), 226 target active equity schemes, 829 canonical stock holdings across 211 verified portfolios, and RBI macroeconomic indicators.</li>
+<li><strong>Data Integrity Policy</strong>: Strict Zero-Fabrication Standard (Missing data is never replaced with zero, estimated values, or fake numbers. It is always shown as — or Data unavailable).</li>
+<li><strong>Intended Audience</strong>: Investors, financial analysts, researchers, students, and everyday website users.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">Table of Contents</h2>
+<ul class="doc-list">
+<li><a href="#1-about-marketpulse" class="doc-link">1. About MarketPulse</a></li>
+<li><a href="#2-how-marketpulse-data-works" class="doc-link">2. How MarketPulse Data Works</a></li>
+<li><a href="#3-external-data-sources" class="doc-link">3. External Data Sources</a></li>
+<li><a href="#4-data-classifications--types" class="doc-link">4. Data Classifications &amp; Types</a></li>
+<li><a href="#part-i--stocks" class="doc-link">PART I — STOCKS</a></li>
+<li><a href="#5-stock-overview" class="doc-link">5. Stock Overview</a></li>
+<li><a href="#6-stock-sources" class="doc-link">6. Stock Sources</a></li>
+<li><a href="#7-stock-data-behavior" class="doc-link">7. Stock Data Behavior</a></li>
+<li><a href="#8-stock-terms" class="doc-link">8. Stock Terms</a></li>
+<li><a href="#9-stock-rankings" class="doc-link">9. Stock Rankings</a></li>
+<li><a href="#10-stock-star-marking" class="doc-link">10. Stock Star Marking</a></li>
+<li><a href="#11-stock-calculations" class="doc-link">11. Stock Calculations</a></li>
+<li><a href="#12-stock-performance" class="doc-link">12. Stock Performance</a></li>
+<li><a href="#13-stock-screener" class="doc-link">13. Stock Screener</a></li>
+<li><a href="#14-stock-limitations" class="doc-link">14. Stock Limitations</a></li>
+<li><a href="#part-ii--mutual-funds" class="doc-link">PART II — MUTUAL FUNDS</a></li>
+<li><a href="#15-mutual-fund-overview" class="doc-link">15. Mutual Fund Overview</a></li>
+<li><a href="#16-mutual-fund-sources" class="doc-link">16. Mutual Fund Sources</a></li>
+<li><a href="#17-mutual-fund-data-behavior" class="doc-link">17. Mutual Fund Data Behavior</a></li>
+<li><a href="#18-mutual-fund-terms" class="doc-link">18. Mutual Fund Terms</a></li>
+<li><a href="#19-mutual-fund-rankings" class="doc-link">19. Mutual Fund Rankings</a></li>
+<li><a href="#20-mutual-fund-star-marking" class="doc-link">20. Mutual Fund Star Marking</a></li>
+<li><a href="#21-mutual-fund-performance" class="doc-link">21. Mutual Fund Performance</a></li>
+<li><a href="#22-mutual-fund-risk-metrics" class="doc-link">22. Mutual Fund Risk Metrics</a></li>
+<li><a href="#23-mutual-fund-portfolio-holdings" class="doc-link">23. Mutual Fund Portfolio Holdings</a></li>
+<li><a href="#24-mutual-fund-screener" class="doc-link">24. Mutual Fund Screener</a></li>
+<li><a href="#25-mutual-fund-stock-weightage-screener" class="doc-link">25. Mutual Fund Stock Weightage Screener</a></li>
+<li><a href="#26-mutual-fund-limitations" class="doc-link">26. Mutual Fund Limitations</a></li>
+<li><a href="#part-iii--shared-reference" class="doc-link">PART III — SHARED REFERENCE</a></li>
+<li><a href="#27-dynamic--periodic--calculated--static--manual" class="doc-link">27. Dynamic / Periodic / Calculated / Static / Manual</a></li>
+<li><a href="#28-data-source-vs-calculated-data" class="doc-link">28. Data Source vs Calculated Data</a></li>
+<li><a href="#29-as-of-date-vs-update-date" class="doc-link">29. As-Of Date vs Update Date</a></li>
+<li><a href="#30-missing-data" class="doc-link">30. Missing Data</a></li>
+<li><a href="#31-formula-reference" class="doc-link">31. Formula Reference</a></li>
+<li><a href="#32-data-quality" class="doc-link">32. Data Quality</a></li>
+<li><a href="#33-research-interpretation" class="doc-link">33. Research Interpretation</a></li>
+<li><a href="#34-complete-glossary" class="doc-link">34. Complete Glossary</a></li>
+<li><a href="#35-research-disclaimer" class="doc-link">35. Research Disclaimer</a></li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">1. About MarketPulse</h2>
+<p class="doc-p">MarketPulse is an independent financial market intelligence and research website designed specifically for the Indian capital markets.</p>
+<p class="doc-p">Its mission is to give every investor, analyst, researcher, and student clean, transparent, and authentic financial data.</p>
+<h3 class="doc-h3">What MarketPulse Provides</h3>
+<p class="doc-p">1. <strong>Indian Equities &amp; Sectors</strong>: Tracking of 30 standardized economic sectors (such as Nifty Bank, Nifty IT, Nifty Auto, Nifty FMCG) with live or delayed market data depending on the underlying feed (advancing, declining, and unchanged stocks) and constituent company performance.</p>
+<p class="doc-p">2. <strong>National Stock Directory</strong>: Complete ranking of 12,536 listed Indian equities across both the National Stock Exchange (NSE) and Bombay Stock Exchange (BSE), ranked strictly by full market capitalization.</p>
+<p class="doc-p">3. <strong>Quarterly Financials</strong>: Quarterly financial data sourced from company filings, exchange disclosures and earnings reports, including Revenue from Operations, Operating Profit (EBIT), Net Profit, and true same-quarter Year-on-Year (YoY) growth.</p>
+<p class="doc-p">4. <strong>Mutual Fund Explorer</strong>: An institutional-grade directory of 2,743 active Direct-Growth mutual fund schemes across 40 Asset Management Companies (AMCs), featuring 4-tier Assets Under Management (AUM) rankings, multi-period Compound Annual Growth Rate (CAGR) returns, and RBI-aligned risk ratios.</p>
+<p class="doc-p">5. <strong>Authentic Portfolio Holdings</strong>: Detailed monthly portfolio disclosures for flagship schemes showing exact constituent stocks, debt holdings, sovereign securities, and cash weights.</p>
+<p class="doc-p">6. <strong>Multi-Factor Research Screeners</strong>: Objective filtering tools allowing users to screen stocks and mutual funds using valuation, growth, financial health, returns, and risk criteria without commercial bias.</p>
+<h3 class="doc-h3">Core Principles</h3>
+<ul class="doc-list">
+<li><strong>Simplicity</strong>: Complex financial concepts are presented in clear, accessible language without unnecessary jargon.</li>
+<li><strong>Data Authenticity</strong>: Every number on MarketPulse comes from an authoritative primary source or a mathematically verified formula.</li>
+<li><strong>Zero Fabrication</strong>: MarketPulse never generates fake numbers, placeholder revenue, simulated prices, or default ratios. If data is not reported by the company or regulator, it is clearly shown as —.</li>
+<li><strong>Apples-to-Apples Comparisons</strong>: Mutual funds are categorized by plan and peer group to ensure fair comparisons (e.g. Direct Growth vs Direct Growth, Small Cap vs Small Cap).</li>
+<li><strong>Research Only</strong>: MarketPulse is strictly an analytical and educational platform. It does not provide buy/sell advice, tips, price targets, or return guarantees.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">2. How MarketPulse Data Works</h2>
+<p class="doc-p">Understanding where numbers come from is essential for smart investing and sound research. MarketPulse operates on a multi-stage data architecture designed to keep data fresh, accurate, and transparent.</p>
+<h3 class="doc-h3">The 4-Step Data Flow</h3>
+<p class="doc-p">1. <strong>Collection (Data Ingestion)</strong>: MarketPulse connects to official regulatory portals, stock exchange feeds, and specialized financial market APIs. Live or delayed equity quotes depending on the underlying feed are ingested from Yahoo Finance; official daily Net Asset Values are fetched from AMFI; mutual fund stock portfolios, constituent holdings, equity weights, and sector breakdowns are fetched directly from FinAPI (Upvaly); quarterly corporate financial statements originate from BSE regulatory filings; and sovereign macroeconomic benchmarks are retrieved from the Reserve Bank of India (RBI).</p>
+<p class="doc-p">2. <strong>Cleaning &amp; Normalization</strong>: Raw data is checked for accuracy. Dual-listed stocks on NSE and BSE are deduplicated. Currency values are standardized into standard Indian numbering units (₹ Crores and Lakhs). Incompatible items (such as computing operating income for banks) are safely suppressed.</p>
+<p class="doc-p">3. <strong>Internal Calculations</strong>: MarketPulse runs its own deterministic formulas to calculate metrics that are not provided directly by APIs. These include same-quarter YoY growth, multi-period price returns, AUM rankings, 3-year trailing Sharpe ratios, Sortino downside deviation, and beta against market benchmarks.</p>
+<p class="doc-p">4. <strong>Fast Delivery &amp; Presentation</strong>: Validated data is cached in memory to ensure near-instant page loading on the website. Live or delayed updates stream to user screens during market hours depending on the underlying feed.</p>
+<h3 class="doc-h3">Trading Hours vs Post-Market Sessions</h3>
+<ul class="doc-list">
+<li><strong>During Market Hours (9:15 AM to 3:30 PM IST, Monday to Friday)</strong>: Stock prices, day change percentages, sector advances/declines, and intraday market breadth update dynamically with live or delayed market data depending on the underlying feed.</li>
+<li><strong>After Market Hours &amp; Weekends</strong>: Closing prices (Previous Close / LTP) remain static until the next trading session. Mutual fund NAVs update daily around 9:00 PM to 11:00 PM IST once published by AMFI.</li>
+<li><strong>Periodic Financial Updates</strong>: Corporate earnings update quarterly as companies submit their results to stock exchanges. Mutual fund stock portfolios, constituent holdings, and AUM update periodically and monthly following FinAPI (Upvaly) synchronization and mandatory AMC disclosures.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">3. External Data Sources</h2>
+<p class="doc-p">MarketPulse relies exclusively on verified external providers and official regulatory filing systems. The platform does not use synthetic feeds or unregulated scraping sources.</p>
+<h3 class="doc-h3">Summary of Authoritative Providers</h3>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Source Name</th>
+<th>Organization Type</th>
+<th>Primary Data Provided</th>
+<th>Update Frequency</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Yahoo Finance (v2)</strong></td>
+<td>Global Financial Data Feed</td>
+<td>Live or delayed stock quotes depending on the underlying feed, OHLC prices, volume, market cap, historical price series, corporate profile.</td>
+<td>Live / 15-min exchange delay during market hours</td>
+</tr>
+<tr>
+<td><strong>FinAPI (Upvaly)</strong></td>
+<td>Financial Market Data API</td>
+<td>Mutual fund stock portfolios, constituent equity holdings, position weights, sector weightings, fund valuation multiples (P/E, P/B), verified scheme AUM.</td>
+<td>Periodic / Monthly disclosures feed</td>
+</tr>
+<tr>
+<td><strong>AMFI India</strong></td>
+<td>Official Industry Regulator</td>
+<td>Official daily Net Asset Values (NAV), scheme codes, ISINs, scheme classifications.</td>
+<td>Daily (by 9:00 PM - 11:00 PM IST)</td>
+</tr>
+<tr>
+<td><strong>Official AMC Disclosures</strong></td>
+<td>Asset Management Companies</td>
+<td>Monthly portfolio holdings, stock weights, sovereign securities, cash positions, scheme AUM (direct filings &amp; offline fallback).</td>
+<td>Monthly (typically by the 10th of each month)</td>
+</tr>
+<tr>
+<td><strong>BSE Corporate Filings</strong></td>
+<td>Stock Exchange Regulatory Portal</td>
+<td>Quarterly financial statements, revenue from operations, net profit, scrip code cross-references.</td>
+<td>Quarterly (as companies file results)</td>
+</tr>
+<tr>
+<td><strong>Reserve Bank of India (RBI)</strong></td>
+<td>Central Bank of India</td>
+<td>91-Day Treasury Bill yields, sovereign policy interest rates (used as risk-free benchmark).</td>
+<td>Monthly / Periodic auction updates</td>
+</tr>
+<tr>
+<td><strong>MFAPI Repository</strong></td>
+<td>Historical Mutual Fund Cache</td>
+<td>Long-term historical daily NAV time series for CAGR and multi-year risk calculations.</td>
+<td>Daily synchronization</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2">4. Data Classifications &amp; Types</h2>
+<p class="doc-p">Every metric displayed on MarketPulse belongs to one of seven distinct data classifications. Knowing the classification helps users understand how often a number changes and whether it is fetched or calculated.</p>
+<p class="doc-p">1. <strong>DYNAMIC</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Information that changes continuously during active market trading hours.</li>
+<li><em>Examples</em>: Current Stock Price (LTP), Day Change, Day Change %, Sector Advances/Declines, Traded Volume.</li>
+<li><em>Update Frequency</em>: Seconds to minutes during exchange hours.</li>
+</ul>
+<p class="doc-p">2. <strong>PERIODIC</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Information that updates at scheduled, fixed calendar intervals.</li>
+<li><em>Examples</em>: Daily Mutual Fund NAV, Monthly Scheme AUM, Monthly Portfolio Holdings, Quarterly Corporate Revenue and Profit.</li>
+<li><em>Update Frequency</em>: Daily, monthly, or quarterly.</li>
+</ul>
+<p class="doc-p">3. <strong>CALCULATED</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Numbers derived internally by MarketPulse using specific mathematical formulas applied to primary data.</li>
+<li><em>Examples</em>: Revenue YoY %, Net Profit YoY %, 3Y CAGR, Sharpe Ratio, Sortino Ratio, India Stock Rank, Category AUM Rank.</li>
+<li><em>Update Frequency</em>: Recomputed whenever underlying input data updates.</li>
+</ul>
+<p class="doc-p">4. <strong>STATIC</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Permanent or rarely changing reference information.</li>
+<li><em>Examples</em>: Company Name, NSE Ticker Symbol, BSE Scrip Code, ISIN, Sector Name, Fund Inception Date, AMC Name.</li>
+<li><em>Update Frequency</em>: Updated only upon corporate actions, rebrandings, or exchange reclassifications.</li>
+</ul>
+<p class="doc-p">5. <strong>MANUAL</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Verified administrative mappings maintained to ensure complete cross-exchange accuracy.</li>
+<li><em>Examples</em>: BSE Scrip to NSE Symbol mapping dictionaries, sector constituent basket definitions.</li>
+<li><em>Update Frequency</em>: Maintained by administrators as new securities list or indices rebalance.</li>
+</ul>
+<p class="doc-p">6. <strong>CACHED</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Previously fetched or calculated data stored in fast memory for instant webpage delivery.</li>
+<li><em>Examples</em>: Sector summary rollups, ranked stock lists, mutual fund directory snapshots.</li>
+<li><em>Update Frequency</em>: Automatically refreshed in the background according to predefined time-to-live (TTL) limits.</li>
+</ul>
+<p class="doc-p">7. <strong>DATA UNAVAILABLE</strong>:</p>
+<ul class="doc-list">
+<li><em>Meaning</em>: Required source data has not been reported by the company, AMC, or exchange, or does not meet strict quality rules.</li>
+<li><em>Display on Website</em>: Displayed strictly as — or Data unavailable.</li>
+<li><em>Rule</em>: Never replaced with 0, an average, or an estimated guess.</li>
+</ul>
+<hr class="doc-divider" />
+<h1 class="doc-h1">PART I — STOCKS</h1>
+<hr class="doc-divider" />
+<h2 class="doc-h2">5. Stock Overview</h2>
+<p class="doc-p">MarketPulse provides comprehensive analytics for the Indian equity universe using live or delayed market data depending on the underlying feed, combined with verified historical time series.</p>
+<h3 class="doc-h3">Scope of Coverage</h3>
+<ul class="doc-list">
+<li><strong>12,536 Listed Equities</strong>: Complete deduplicated universe of companies listed on the National Stock Exchange (NSE) and Bombay Stock Exchange (BSE).</li>
+<li><strong>30 Standardized Economic Sectors</strong>: Including Nifty 50, Nifty Bank, Nifty IT, Nifty Auto, Nifty FMCG, Nifty Pharma, Nifty Metal, Nifty Energy, Nifty Media, Nifty Realty, and sectoral sub-indices.</li>
+<li><strong>Dual-Listing Deduplication</strong>: Indian companies frequently trade on both NSE and BSE under different symbols (e.g. <code class="inline-code">RELIANCE.NS</code> on NSE and <code class="inline-code">500325.BO</code> on BSE). MarketPulse groups dual listings under a single canonical company identity (<code class="inline-code">RELIANCE</code>) to prevent duplicate ranks and split market capitalizations.</li>
+</ul>
+<h3 class="doc-h3">Key Visual &amp; Analytical Features</h3>
+<p class="doc-p">1. <strong>Interactive Sector Heatmaps</strong>: Color-coded performance tiles showing which industries are gaining or losing on the trading day.</p>
+<p class="doc-p">2. <strong>Sector Breadth Summary Cards</strong>:</p>
+<ul class="doc-list">
+<li><em>Total Sectors</em>: Count of monitored Indian market sectors (30).</li>
+<li><em>Advancing Sectors</em>: Sectors currently trading higher than previous close.</li>
+<li><em>Declining Sectors</em>: Sectors currently trading lower than previous close.</li>
+<li><em>Up Stocks</em>: Total constituent companies trading with positive day change.</li>
+<li><em>Down Stocks</em>: Total constituent companies trading with negative day change.</li>
+<li><em>Unchanged Stocks</em>: Total constituent companies trading at exactly 0.00% change.</li>
+</ul>
+<p class="doc-p">3. <strong>Inline Constituent Drill-Down</strong>: Expanding any sector row instantly reveals its constituent stocks, their national ranks, prices, fundamentals, and returns without refreshing the page.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2">6. Stock Sources</h2>
+<p class="doc-p">MarketPulse integrates multiple authoritative data feeds to deliver complete equity coverage.</p>
+<h3 class="doc-h3">1. Yahoo Finance (v2 Market Feed)</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Last Traded Price (LTP), Open, High, Low, Previous Close, Trading Volume, Full Market Capitalization, 52-Week High, 52-Week Low, and historical daily price series (live or delayed market data depending on the underlying feed).</li>
+<li><strong>Data Type</strong>: External API market feed data.</li>
+<li><strong>Update Frequency</strong>: Live or delayed tick updates during market hours (9:15 AM to 3:30 PM IST); closing prices remain static post-market.</li>
+<li><strong>Important Limitations</strong>: Standard public market feeds carry a 15-minute exchange delay during trading hours. Volume and closing prices are finalized during post-market reconciliation.</li>
+</ul>
+<h3 class="doc-h3">2. BSE Corporate Filings &amp; Regulatory Announcements</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Quarterly financial statements, Revenue from Operations, Net Profit to Common Shareholders, EPS, and regulatory disclosures.</li>
+<li><strong>Data Type</strong>: Periodic official exchange filing data.</li>
+<li><strong>Update Frequency</strong>: Quarterly, as listed companies report earnings within 45 days of quarter-end.</li>
+<li><strong>Important Limitations</strong>: Filing dates vary by company. Consolidated figures are prioritized; standalone figures are used only when consolidated statements are not filed.</li>
+</ul>
+<h3 class="doc-h3">3. MarketPulse Internal Financial Engine</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: National Market Capitalization Rank (<code class="inline-code">indiaStockRank</code>), true same-quarter Year-on-Year (YoY) Revenue Growth, same-quarter Net Profit Growth, Reported EBIT in ₹ Crores, multi-period price returns (1W, 1M, 6M, 1Y, 3Y, 5Y, ALL), 52-Week Low Recovery %, and All-Time High Drawdown %.</li>
+<li><strong>Data Type</strong>: Internal deterministic mathematical calculations.</li>
+<li><strong>Update Frequency</strong>: Recalculated dynamically upon refreshed market quotes or quarterly filings.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">7. Stock Data Behavior</h2>
+<p class="doc-p">The following comprehensive table details every stock metric implemented on MarketPulse, its source, update behavior, and missing data rule:</p>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Metric Name</th>
+<th>Primary Source</th>
+<th>Data Type</th>
+<th>Update Frequency</th>
+<th>Calculated?</th>
+<th>Manual?</th>
+<th>As-Of Date</th>
+<th>Missing Data Rule</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Company Name</strong></td>
+<td>BSE / NSE Reference</td>
+<td>Static</td>
+<td>Corporate Action</td>
+<td>No</td>
+<td>No</td>
+<td>Listing date</td>
+<td>Shows Ticker Symbol</td>
+</tr>
+<tr>
+<td><strong>NSE Symbol</strong></td>
+<td>NSE Master (<code class="inline-code">.NS</code>)</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Listing date</td>
+<td>— (if BSE only)</td>
+</tr>
+<tr>
+<td><strong>BSE Code</strong></td>
+<td>BSE Master (<code class="inline-code">.BO</code>)</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>Yes (map)</td>
+<td>Listing date</td>
+<td>— (if NSE only)</td>
+</tr>
+<tr>
+<td><strong>ISIN</strong></td>
+<td>NSDL / CDSL Master</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Issuance date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Sector</strong></td>
+<td>MarketPulse Sector Map</td>
+<td>Static</td>
+<td>Reclassification</td>
+<td>No</td>
+<td>Yes (basket)</td>
+<td>Rebalance date</td>
+<td>Unclassified</td>
+</tr>
+<tr>
+<td><strong>Industry</strong></td>
+<td>GICS / Exchange Map</td>
+<td>Static</td>
+<td>Reclassification</td>
+<td>No</td>
+<td>No</td>
+<td>Filing date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Current Price (LTP)</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Live / 15m delay feed</td>
+<td>No</td>
+<td>No</td>
+<td>Market feed time</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Day Change (₹)</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Live / 15m delay feed</td>
+<td>Yes (LTP − Prev)</td>
+<td>No</td>
+<td>Market feed time</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Day Change %</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Live / 15m delay feed</td>
+<td>Yes</td>
+<td>No</td>
+<td>Market feed time</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Open Price</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Daily at 9:15 AM</td>
+<td>No</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Day High</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Intraday feed</td>
+<td>No</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Day Low</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Intraday feed</td>
+<td>No</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Previous Close</strong></td>
+<td>Yahoo Finance API</td>
+<td>Periodic</td>
+<td>Daily post-market</td>
+<td>No</td>
+<td>No</td>
+<td>Prior trading day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Trading Volume</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Intraday cumulative</td>
+<td>No</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Market Cap (₹ Cr)</strong></td>
+<td>Yahoo Finance API</td>
+<td>Dynamic</td>
+<td>Live / 15m delay feed</td>
+<td>Yes (Normalized)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>India Stock Rank</strong></td>
+<td>MarketPulse Ranking Engine</td>
+<td>Calculated</td>
+<td>Session updates</td>
+<td>Yes (MCap DESC)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Quarterly Revenue</strong></td>
+<td>BSE / Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly</td>
+<td>Yes (in ₹ Cr)</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Revenue YoY %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Quarterly</td>
+<td>Yes (Same-quarter)</td>
+<td>No</td>
+<td>Prior quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Quarterly Net Profit</strong></td>
+<td>BSE / Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly</td>
+<td>Yes (in ₹ Cr)</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Net Profit YoY %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Quarterly</td>
+<td>Yes (Same-quarter)</td>
+<td>No</td>
+<td>Prior quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Reported EBIT (₹ Cr)</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Quarterly / TTM</td>
+<td>Yes (Rev × OpMargin)</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>— (Not applicable for Banks)</td>
+</tr>
+<tr>
+<td><strong>Operating Margin %</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly / TTM</td>
+<td>Yes (EBIT ÷ Rev)</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Net Profit Margin %</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly / TTM</td>
+<td>Yes (Profit ÷ Rev)</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Earnings Per Share (EPS)</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly / TTM</td>
+<td>No</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>P/E Ratio (Trailing)</strong></td>
+<td>MarketPulse / Yahoo</td>
+<td>Dynamic</td>
+<td>Daily with LTP</td>
+<td>Yes (Price ÷ EPS)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>P/B Ratio</strong></td>
+<td>MarketPulse / Yahoo</td>
+<td>Dynamic</td>
+<td>Daily with LTP</td>
+<td>Yes (Price ÷ Book)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>EV / EBITDA</strong></td>
+<td>MarketPulse / Yahoo</td>
+<td>Periodic</td>
+<td>Quarterly / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>PEG Ratio</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Quarterly / TTM</td>
+<td>Yes (PE ÷ Growth)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Return on Equity (ROE)</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Annual / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Annual report date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>ROCE %</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Annual / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Annual report date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Debt-to-Equity Ratio</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Annual / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Balance sheet date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Interest Coverage</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Annual / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Fiscal quarter-end</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Current Ratio</strong></td>
+<td>Corporate Filings</td>
+<td>Periodic</td>
+<td>Annual / TTM</td>
+<td>Yes</td>
+<td>No</td>
+<td>Balance sheet date</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Dividend Yield %</strong></td>
+<td>MarketPulse / Yahoo</td>
+<td>Dynamic</td>
+<td>Daily with LTP</td>
+<td>Yes (Div ÷ Price)</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>52-Week High</strong></td>
+<td>Yahoo Finance API</td>
+<td>Periodic</td>
+<td>Daily rolling 52W</td>
+<td>No</td>
+<td>No</td>
+<td>Rolling 52 weeks</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>52-Week Low</strong></td>
+<td>Yahoo Finance API</td>
+<td>Periodic</td>
+<td>Daily rolling 52W</td>
+<td>No</td>
+<td>No</td>
+<td>Rolling 52 weeks</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>52W Low Recovery %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Daily with LTP</td>
+<td>Yes</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>ATH Drawdown %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Daily with LTP</td>
+<td>Yes</td>
+<td>No</td>
+<td>Current session</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Day Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Dynamic</td>
+<td>Daily with LTP</td>
+<td>Yes (Day Change %)</td>
+<td>No</td>
+<td>Prior trading day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Week Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (7-day lookback)</td>
+<td>No</td>
+<td>7 days ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (1-mo lookback)</td>
+<td>No</td>
+<td>1 month ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>3-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (3-mo lookback)</td>
+<td>No</td>
+<td>3 months ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>6-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (6-mo lookback)</td>
+<td>No</td>
+<td>6 months ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Year Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (1-yr lookback)</td>
+<td>No</td>
+<td>1 year ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>3-Year Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (3-yr lookback)</td>
+<td>No</td>
+<td>3 years ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>5-Year Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (5-yr lookback)</td>
+<td>No</td>
+<td>5 years ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>ALL (Lifetime Return %)</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with LTP</td>
+<td>Yes (From Inception)</td>
+<td>No</td>
+<td>First trading day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Sector Advance/Decline</strong></td>
+<td>MarketPulse Rollup</td>
+<td>Dynamic</td>
+<td>Live market hours</td>
+<td>Yes (Breadth count)</td>
+<td>No</td>
+<td>Live market time</td>
+<td>0</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2">8. Stock Terms</h2>
+<p class="doc-p">Clear, simple definitions for every equity term used across MarketPulse:</p>
+<ul class="doc-list">
+<li><strong>Company Name</strong>: The legal name of the corporation (e.g. <em>Reliance Industries Ltd.</em>, <em>Tata Consultancy Services Ltd.</em>).</li>
+<li><strong>NSE Symbol</strong>: The unique trading ticker assigned to the stock on the National Stock Exchange of India (e.g. <code class="inline-code">RELIANCE.NS</code>, <code class="inline-code">TCS.NS</code>).</li>
+<li><strong>BSE Code</strong>: The numeric scrip identification code assigned by the Bombay Stock Exchange (e.g. <code class="inline-code">500325</code>, <code class="inline-code">532540</code>).</li>
+<li><strong>ISIN</strong>: International Securities Identification Number — a 12-character global code uniquely identifying the security (e.g. <code class="inline-code">INE002A01018</code>).</li>
+<li><strong>Sector</strong>: The broad economic area to which the company belongs (e.g. <em>Nifty Bank</em>, <em>Nifty Information Technology</em>, <em>Nifty Automobile</em>).</li>
+<li><strong>Industry</strong>: The specific operational line of business within the sector (e.g. <em>Private Sector Bank</em>, <em>IT Consulting &amp; Software</em>, <em>Commercial Vehicles</em>).</li>
+<li><strong>Current Price (LTP)</strong>: Last Traded Price — the most recent price at which a trade occurred on the exchange.</li>
+<li><strong>Open Price</strong>: The price at which the stock completed its first trade when the exchange opened at 9:15 AM IST.</li>
+<li><strong>Day High</strong>: The highest transaction price recorded for the stock during today's trading hours.</li>
+<li><strong>Day Low</strong>: The lowest transaction price recorded for the stock during today's trading hours.</li>
+<li><strong>Previous Close</strong>: The official closing price of the stock at 3:30 PM on the preceding trading business day.</li>
+<li><strong>Day Change &amp; Day Change %</strong>: The absolute rupee difference and percentage change between the Current Price and the Previous Close.</li>
+<li><strong>Volume</strong>: The total number of equity shares bought and sold during the current trading session.</li>
+<li><strong>Market Capitalization (Market Cap)</strong>: The total rupee value of a company's equity, calculated as Current Share Price multiplied by Total Outstanding Shares.</li>
+<li><strong>Large Cap</strong>: The top 100 largest listed companies in India by market capitalization.</li>
+<li><strong>MF Universe Weightage %</strong>: The percentage of the total assets under management across the entire mutual fund universe (or category) invested in a specific stock, calculated as Total Holding Value divided by Total Universe AUM multiplied by 100.</li>
+<li><strong>Mid Cap</strong>: Companies ranked 101 to 250 by market capitalization.</li>
+<li><strong>Small Cap</strong>: Companies ranked 251 and below by market capitalization.</li>
+<li><strong>Revenue from Operations</strong>: Money earned exclusively from primary commercial activities during the fiscal quarter, excluding other non-operating income.</li>
+<li><strong>Quarterly Revenue</strong>: The total revenue generated in a specific 3-month financial period, expressed in ₹ Crores.</li>
+<li><strong>Revenue YoY %</strong>: Year-on-Year percentage change comparing the current quarter's revenue with the exact same quarter of the previous calendar year.</li>
+<li><strong>Net Profit (Profit After Tax)</strong>: The bottom-line financial surplus remaining after paying all operating costs, interest, depreciation, and corporate taxes.</li>
+<li><strong>Net Profit YoY %</strong>: Year-on-Year percentage change comparing the current quarter's net profit with the exact same quarter of the previous calendar year.</li>
+<li><strong>Reported EBIT</strong>: Earnings Before Interest and Taxes — a measure of core operational profitability in ₹ Crores.</li>
+<li><strong>Operating Margin %</strong>: The percentage of revenue that turns into operating profit: <code class="inline-code">(EBIT ÷ Revenue) × 100</code>.</li>
+<li><strong>Net Profit Margin %</strong>: The percentage of revenue that remains as net profit: <code class="inline-code">(Net Profit ÷ Revenue) × 100</code>.</li>
+<li><strong>Earnings Per Share (EPS)</strong>: Net profit divided by the total number of common shares. It tells an investor how much profit each share earned.</li>
+<li><strong>Price-to-Earnings Ratio (P/E)</strong>: Current share price divided by annual EPS. It shows how many rupees investors pay for each rupee of annual earnings.</li>
+<li><strong>Price-to-Book Ratio (P/B)</strong>: Current share price divided by book value per share (net asset value). It shows what investors pay relative to liquidation value.</li>
+<li><strong>Return on Equity (ROE)</strong>: Annual net income divided by shareholders' equity, expressed as a percentage. It measures how effectively management uses equity capital.</li>
+<li><strong>Return on Capital Employed (ROCE)</strong>: Operating profit divided by total capital employed (equity plus long-term debt). It shows efficiency in generating profits from all available capital.</li>
+<li><strong>Debt-to-Equity Ratio</strong>: Total corporate borrowings divided by shareholders' equity. High values indicate higher financial leverage.</li>
+<li><strong>Dividend Yield %</strong>: Annual dividend paid per share divided by the current share price, expressed as a percentage.</li>
+<li><strong>52-Week High &amp; Low</strong>: The highest and lowest market prices recorded for the security over the past 52 trading weeks (one full year).</li>
+<li><strong>All-Time High (ATH)</strong>: The single highest price ever recorded by the stock since its initial public listing.</li>
+<li><strong>Drawdown from ATH</strong>: The percentage decline of the current share price from its historical All-Time High.</li>
+<li><strong>Recovery from 52W Low</strong>: The percentage gain of the current share price from its 52-week low.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">9. Stock Rankings</h2>
+<p class="doc-p">MarketPulse assigns a single, authoritative national market ranking to every Indian equity: <strong>India Stock Rank</strong> (<code class="inline-code">indiaStockRank</code>).</p>
+<h3 class="doc-h3">How India Stock Rank Works</h3>
+<p class="doc-p">1. <strong>Universe Scope</strong>: The ranking encompasses the entire deduplicated Indian equity universe of <strong>12,536 listed companies</strong> across NSE and BSE.</p>
+<p class="doc-p">2. <strong>Ranking Criterion</strong>: Companies are sorted strictly by full <strong>Market Capitalization in descending order</strong> (largest market cap to smallest market cap).</p>
+<p class="doc-p">3. <strong>Tie-Breaking Rule</strong>: If two companies possess identical market capitalizations, the ranking breaks ties deterministically using alphabetical order of their canonical symbol ASC.</p>
+<p class="doc-p">4. <strong>Consecutive 1-Based Numbering</strong>: The largest company in India is assigned <strong>#1</strong>, the second largest is assigned <strong>#2</strong>, and so on.</p>
+<ul class="doc-list">
+<li><em>#1</em>: Reliance Industries Ltd.</li>
+<li><em>#2</em>: Tata Consultancy Services Ltd.</li>
+<li><em>#3</em>: HDFC Bank Ltd.</li>
+<li><em>#4</em>: ICICI Bank Ltd.</li>
+<li><em>#5</em>: State Bank of India</li>
+</ul>
+<p class="doc-p">5. <strong>Deduplication Rule</strong>: Dual-listed companies (trading simultaneously on NSE and BSE) receive a single canonical rank. For example, <code class="inline-code">RELIANCE.NS</code> and <code class="inline-code">RELIANCE.BO</code> both resolve to canonical <code class="inline-code">RELIANCE</code> at rank #1. Dual listings never consume two separate ranks.</p>
+<h3 class="doc-h3">Absolute Invariance Rules</h3>
+<ul class="doc-list">
+<li><strong>Sector Filtering</strong>: Filtering by sector (e.g. looking only at <em>Nifty Bank</em>) <strong>does NOT recalculate or renumber ranks</strong>. HDFC Bank remains #3 nationally, ICICI Bank remains #4 nationally, and SBI remains #5 nationally. It does not renumber them #1, #2, #3.</li>
+<li><strong>Search Filtering</strong>: Searching for a specific company name or ticker preserves its true national rank.</li>
+<li><strong>Table Sorting</strong>: Sorting a table by Day Change %, P/E ratio, or 1-Year Return does not change the <code class="inline-code">indiaStockRank</code> column. It simply rearranges the rows.</li>
+<li><strong>Pagination</strong>: Navigating between pages (e.g. viewing page 2 or rows 51 to 100) never alters a stock's assigned rank.</li>
+<li><strong>Missing Market Cap</strong>: If a penny stock or newly suspended security lacks a verified market capitalization, its rank evaluates strictly to an unassigned value and displays as —.</li>
+</ul>
+<h3 class="doc-h3">What India Stock Rank Is NOT</h3>
+<ul class="doc-list">
+<li>It is <strong>NOT</strong> a recommendation to buy or sell.</li>
+<li>It is <strong>NOT</strong> a quality or financial safety score.</li>
+<li>It is <strong>NOT</strong> a prediction of future stock price performance.</li>
+<li>It simply reflects company size by market value in India today.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">10. Stock Star Marking</h2>
+<h3 class="doc-h3">Official System Disclosure</h3>
+<p class="doc-p"><strong>MarketPulse does NOT currently calculate, assign, or display an independent star rating or letter grade for individual stocks.</strong></p>
+<h3 class="doc-h3">Why MarketPulse Does Not Assign Stock Star Ratings</h3>
+<p class="doc-p">1. <strong>Zero Subjective Editorializing</strong>: Unlike retail promotional portals that attach arbitrary 5-star badges or algorithmic buy signals to stocks, MarketPulse maintains an objective research standard.</p>
+<p class="doc-p">2. <strong>Transparent Accounting-Grade Data</strong>: Instead of simplifying complex corporations into a single star rating, MarketPulse provides complete, unadulterated fundamental numbers: national market cap rank, reported revenue, same-quarter YoY growth, operating margin, debt ratios, and multi-period price returns.</p>
+<p class="doc-p">3. <strong>User Empowerment</strong>: Investors and analysts evaluate companies based on their own criteria (e.g. valuation, growth, debt safety) rather than relying on black-box ratings.</p>
+<p class="doc-p">4. <strong>Display Behavior</strong>: Stock cards and constituent tables display verified market metrics and national rank (<code class="inline-code">#1</code>, <code class="inline-code">#2</code>), with zero promotional star decorations.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2">11. Stock Calculations</h2>
+<p class="doc-p">MarketPulse applies deterministic mathematical formulas to calculate equity metrics.</p>
+<h3 class="doc-h3">1. Reported Operating Profit (EBIT in ₹ Cr)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Earnings Before Interest and Taxes represents the core operational profit of a non-financial corporation before capital structure decisions and taxes.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>               Reported Total Revenue (TTM) × Reported Operating Margin (TTM)
+EBIT (₹ Cr) = ──────────────────────────────────────────────────────────────
+                                        10,000,000</code></pre>
+<ul class="doc-list">
+<li><strong>Inputs</strong>: Trailing Twelve Months (TTM) total revenue in ₹, TTM operating margin as a decimal ratio.</li>
+<li><strong>Unit Normalization</strong>: Divided by 10,000,000 (10^7) to convert raw rupees into ₹ Crores.</li>
+<li><strong>THE FINANCIAL INSTITUTIONS RULE</strong>:</li>
+</ul>
+<p class="doc-p">Commercial banks, non-banking financial companies (NBFCs), housing finance companies, and insurance corporations (such as <em>HDFC Bank</em>, <em>ICICI Bank</em>, <em>State Bank of India</em>, <em>Bajaj Finance</em>, <em>Axis Bank</em>, <em>Kotak Mahindra Bank</em>) evaluate EBIT strictly to non-applicable and display <strong>—</strong>.</p>
+<p class="doc-p"><em>Rationale</em>: In banking and financial institutions, interest expense is an operational cost of raw inventory (borrowed funds loaned out at interest spreads). Standard non-financial EBIT definitions are mathematically and economically invalid for financial institutions under Indian Accounting Standards (Ind AS) and IFRS.</p>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: If revenue or operating margin is unavailable, EBIT evaluates to —.</li>
+</ul>
+<h3 class="doc-h3">2. Operating Margin %</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Shows how much operating cash profit a company extracts from every ₹100 of revenue.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                      Reported EBIT
+Operating Margin % = ────────────────────────── × 100
+                     Revenue from Operations</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: If either input is unavailable or revenue is zero, returns —.</li>
+</ul>
+<h3 class="doc-h3">3. Net Profit Margin %</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Shows how much final net surplus remains from every ₹100 of revenue after all expenses, interest, and taxes.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                       Net Profit
+Net Profit Margin % = ────────────────────────── × 100
+                      Revenue from Operations</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: Returns — if revenue is zero or missing.</li>
+</ul>
+<h3 class="doc-h3">4. Price-to-Earnings Ratio (P/E)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures how many times annual earnings an investor pays for one share.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>             Current Share Price
+P/E Ratio = ────────────────────────────────────
+            Trailing 12-Month Diluted EPS (TTM)</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: If EPS is negative (company made a loss) or zero, P/E displays as — (never a misleading zero or negative number).</li>
+</ul>
+<h3 class="doc-h3">5. Price-to-Book Ratio (P/B)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Compares market price to the company's accounting net worth per share.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>             Current Share Price
+P/B Ratio = ──────────────────────
+             Book Value Per Share</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: Returns — if book value is negative or unreported.</li>
+</ul>
+<h3 class="doc-h3">6. Dividend Yield %</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures the annual cash dividend payout relative to the stock's current market valuation.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                    Annual Dividend Per Share
+Dividend Yield % = ─────────────────────────── × 100
+                        Current Share Price</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: If the company paid zero dividends in the past 12 months or dividend data is unreported, Dividend Yield displays as 0.00% or —.</li>
+</ul>
+<h3 class="doc-h3">7. Day Change (₹) &amp; Day Change %</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures the intra-day price change from the previous session's official close.</li>
+<li><strong>Formulas</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Day Change (₹) = Current Share Price − Previous Close
+
+                Current Share Price − Previous Close
+Day Change % = ────────────────────────────────────── × 100
+                           Previous Close</code></pre>
+<ul class="doc-list">
+<li><strong>Missing Data Rule</strong>: If current price or previous close is unavailable, returns —.</li>
+</ul>
+<h3 class="doc-h3">8. Quarterly Revenue YoY Methodology (Same-Quarter Formula)</h3>
+<ul class="doc-list">
+<li><strong>The Same-Quarter Principle</strong>:</li>
+</ul>
+<p class="doc-p">Indian businesses frequently have seasonal revenue patterns. Comparing a quarter with the immediately preceding quarter (QoQ) gives a distorted view. True business growth must be measured against the exact same calendar quarter of the previous financial year:</p>
+<ul class="doc-list">
+<li><strong>Apr–Jun 2026 = Q1 FY2027</strong> compared with <strong>Apr–Jun 2025 = Q1 FY2026</strong></li>
+<li><strong>Jul–Sep 2026 = Q2 FY2027</strong> compared with <strong>Jul–Sep 2025 = Q2 FY2026</strong></li>
+<li><strong>Oct–Dec 2026 = Q3 FY2027</strong> compared with <strong>Oct–Dec 2025 = Q3 FY2026</strong></li>
+<li><strong>Jan–Mar 2027 = Q4 FY2027</strong> compared with <strong>Jan–Mar 2026 = Q4 FY2026</strong></li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                 Current Quarter Revenue − Same Quarter Last Year Revenue
+Revenue YoY % = ────────────────────────────────────────────────────────── × 100
+                             |Same Quarter Last Year Revenue|</code></pre>
+<ul class="doc-list">
+<li><strong>Strict Data Integrity Rules</strong>:</li>
+<li><em>Never Sequential QoQ</em>: MarketPulse NEVER compares Q2 with Q1 to generate YoY growth.</li>
+<li><em>Absolute Value Denominator</em>: Uses |Same Quarter Last Year Revenue| in the denominator to guarantee mathematical safety.</li>
+<li><em>Missing Prior Quarter</em>: If the exact same quarter from the prior year is missing, the calculation immediately evaluates to missing and displays as <strong>—</strong>. MarketPulse NEVER substitutes an adjacent quarter.</li>
+</ul>
+<h3 class="doc-h3">9. Quarterly Net Profit YoY Methodology</h3>
+<ul class="doc-list">
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                    Current Quarter Net Profit − Same Quarter Last Year Net Profit
+Net Profit YoY % = ──────────────────────────────────────────────────────────────── × 100
+                             |Same Quarter Last Year Net Profit|</code></pre>
+<ul class="doc-list">
+<li><strong>Example Calculation</strong>:</li>
+<li>Prior Year Same Quarter Profit: ₹100 Cr</li>
+<li>Current Quarter Profit: ₹125 Cr</li>
+<li>Net Profit YoY % = ((125 − 100) ÷ 100) × 100 = +25.00%</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">12. Stock Performance</h2>
+<p class="doc-p">MarketPulse tracks stock price performance across 9 standardized time horizons:</p>
+<p class="doc-p"><strong>1D (Day Change), 1W, 1M, 3M, 6M, 1Y, 3Y, 5Y, and ALL (Lifetime Inception)</strong>.</p>
+<h3 class="doc-h3">General Price Return Formula</h3>
+<p class="doc-p">For all equity horizons, returns represent simple capital price gains:</p>
+<pre class="formula-block"><code>                  Current Share Price − Historical Benchmark Price
+Price Return % = ────────────────────────────────────────────────── × 100
+                             Historical Benchmark Price</code></pre>
+<h3 class="doc-h3">Horizon Definitions &amp; Historical Lookback Dates</h3>
+<p class="doc-p">1. <strong>1D (1 Day)</strong>: Compares Current Price with Previous Close.</p>
+<p class="doc-p">2. <strong>1W (1 Week)</strong>: Exact historical closing price 7 calendar days ago (nearest prior trading session).</p>
+<p class="doc-p">3. <strong>1M (1 Month)</strong>: Exact historical closing price 1 calendar month ago (e.g. August 12 to September 12).</p>
+<p class="doc-p">4. <strong>3M (3 Months)</strong>: Exact historical closing price 3 calendar months ago.</p>
+<p class="doc-p">5. <strong>6M (6 Months)</strong>: Exact historical closing price 6 calendar months ago.</p>
+<p class="doc-p">6. <strong>1Y (1 Year)</strong>: Exact historical closing price 52 calendar weeks (365 days) ago.</p>
+<p class="doc-p">7. <strong>3Y (3 Years)</strong>: Exact historical closing price 156 calendar weeks ago.</p>
+<p class="doc-p">8. <strong>5Y (5 Years)</strong>: Exact historical closing price 260 calendar weeks ago.</p>
+<p class="doc-p">9. <strong>ALL (Lifetime / Inception)</strong>: Compares Current Price with the earliest official exchange listing close on record.</p>
+<h3 class="doc-h3">Key Rules</h3>
+<ul class="doc-list">
+<li><strong>Exclusion of Dividends</strong>: Stock price return formulas reflect pure capital appreciation. Cash dividends are not added back into the stock price return series.</li>
+<li><strong>Distinct 5Y vs ALL</strong>: Lifetime performance is strictly decoupled from 5-year performance. For example, a legacy bluechip like Infosys displays a +143,260% lifetime return since its 1993 debut, but a -33.14% return over the specific 5-year lookback window.</li>
+<li><strong>Missing History Tolerance</strong>: If a stock listed less than 3 years ago (e.g. a recent IPO), its 3Y and 5Y return columns display <strong>—</strong>, while its 1M, 6M, and ALL columns display authentic figures.</li>
+</ul>
+<h3 class="doc-h3">52-Week Recovery</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures how strongly a stock has rebounded from its lowest price over the past year.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                           Current Price − 52-Week Low
+Recovery from 52W Low % = ───────────────────────────── × 100
+                                   52-Week Low</code></pre>
+<ul class="doc-list">
+<li><strong>Practical Meaning</strong>: A value of +25.00% means the stock is trading 25% above its cheapest price of the last 52 weeks. The result is always zero or positive.</li>
+</ul>
+<h3 class="doc-h3">ATH Drawdown (Drawdown from All-Time High)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures how far below its lifetime record peak the stock is currently trading.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                       Current Price − All-Time High
+Drawdown from ATH % = ─────────────────────────────── × 100
+                               All-Time High</code></pre>
+<ul class="doc-list">
+<li><strong>Practical Meaning</strong>: A stock trading at its record peak has an ATH Drawdown of 0.00%. A stock that has dropped 30% from its historical peak has an ATH Drawdown of -30.00%. The result is always zero or negative.</li>
+</ul>
+<h3 class="doc-h3">Market Capitalization</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: The aggregate market valuation of the company's equity.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Market Capitalization = Current Share Price × Total Outstanding Shares
+
+                    Market Capitalization (in ₹)
+Market Cap (₹ Cr) = ────────────────────────────
+                             10,000,000</code></pre>
+<ul class="doc-list">
+<li><strong>Data Source</strong>: MarketPulse ingests full market capitalization directly from the exchange market feed (Yahoo Finance / BSE) and normalizes it into standard ₹ Crores (1 Cr = 10,000,000 INR). MarketPulse does not invent share counts.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">13. Stock Screener</h2>
+<p class="doc-p">The MarketPulse Stock Screener allows investors and analysts to filter the 12,536 Indian equities universe across 25+ quantitative parameters simultaneously.</p>
+<h3 class="doc-h3">Implemented Screener Filters</h3>
+<p class="doc-p">1. <strong>Exchange Filter</strong>: National Stock Exchange (<code class="inline-code">NSE</code>) or Bombay Stock Exchange (<code class="inline-code">BSE</code>).</p>
+<p class="doc-p">2. <strong>Sector Filter</strong>: Selection across all 30 Indian sectors (or <code class="inline-code">All</code>).</p>
+<p class="doc-p">3. <strong>Industry Filter</strong>: Granular industry selection.</p>
+<p class="doc-p">4. <strong>Search Term</strong>: Instant text search by company name, NSE symbol, or BSE code.</p>
+<p class="doc-p">5. <strong>India Stock Rank Range</strong>: <code class="inline-code">minRank</code> and <code class="inline-code">maxRank</code> (e.g. Top 100 Large Caps).</p>
+<p class="doc-p">6. <strong>Market Capitalization Range</strong>: <code class="inline-code">minMarketCapCr</code> and <code class="inline-code">maxMarketCapCr</code> in ₹ Crores.</p>
+<p class="doc-p">7. <strong>Valuation Multiples</strong>:</p>
+<ul class="doc-list">
+<li>P/E Ratio range (<code class="inline-code">minPe</code>, <code class="inline-code">maxPe</code>)</li>
+<li>P/B Ratio range (<code class="inline-code">minPb</code>, <code class="inline-code">maxPb</code>)</li>
+<li>EV/EBITDA range (<code class="inline-code">minEvEbitda</code>, <code class="inline-code">maxEvEbitda</code>)</li>
+<li>PEG Ratio range (<code class="inline-code">minPeg</code>, <code class="inline-code">maxPeg</code>)</li>
+</ul>
+<p class="doc-p">8. <strong>Growth Metrics</strong>:</p>
+<ul class="doc-list">
+<li>Revenue YoY % range (<code class="inline-code">minRevenueYoY</code>, <code class="inline-code">maxRevenueYoY</code>)</li>
+<li>Net Profit YoY % range (<code class="inline-code">minProfitYoY</code>, <code class="inline-code">maxProfitYoY</code>)</li>
+<li>EPS Growth % range (<code class="inline-code">minEpsGrowth</code>, <code class="inline-code">maxEpsGrowth</code>)</li>
+</ul>
+<p class="doc-p">9. <strong>Return &amp; Quality Ratios</strong>:</p>
+<ul class="doc-list">
+<li>ROE % range (<code class="inline-code">minRoe</code>, <code class="inline-code">maxRoe</code>)</li>
+<li>ROCE % range (<code class="inline-code">minRoce</code>, <code class="inline-code">maxRoce</code>)</li>
+</ul>
+<p class="doc-p">10. <strong>Financial Health &amp; Solvency</strong>:</p>
+<ul class="doc-list">
+<li>Debt-to-Equity range (<code class="inline-code">minDebtToEquity</code>, <code class="inline-code">maxDebtToEquity</code>)</li>
+<li>Interest Coverage ratio range (<code class="inline-code">minInterestCoverage</code>, <code class="inline-code">maxInterestCoverage</code>)</li>
+<li>Current Ratio range (<code class="inline-code">minCurrentRatio</code>, <code class="inline-code">maxCurrentRatio</code>)</li>
+</ul>
+<p class="doc-p">11. <strong>Profitability Margins</strong>:</p>
+<ul class="doc-list">
+<li>Operating Margin % range (<code class="inline-code">minOperatingMargin</code>, <code class="inline-code">maxOperatingMargin</code>)</li>
+<li>Net Profit Margin % range (<code class="inline-code">minNetMargin</code>, <code class="inline-code">maxNetMargin</code>)</li>
+</ul>
+<p class="doc-p">12. <strong>Dividends</strong>:</p>
+<ul class="doc-list">
+<li>Dividend Yield % range (<code class="inline-code">minDividendYield</code>, <code class="inline-code">maxDividendYield</code>)</li>
+<li>Dividend Payout Ratio range (<code class="inline-code">minPayoutRatio</code>, <code class="inline-code">maxPayoutRatio</code>)</li>
+</ul>
+<p class="doc-p">13. <strong>Momentum &amp; Returns</strong>:</p>
+<ul class="doc-list">
+<li>1-Month Return % range</li>
+<li>3-Month Return % range</li>
+<li>6-Month Return % range</li>
+<li>1-Year Return % range</li>
+<li>% Distance from 52-Week Low</li>
+<li>% Distance from All-Time High (Drawdown)</li>
+</ul>
+<h3 class="doc-h3">Screener Invariants &amp; Safety Gates</h3>
+<ul class="doc-list">
+<li><strong>Missing Data Exclusion</strong>: Missing values are NEVER treated as zero. If a user sets a filter <code class="inline-code">minRoe = 15%</code>, companies with missing ROE are excluded rather than coerced to zero.</li>
+<li><strong>Rank Preservation</strong>: The screener preserves national <code class="inline-code">indiaStockRank</code> for all results.</li>
+<li><strong>Neutral Terminology</strong>: Results are labeled as <em>Matches criteria</em> or <em>Research candidate</em>. The screener never produces labels such as <em>Strong Buy</em>, <em>Undervalued Gem</em>, or <em>Target Price</em>.</li>
+</ul>
+<h3 class="doc-h3">Screener Direct Parameter Boundaries (Zero Synthetic Normalization)</h3>
+<p class="doc-p">MarketPulse does NOT transform fundamental metrics into synthetic composite scores, curve-fitted percentiles, or proprietary black-box ratings. Every screener filter applies deterministic inequality boundaries directly to verified raw data:</p>
+<pre class="formula-block"><code>minThreshold ≤ Observed Metric Value ≤ maxThreshold</code></pre>
+<p class="doc-p">Missing data is never imputed as 0 or given a placeholder average; if a metric is unreported, the security is cleanly excluded from the range filter to maintain analytical integrity.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2">14. Stock Limitations</h2>
+<h3 class="doc-h3">Data Limitations</h3>
+<p class="doc-p">1. <strong>Market Feed Latency</strong>: Prices reflect live or delayed market data depending on the underlying feed (typically carrying an exchange delay of up to 15 minutes during trading sessions).</p>
+<p class="doc-p">2. <strong>Quarterly Reporting Cycle</strong>: Companies report financial results every 3 months. Data remains unchanged between filing periods.</p>
+<p class="doc-p">3. <strong>Consolidated vs Standalone Differences</strong>: MarketPulse prioritizes consolidated numbers (which include subsidiary operations). For holding companies or companies without subsidiaries, standalone statements are utilized.</p>
+<p class="doc-p">4. <strong>Historical Trading Depth</strong>: Newly listed companies (IPOs) lack multi-year historical price series; long-term returns (3Y, 5Y) will be empty until sufficient trading history elapses.</p>
+<h3 class="doc-h3">Missing Data Rules for Equities</h3>
+<ul class="doc-list">
+<li>Missing Price: Displayed as —.</li>
+<li>Missing Quarterly Revenue: Displayed as —.</li>
+<li>Missing YoY %: Displayed as —.</li>
+<li>Negative P/E (Loss-making companies): Displayed as —.</li>
+<li>Operating Income for Financial Institutions: Displayed as —.</li>
+<li><strong>Zero Fabrication</strong>: MarketPulse strictly prohibits guessing, averaging, or simulating missing stock metrics.</li>
+</ul>
+<hr class="doc-divider" />
+<h1 class="doc-h1">PART II — MUTUAL FUNDS</h1>
+<hr class="doc-divider" />
+<h2 class="doc-h2">15. Mutual Fund Overview</h2>
+<p class="doc-p">MarketPulse delivers institutional-grade mutual fund intelligence designed specifically for Indian fund investors and research analysts.</p>
+<h3 class="doc-h3">Scope of Coverage</h3>
+<ul class="doc-list">
+<li><strong>2,743 Active Direct-Growth Schemes</strong>: Sourced directly from the official Association of Mutual Funds in India (AMFI) database across 40 asset management houses.</li>
+<li><strong>4 Broad Investment Categories</strong>:</li>
+</ul>
+<p class="doc-p">1. <em>Equity Schemes</em> (Large Cap, Mid Cap, Small Cap, Flexi Cap, Multi Cap, Large &amp; Mid Cap, Focused, ELSS Tax Saver, Value, Contra).</p>
+<p class="doc-p">2. <em>Hybrid Schemes</em> (Balanced Advantage, Aggressive Hybrid, Multi Asset Allocation, Arbitrage).</p>
+<p class="doc-p">3. <em>Debt Schemes</em> (Liquid, Corporate Bond, Banking &amp; PSU, Gilt, Short Duration).</p>
+<p class="doc-p">4. <em>Solution Oriented &amp; Other Schemes</em> (Retirement, Children, Index, ETFs).</p>
+<ul class="doc-list">
+<li><strong>The Direct-Growth Standard</strong>: MarketPulse focuses strictly on <strong>Direct Growth</strong> plans.</li>
+<li><em>Direct Plans</em> bypass intermediary distributor commissions, ensuring higher compounding net returns for long-term investors.</li>
+<li><em>Growth Options</em> reinvest all dividends and capital profits back into the fund's NAV, providing a pure, unfragmented measure of total compound performance.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">16. Mutual Fund Sources</h2>
+<p class="doc-p">MarketPulse integrates 5 primary regulatory and market data feeds for mutual funds:</p>
+<h3 class="doc-h3">1. FinAPI (Upvaly) — Primary Mutual Fund Holdings &amp; Portfolio Engine</h3>
+<ul class="doc-list">
+<li><strong>Endpoint</strong>: <code class="inline-code">https://finapi.upvaly.com/api/mf/scheme-code/:schemeCode</code></li>
+<li><strong>Data Provided</strong>: Mutual fund stock portfolios, constituent equity holdings, position weights (%), market values (₹ Cr), sector allocation / weightings, fund expense ratio, 52-week high/low, P/E, P/B, and verified scheme AUM.</li>
+<li><strong>Data Type</strong>: Authoritative REST API service.</li>
+<li><strong>Update Frequency</strong>: Synchronized periodically and monthly upon AMC portfolio disclosures.</li>
+<li><strong>Role in MarketPulse</strong>: Authoritative primary provider for mutual fund stock portfolio holdings. When a scheme is queried, MarketPulse queries FinAPI (Upvaly) first to retrieve authentic constituent stock holdings, weights, and sector weightings.</li>
+</ul>
+<h3 class="doc-h3">2. Association of Mutual Funds in India (AMFI)</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Official daily Net Asset Values (NAV), NAV dates, 6-digit numeric scheme codes, ISINs, and formal scheme category designations.</li>
+<li><strong>Data Type</strong>: Official AMFI regulatory daily NAV feed.</li>
+<li><strong>Update Frequency</strong>: Synchronized nightly between 9:00 PM and 11:00 PM IST on all business days.</li>
+<li><strong>Limitations</strong>: Daily NAVs represent the previous business day's market close. AMFI daily files do not include underlying stock holdings.</li>
+</ul>
+<h3 class="doc-h3">3. Official Asset Management Company (AMC) Monthly Disclosures</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Official portfolio holdings, constituent equity weights (%), debt instruments, commercial paper, treasury bills, cash &amp; TREPS positions, and total scheme AUM in ₹ Crores.</li>
+<li><strong>Data Type</strong>: Official monthly regulatory Excel/CSV portfolio disclosures filed under SEBI regulations.</li>
+<li><strong>Update Frequency</strong>: Monthly, typically between the 5th and 10th of each calendar month.</li>
+<li><strong>Role in MarketPulse</strong>: Direct filing supplement and offline fallback source for flagship Indian mutual fund schemes across Parag Parikh, HDFC, ICICI Prudential, and SBI fund houses.</li>
+</ul>
+<h3 class="doc-h3">4. Reserve Bank of India (RBI) Benchmark Macro Data</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Sovereign 91-Day Treasury Bill (T-Bill) yields and policy rates.</li>
+<li><strong>Data Type</strong>: Sovereign government debt benchmark.</li>
+<li><strong>Use in MarketPulse</strong>: Serves as the authoritative Risk-Free Rate (Rf) and Minimum Acceptable Return (MAR) in all Sharpe and Sortino ratio calculations.</li>
+<li><strong>Update Frequency</strong>: Updated following RBI primary treasury bill auctions.</li>
+</ul>
+<h3 class="doc-h3">5. MFAPI Historical NAV Repository</h3>
+<ul class="doc-list">
+<li><strong>Data Provided</strong>: Full historical daily NAV time series from each fund's inception date.</li>
+<li><strong>Data Type</strong>: Cached historical time series.</li>
+<li><strong>Use in MarketPulse</strong>: Powers multi-year return algorithms (1Y, 3Y, 5Y, Since Inception CAGR), monthly volatility modeling, and maximum drawdown tracking.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">17. Mutual Fund Data Behavior</h2>
+<p class="doc-p">The following comprehensive table details every mutual fund metric implemented on MarketPulse:</p>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Metric Name</th>
+<th>Primary Source</th>
+<th>Data Type</th>
+<th>Update Frequency</th>
+<th>Calculated?</th>
+<th>Manual?</th>
+<th>As-Of Date</th>
+<th>Missing Data Rule</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Scheme Name</strong></td>
+<td>AMFI Master</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Registration</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Scheme Code</strong></td>
+<td>AMFI 6-Digit ID</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Registration</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>ISIN</strong></td>
+<td>NSDL / CDSL Master</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Issuance</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>AMC (Fund House)</strong></td>
+<td>AMFI / Factsheet</td>
+<td>Static</td>
+<td>Permanent</td>
+<td>No</td>
+<td>No</td>
+<td>Registration</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Category</strong></td>
+<td>AMFI Taxonomy</td>
+<td>Static</td>
+<td>SEBI Standard</td>
+<td>No</td>
+<td>No</td>
+<td>Scheme launch</td>
+<td>Other</td>
+</tr>
+<tr>
+<td><strong>Subcategory</strong></td>
+<td>AMFI / Scheme Info</td>
+<td>Static</td>
+<td>SEBI Standard</td>
+<td>No</td>
+<td>No</td>
+<td>Scheme launch</td>
+<td>General</td>
+</tr>
+<tr>
+<td><strong>Plan Type</strong></td>
+<td>Scheme Name Master</td>
+<td>Static</td>
+<td>Filtered (Direct)</td>
+<td>No</td>
+<td>No</td>
+<td>Scheme launch</td>
+<td>Direct</td>
+</tr>
+<tr>
+<td><strong>Option</strong></td>
+<td>Scheme Name Master</td>
+<td>Static</td>
+<td>Filtered (Growth)</td>
+<td>No</td>
+<td>No</td>
+<td>Scheme launch</td>
+<td>Growth</td>
+</tr>
+<tr>
+<td><strong>Current NAV (₹)</strong></td>
+<td>AMFI Official Feed</td>
+<td>Dynamic</td>
+<td>Daily (9-11 PM IST)</td>
+<td>No</td>
+<td>No</td>
+<td>Latest trade day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>NAV Date</strong></td>
+<td>AMFI Official Feed</td>
+<td>Periodic</td>
+<td>Daily</td>
+<td>No</td>
+<td>No</td>
+<td>Latest trade day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Scheme AUM (₹ Cr)</strong></td>
+<td>FinAPI / AMC Disclosure</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>Yes (Normalized)</td>
+<td>No</td>
+<td>Month-end filing</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Global AUM Rank</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Monthly / Session</td>
+<td>Yes (AUM DESC)</td>
+<td>No</td>
+<td>Active cache</td>
+<td>— (if AUM missing)</td>
+</tr>
+<tr>
+<td><strong>Category AUM Rank</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Monthly / Session</td>
+<td>Yes (Within Cat)</td>
+<td>No</td>
+<td>Active cache</td>
+<td>— (if AUM missing)</td>
+</tr>
+<tr>
+<td><strong>Subcategory Rank</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Monthly / Session</td>
+<td>Yes (Within Sub)</td>
+<td>No</td>
+<td>Active cache</td>
+<td>— (if AUM missing)</td>
+</tr>
+<tr>
+<td><strong>Sector / Theme Rank</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Monthly / Session</td>
+<td>Yes (Within Sec)</td>
+<td>No</td>
+<td>Active cache</td>
+<td>— (if AUM missing)</td>
+</tr>
+<tr>
+<td><strong>Star Marking (★)</strong></td>
+<td>MarketPulse Engine</td>
+<td>Calculated</td>
+<td>Daily with NAVs</td>
+<td>Yes (3-Way Rule)</td>
+<td>No</td>
+<td>Active session</td>
+<td>Non-starred</td>
+</tr>
+<tr>
+<td><strong>1-Day Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Dynamic</td>
+<td>Daily with NAV</td>
+<td>Yes (Day change)</td>
+<td>No</td>
+<td>Prior trade day</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Week Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (7-day lookback)</td>
+<td>No</td>
+<td>7 days ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (1-mo lookback)</td>
+<td>No</td>
+<td>1 month ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>3-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (3-mo lookback)</td>
+<td>No</td>
+<td>3 months ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>6-Month Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (6-mo lookback)</td>
+<td>No</td>
+<td>6 months ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>1-Year Return %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (Absolute/CAGR)</td>
+<td>No</td>
+<td>1 year ago</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>3-Year CAGR %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (Annualized)</td>
+<td>No</td>
+<td>3 years ago</td>
+<td>— (&lt; 3Y history)</td>
+</tr>
+<tr>
+<td><strong>5-Year CAGR %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (Annualized)</td>
+<td>No</td>
+<td>5 years ago</td>
+<td>— (&lt; 5Y history)</td>
+</tr>
+<tr>
+<td><strong>Since Inception CAGR</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily with NAV</td>
+<td>Yes (Annualized)</td>
+<td>No</td>
+<td>Fund launch date</td>
+<td>— (&lt; 360 days)</td>
+</tr>
+<tr>
+<td><strong>Volatility (Annual)</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily / Monthly</td>
+<td>Yes (Monthly stddev)</td>
+<td>No</td>
+<td>36-mo rolling</td>
+<td>— (&lt; 3Y history)</td>
+</tr>
+<tr>
+<td><strong>3Y Trailing Sharpe</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily / Monthly</td>
+<td>Yes (Excess return)</td>
+<td>No</td>
+<td>36-mo rolling</td>
+<td>Inception fallback</td>
+</tr>
+<tr>
+<td><strong>3Y Trailing Sortino</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily / Monthly</td>
+<td>Yes (Downside dev)</td>
+<td>No</td>
+<td>36-mo rolling</td>
+<td>Inception fallback</td>
+</tr>
+<tr>
+<td><strong>Beta</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>Yes (vs Nifty 50)</td>
+<td>No</td>
+<td>36-mo rolling</td>
+<td>1.0 (fallback when history unavailable)</td>
+</tr>
+<tr>
+<td><strong>Jensen's Alpha %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>Yes (vs Nifty 50)</td>
+<td>No</td>
+<td>36-mo rolling</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Maximum Drawdown %</strong></td>
+<td>MarketPulse Engine</td>
+<td>Periodic</td>
+<td>Daily / Monthly</td>
+<td>Yes (Peak-to-trough)</td>
+<td>No</td>
+<td>Full NAV series</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Expense Ratio %</strong></td>
+<td>FinAPI / AMC Factsheet</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>No</td>
+<td>No</td>
+<td>Monthly report</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Portfolio Holdings</strong></td>
+<td>FinAPI (Upvaly) / AMC</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>No</td>
+<td>No</td>
+<td>Month-end filing</td>
+<td>Data unavailable</td>
+</tr>
+<tr>
+<td><strong>Holding Weight %</strong></td>
+<td>FinAPI (Upvaly) / AMC</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>No (Direct)</td>
+<td>No</td>
+<td>Month-end filing</td>
+<td>Data unavailable</td>
+</tr>
+<tr>
+<td><strong>Holding Rank</strong></td>
+<td>MarketPulse Engine (FinAPI)</td>
+<td>Calculated</td>
+<td>Monthly</td>
+<td>Yes (Weight DESC)</td>
+<td>No</td>
+<td>Month-end filing</td>
+<td>Data unavailable</td>
+</tr>
+<tr>
+<td><strong>Sector Allocation %</strong></td>
+<td>FinAPI (Upvaly) / AMC</td>
+<td>Calculated</td>
+<td>Monthly</td>
+<td>Yes (Weight sum)</td>
+<td>No</td>
+<td>Month-end filing</td>
+<td>Data unavailable</td>
+</tr>
+<tr>
+<td><strong>Portfolio P/E &amp; P/B</strong></td>
+<td>FinAPI (Upvaly)</td>
+<td>Periodic</td>
+<td>Monthly</td>
+<td>No (Direct)</td>
+<td>No</td>
+<td>Monthly report</td>
+<td>—</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2">18. Mutual Fund Terms</h2>
+<p class="doc-p">Clear, simple definitions for every mutual fund term used across MarketPulse:</p>
+<ul class="doc-list">
+<li><strong>Net Asset Value (NAV)</strong>: The price of one single unit of the mutual fund scheme, representing the per-unit market value of all underlying investments after subtracting operating expenses.</li>
+<li><strong>Assets Under Management (AUM)</strong>: The total market value of all investor capital currently managed by the fund, expressed in ₹ Crores.</li>
+<li><strong>Asset Management Company (AMC)</strong>: The corporate investment firm (Fund House) legally registered to manage mutual funds (e.g. <em>PPFAS Mutual Fund</em>, <em>HDFC Asset Management</em>, <em>SBI Funds Management</em>).</li>
+<li><strong>Direct Plan</strong>: A mutual fund plan purchased directly through the AMC or registered portals without a middleman distributor, resulting in lower ongoing management charges and higher investor returns.</li>
+<li><strong>Regular Plan</strong>: A mutual fund plan sold through distributors or brokers where commission expenses are deducted daily from the fund's NAV.</li>
+<li><strong>Growth Option</strong>: An investment option where all interest, dividends, and capital gains remain inside the scheme to compound over time. No dividends are paid out in cash.</li>
+<li><strong>IDCW Option</strong>: Income Distribution cum Capital Withdrawal — an option where the fund occasionally pays cash out to the investor, reducing the NAV by the exact amount distributed.</li>
+<li><strong>Broad Category</strong>: The high-level asset class of the fund per SEBI regulations (e.g. <em>Equity</em>, <em>Debt</em>, <em>Hybrid</em>, <em>Solution Oriented</em>).</li>
+<li><strong>Subcategory</strong>: The specific investment mandate within the broad category (e.g. <em>Flexi Cap Fund</em>, <em>Large Cap Fund</em>, <em>Liquid Fund</em>, <em>Balanced Advantage Fund</em>).</li>
+<li><strong>Expense Ratio (TER)</strong>: Total Expense Ratio — the annual percentage fee deducted daily from fund assets to cover portfolio management, administration, custody, and legal costs.</li>
+<li><strong>Portfolio Holdings</strong>: The comprehensive list of individual corporate shares, bonds, commercial paper, and government debt held inside the fund.</li>
+<li><strong>Holding Weight %</strong>: The percentage of the fund's total assets invested in a specific individual stock or security.</li>
+<li><strong>Holding Rank</strong>: The position of a security within that specific mutual fund, ordered from largest position (#1) to smallest position.</li>
+<li><strong>Sector Allocation</strong>: The percentage breakdown of fund assets across various economic industries (e.g. 28.5% in Financial Services, 18.2% in Information Technology).</li>
+<li><strong>Portfolio Concentration</strong>: A risk metric measuring how much of the fund is concentrated in its Top 5 or Top 10 largest holdings.</li>
+<li><strong>Compound Annual Growth Rate (CAGR)</strong>: The annualized constant rate of return required for an investment to grow from its initial value to its final value over multiple years.</li>
+<li><strong>Annualized Volatility</strong>: A statistical measure of how wildly or smoothly a fund's returns fluctuate month to month. Higher volatility means larger price swings.</li>
+<li><strong>Sector Provenance Tier</strong>: The 5-tier classification hierarchy used by MarketPulse to assign economic sectors to equities with zero fabricated certainty: Tier 1 (EXCHANGE_CLASSIFICATION), Tier 2 (OFFICIAL_DISCLOSURE), Tier 3 (VERIFIED_SNAPSHOT), Tier 4 (HEURISTIC_FALLBACK), and Tier 5 (UNMAPPED).</li>
+<li><strong>Sharpe Ratio</strong>: A risk-adjusted performance score showing how much extra return a fund generated above the risk-free rate for each unit of total volatility risk taken.</li>
+<li><strong>Sortino Ratio</strong>: A refined risk score that penalizes only bad downside volatility (losses below the risk-free benchmark), ignoring positive upward price surges.</li>
+<li><strong>Beta</strong>: A measure of a fund's price sensitivity compared to the broad stock market index (Nifty 50 TRI).</li>
+<li><strong>Jensen's Alpha</strong>: The percentage of excess return generated by the fund manager above what would be expected given the fund's market risk (Beta).</li>
+<li><strong>Maximum Drawdown</strong>: The largest percentage decline in NAV from a previous historical peak to the subsequent lowest trough.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">19. Mutual Fund Rankings</h2>
+<p class="doc-p">MarketPulse implements a deterministic, multi-level ranking hierarchy for mutual funds based strictly on verified scheme scale:</p>
+<pre class="formula-block"><code>Ranking Input = Scheme AUM in ₹ Crores (DESC)</code></pre>
+<h3 class="doc-h3">The 4 Ranking Tiers</h3>
+<p class="doc-p">1. <strong>Global India MF Rank (<code class="inline-code">indiaMfRank</code>)</strong>:</p>
+<ul class="doc-list">
+<li>Compares the scheme across <strong>ALL 2,743 valid active schemes</strong> in India.</li>
+<li>Ranked #1 to #N purely by AUM in ₹ Crores descending.</li>
+</ul>
+<p class="doc-p">2. <strong>Category Rank (<code class="inline-code">indiaMfCategoryRank</code>)</strong>:</p>
+<ul class="doc-list">
+<li>Compares the scheme only against other schemes in its <strong>broad asset class</strong> (e.g. across all <em>Equity</em> funds or all <em>Debt</em> funds).</li>
+<li>Ranked #1 to #M within that category.</li>
+</ul>
+<p class="doc-p">3. <strong>Subcategory Rank (<code class="inline-code">indiaMfSubcategoryRank</code>)</strong>:</p>
+<ul class="doc-list">
+<li>Compares the scheme strictly against its <strong>direct peer group</strong> (e.g. <em>Flexi Cap</em> vs <em>Flexi Cap</em>, <em>Small Cap</em> vs <em>Small Cap</em>).</li>
+<li>Ranked #1 to #K within that exact subcategory.</li>
+</ul>
+<p class="doc-p">4. <strong>Sector / Theme Rank (<code class="inline-code">indiaMfSectorRank</code>)</strong>:</p>
+<ul class="doc-list">
+<li>Evaluates sectoral and thematic schemes against their specific industry peers (e.g. <em>Technology Funds</em> or <em>Healthcare Funds</em>).</li>
+</ul>
+<h3 class="doc-h3">Why Multiple Ranks Exist: A Real-World Example</h3>
+<p class="doc-p">A fund can easily have different numbers across the 4 tiers:</p>
+<ul class="doc-list">
+<li><strong>Parag Parikh Flexi Cap Fund (Direct-Growth)</strong>:</li>
+<li><strong>Global India MF Rank</strong>: <strong>#22</strong> (22nd largest fund in all of India across all asset classes).</li>
+<li><strong>Category Rank</strong>: <strong>#12</strong> (12th largest fund in the entire broad Equity category).</li>
+<li><strong>Subcategory Rank</strong>: <strong>#3</strong> (3rd largest fund in the specific Flexi Cap peer group).</li>
+</ul>
+<p class="doc-p">This 4-tier structure allows users to evaluate a fund's scale from the national macro level down to its immediate peer group.</p>
+<h3 class="doc-h3">Strict Invariance Rules</h3>
+<ul class="doc-list">
+<li><strong>AUM DESC Only</strong>: Rankings are based strictly on AUM size. They are NEVER ordered by short-term returns, past 1-month gains, Sharpe ratio, or popularity.</li>
+<li><strong>Missing AUM</strong>: Schemes without verified AUM disclosures remain unranked across all ranking tiers and display as <strong>—</strong>.</li>
+<li><strong>Immutable Across Filters</strong>: Searching for a fund, filtering by AMC, sorting by 3-year return, or moving between pagination pages NEVER recalculates or overwrites assigned ranks.</li>
+<li><strong>Complete Isolation from Stocks</strong>: Mutual fund rankings are 100% separate from stock market cap rankings (<code class="inline-code">indiaStockRank</code>).</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">20. Mutual Fund Star Marking</h2>
+<h3 class="doc-h3">The Official 3-Way Star Algorithm</h3>
+<p class="doc-p">MarketPulse identifies outstanding long-term performers within each mutual fund subcategory using a deterministic <strong>3-Way Star Algorithm</strong> executed by the MarketPulse ranking engine.</p>
+<p class="doc-p">A fund receives the <strong>Gold Star Badge (★)</strong> if and only if it qualifies through the following strict mathematical criteria:</p>
+<pre class="formula-block"><code>Gold Star Schemes = Top 3 by Scheme AUM within { Top 10 by 5Y CAGR ∩ Top 10 by Inception CAGR }</code></pre>
+<pre class="code-box"><code>Step 1: Top 10 by 5-Year CAGR (within peer subcategory)
+                           ∩
+Step 2: Top 10 by Since-Inception CAGR (within peer subcategory)
+                           │
+                           ▼
+Step 3: Intersection Set -&gt; Sorted by AUM (DESC: Largest to Smallest)
+                           │
+                           ▼
+Step 4: Top 3 schemes receive the Gold Star Badge (★)
+        (If &lt; 3 funds in intersection, backfill up to 3 from Top 10 5Y by AUM)</code></pre>
+<h3 class="doc-h3">Step-by-Step Selection Mechanics</h3>
+<p class="doc-p">1. <strong>5-Year Growth Leaderboard</strong>: Identify the top 10 schemes in the peer subcategory with the highest verified 5-Year CAGR.</p>
+<p class="doc-p">2. <strong>Since-Inception Growth Leaderboard</strong>: Identify the top 10 schemes in the peer subcategory with the highest verified Since-Inception CAGR.</p>
+<p class="doc-p">3. <strong>Common Intersection</strong>: Find all schemes that appear in <strong>BOTH</strong> top 10 lists (demonstrating both 5-year sustained returns and lifetime compounding). Sort this intersection set by <strong>AUM descending</strong> (largest to smallest).</p>
+<p class="doc-p">4. <strong>Top 3 Star Allocation</strong>:</p>
+<ul class="doc-list">
+<li>If the intersection has 3 or more schemes, the <strong>top 3 by AUM</strong> receive the Star.</li>
+<li><strong>Fallback Rule</strong>: If fewer than 3 schemes qualify in the intersection, the remaining slots (up to 3) are filled from the Top 10 5-Year CAGR leaderboard, ordered by AUM descending.</li>
+<li>Exactly 3 funds (or fewer if the entire subcategory contains fewer than 3 funds) receive the Star Badge in each peer subcategory. All other schemes are designated as non-starred.</li>
+</ul>
+<h3 class="doc-h3">Objective Foundation of the Star</h3>
+<ul class="doc-list">
+<li>The star is strictly rule-based and deterministic. It is <strong>NOT</strong> a commercial endorsement, subjective recommendation, or paid sponsorship.</li>
+<li>The star is determined exclusively by the documented criteria: 5-Year CAGR, Since-Inception CAGR, verified AUM, and top-10 intersection with AUM ordering.</li>
+<li>Other risk metrics (such as Sharpe ratio, Sortino ratio, volatility, or drawdown) are displayed independently for research purposes and do not determine star qualification.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">21. Mutual Fund Performance</h2>
+<p class="doc-p">MarketPulse computes mutual fund returns across 7 standard horizons:</p>
+<p class="doc-p"><strong>1M, 3M, 6M, 1Y, 3Y, 5Y, and ALL (Since Inception)</strong>.</p>
+<h3 class="doc-h3">1. Monthly NAV Return (Ri)</h3>
+<p class="doc-p">Measures the percentage change in net asset value between consecutive month-end valuation dates:</p>
+<pre class="formula-block"><code>                      Month-End NAV(t) − Month-End NAV(t-1)
+Monthly Return (Ri) = ─────────────────────────────────────
+                                Month-End NAV(t-1)</code></pre>
+<h3 class="doc-h3">2. Short-Term Horizons (&lt; 1 Year: 1M, 3M, 6M)</h3>
+<p class="doc-p">Short-term performance is calculated as <strong>Simple Absolute Return</strong>:</p>
+<pre class="formula-block"><code>                     Current NAV − Historical Benchmark NAV
+Absolute Return % = ──────────────────────────────────────── × 100
+                            Historical Benchmark NAV</code></pre>
+<h3 class="doc-h3">3. Long-Term Horizons (≥ 1 Year: 1Y, 3Y, 5Y, ALL)</h3>
+<p class="doc-p">Long-term performance is calculated as <strong>Compound Annual Growth Rate (CAGR)</strong> to reflect the true annualized compounding rate:</p>
+<pre class="formula-block"><code>CAGR % = [ (Current NAV ÷ Historical Benchmark NAV) ^ (365.25 ÷ Number of Days) − 1 ] × 100</code></pre>
+<h3 class="doc-h3">Calendar Mechanics &amp; Precision</h3>
+<ul class="doc-list">
+<li><strong>Leap-Year Normalization</strong>: MarketPulse uses <strong>365.25 days</strong> in the exponent to account accurately for leap years over multi-year horizons.</li>
+<li><strong>Calendar Lookback Windows</strong>:</li>
+<li><em>1M</em>: Exactly 1 calendar month ago (e.g. Aug 12 to Sep 12).</li>
+<li><em>3M</em>: Exactly 3 calendar months ago.</li>
+<li><em>6M</em>: Exactly 6 calendar months ago.</li>
+<li><em>1Y</em>: Exactly 365 calendar days ago.</li>
+<li><em>3Y</em>: Exactly 3 × 365.25 calendar days ago.</li>
+<li><em>5Y</em>: Exactly 5 × 365.25 calendar days ago.</li>
+<li><em>ALL (Since Inception)</em>: Exactly from the fund's official launch date.</li>
+<li><strong>Nearest Prior Trading Day Matching</strong>: If the exact lookback target date fell on a weekend or public market holiday, the engine snaps deterministically to the <strong>nearest valid NAV on or immediately before</strong> that date (never looking forward into the future).</li>
+<li><strong>Tolerance Window</strong>: Snapping is allowed within a maximum tolerance window of 30 calendar days. If no valid NAV exists within that window, the return evaluates to <strong>—</strong>.</li>
+<li><strong>Inception Return Eligibility</strong>: If a scheme has operated for less than 360 calendar days, its <em>ALL</em> column displays simple absolute return; once it crosses 360 days, it transitions automatically to annualized CAGR.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">22. Mutual Fund Risk Metrics</h2>
+<p class="doc-p">MarketPulse computes accounting-grade risk ratios aligned with official Reserve Bank of India (RBI) sovereign benchmarks.</p>
+<h3 class="doc-h3">1. Annualized Volatility (Standard Deviation)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures how much a fund's monthly returns swing around their average. Low volatility indicates a smooth ride; high volatility indicates sharp swings.</li>
+<li><strong>Lookback Window</strong>: Latest <strong>36 monthly NAV returns</strong> (derived from 37 consecutive month-end NAV observations).</li>
+<li><strong>Formulas</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Monthly Volatility (σ_monthly) = √[ Σ (Ri − R̄)² ÷ (N − 1) ]
+
+Annualized Volatility = σ_monthly × √12</code></pre>
+<ul class="doc-list">
+<li><strong>Annualization Factor</strong>: Multiplied by √12 (12 calendar months per year).</li>
+<li><strong>Minimum Requirement</strong>: Minimum 36 monthly returns. Returns — if history is shorter than 3 years.</li>
+</ul>
+<h3 class="doc-h3">2. Sharpe Ratio (3-Year Trailing Primary)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures excess return generated per unit of total risk. A higher Sharpe ratio indicates superior risk compensation.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                R̄_excess,monthly
+Sharpe Ratio = ────────────────── × √12
+                   σ_monthly
+
+where:
+R̄_excess,monthly = (1 ÷ N) × Σ (Ri − Rf,monthly)</code></pre>
+<ul class="doc-list">
+<li><strong>Risk-Free Rate (Rf)</strong>: Sourced from the <strong>RBI 91-Day Treasury Bill</strong> annual yield.</li>
+</ul>
+<pre class="formula-block"><code>Monthly MAR = (1 + Rf,annual) ^ (1 ÷ 12) − 1</code></pre>
+<ul class="doc-list">
+<li><strong>Evaluation Window</strong>: Primary exposure is <strong>3-Year Trailing Sharpe</strong>.</li>
+<li><strong>Since-Inception Fallback</strong>: If a scheme has between 12 and 35 monthly returns, the engine automatically falls back to Since-Inception Sharpe, ensuring newer funds still display verified risk metrics without breaking comparability.</li>
+<li><strong>Missing Data Rule</strong>: Returns — if RBI rate is unverified or NAV history is under 12 months.</li>
+</ul>
+<h3 class="doc-h3">3. Sortino Ratio (Downside Risk Engine)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Similar to Sharpe, but penalizes <strong>ONLY downside losses</strong> below the risk-free rate. It does not penalize good upward volatility.</li>
+<li><strong>Formulas</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                 R̄_excess,monthly
+Sortino Ratio = ─────────────────────────── × √12
+                Downside Deviation_monthly
+
+Downside Deviation_monthly = √[ (1 ÷ N) × Σ min(Ri − Rf,monthly, 0)² ]</code></pre>
+<ul class="doc-list">
+<li><strong>Minimum Acceptable Return (MAR)</strong>: Monthly RBI 91-Day T-Bill rate.</li>
+<li><strong>Downside Only</strong>: Any month where the fund outperformed the T-Bill contributes 0 to the downside penalty.</li>
+</ul>
+<h3 class="doc-h3">4. Beta (Market Sensitivity)</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures how sensitively the fund moves relative to the broad market index (Nifty 50 TRI).</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>         Cov(Rfund, Rmarket)
+Beta = ───────────────────────
+            Var(Rmarket)</code></pre>
+<ul class="doc-list">
+<li><strong>Interpretation</strong>:</li>
+<li><em>Beta = 1.0</em>: The fund tends to move in tandem with the Nifty 50.</li>
+<li><em>Beta &gt; 1.0</em>: The fund is more volatile than the market.</li>
+<li><em>Beta &lt; 1.0</em>: The fund is less volatile and cushions market swings.</li>
+<li><strong>Fallback Value &amp; Integrity Notice</strong>:</li>
+</ul>
+<p class="doc-p">When a fund has fewer than 36 monthly returns or benchmark return series are unavailable, 1.0 may be a fallback value when required benchmark/history data is unavailable. It does not necessarily represent a measured Beta of exactly 1.0. MarketPulse never presents unmeasured fallback values as empirical regressions.</p>
+<h3 class="doc-h3">5. Jensen's Alpha</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Measures the excess return generated by the fund manager above the return predicted by the fund's market risk (Beta).</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Jensen's Alpha = R_fund − [ Rf + Beta × (R_market − Rf) ]</code></pre>
+<ul class="doc-list">
+<li><strong>Practical Meaning</strong>: A positive alpha (e.g. +3.50%) indicates the fund beat its risk-adjusted benchmark by 3.5% per year. Positive historical alpha does not guarantee future outperformance.</li>
+</ul>
+<h3 class="doc-h3">6. Maximum Drawdown</h3>
+<ul class="doc-list">
+<li><strong>Explanation</strong>: Shows the largest historical loss an investor would have experienced from peak to trough.</li>
+<li><strong>Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>                        Lowest NAV Trough − Highest Prior NAV Peak
+Maximum Drawdown % = ──────────────────────────────────────────────── × 100
+                                Highest Prior NAV Peak</code></pre>
+<ul class="doc-list">
+<li><strong>Practical Meaning</strong>: Shows historical worst-case pain. A maximum drawdown of -18.5% means the fund once fell 18.5% from its high before recovering.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">23. Mutual Fund Portfolio Holdings</h2>
+<p class="doc-p">MarketPulse provides verified portfolio transparency for Indian mutual fund schemes, fetching fund stock portfolios, constituent equity holdings, and sector weightings primarily from <strong>FinAPI (Upvaly)</strong> (<code class="inline-code">https://finapi.upvaly.com</code>), supplemented by official AMC monthly disclosures.</p>
+<h3 class="doc-h3">Where Holdings Come From</h3>
+<ul class="doc-list">
+<li><strong>Primary Live Provider: FinAPI (Upvaly)</strong>: Queried dynamically via <code class="inline-code">https://finapi.upvaly.com/api/mf/scheme-code/:schemeCode</code>. It returns authentic constituent stock positions with company names, weight percentages, market values (₹ Cr), and sector allocations.</li>
+<li><strong>Direct AMC Disclosure Supplement</strong>: Official monthly regulatory Excel/CSV portfolio statements published on AMC portals (such as PPFAS, HDFC, ICICI Prudential, and SBI) integrated as an offline cache fallback.</li>
+<li><strong>As-Of Reporting Date</strong>: Clearly extracted from the source disclosure timestamp (e.g. <em>Portfolio as of June 30, 2026</em>).</li>
+</ul>
+<h3 class="doc-h3">Ingestion &amp; Processing Architecture</h3>
+<p class="doc-p">1. <strong>Primary Query</strong>: When a scheme details page or holdings view is requested, the backend service queries FinAPI (Upvaly) for the specified 6-digit AMFI scheme code.</p>
+<p class="doc-p">2. <strong>Payload Normalization</strong>: The API response is parsed for individual holding objects:</p>
+<ul class="doc-list">
+<li><code class="inline-code">name</code>: Official corporate name of the held equity or security.</li>
+<li><code class="inline-code">weightage</code> / <code class="inline-code">weight</code>: Exact percentage allocation within the fund's total portfolio.</li>
+<li><code class="inline-code">marketValue</code>: Disclosed market valuation in ₹ Crores.</li>
+<li><code class="inline-code">sector</code>: Standardized economic sector assigned to the holding.</li>
+</ul>
+<p class="doc-p">3. <strong>Sector Breakdown</strong>: Sector allocations are aggregated directly from the disclosed holdings or ingested from the API's <code class="inline-code">sector_weightings</code> payload.</p>
+<p class="doc-p">4. <strong>Fallback Handling</strong>: If FinAPI (Upvaly) is temporarily unreachable or has not yet cataloged disclosures for a flagship fund, MarketPulse falls back to its local AMC disclosure cache.</p>
+<h3 class="doc-h3">Asset Classes Monitored</h3>
+<p class="doc-p">1. <strong>Indian Listed Equities</strong>: Complete constituent stock positions (e.g. HDFC Bank, ICICI Bank, ITC, Infosys, Reliance Industries).</p>
+<p class="doc-p">2. <strong>Foreign Equities</strong>: Overseas holdings disclosed by international and flexi-cap schemes (e.g. Alphabet Inc., Microsoft Corp., Amazon.com Inc., Meta Platforms Inc.).</p>
+<p class="doc-p">3. <strong>Debt Securities</strong>: Corporate bonds, commercial paper, non-convertible debentures (NCDs), and certificates of deposit (CDs).</p>
+<p class="doc-p">4. <strong>Sovereign Securities</strong>: Government of India dated securities (G-Secs) and State Development Loans (SDLs).</p>
+<p class="doc-p">5. <strong>Cash &amp; Short-Term Assets</strong>: Triparty Repo (TREPS), reverse repo, bank fixed deposits, and net current assets.</p>
+<h3 class="doc-h3">Holding Weight &amp; Ranking Rules</h3>
+<ul class="doc-list">
+<li><strong>Direct Disclosed Weight</strong>: Sourced exactly as reported by FinAPI (Upvaly) and AMC disclosures (e.g. <code class="inline-code">7.55%</code>).</li>
+<li><strong>NO Artificial Renormalization</strong>: MarketPulse NEVER artificially inflates equity holdings to force a 100% total. If equity holdings total 78.4% and cash is 21.6%, the exact reported percentages are displayed without distortion.</li>
+<li><strong>Fund Holding Rank Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Holding Rank = Sort Index in { Fund Portfolio Holdings ordered by Position Weight DESC }</code></pre>
+<ul class="doc-list">
+<li><strong>Fund Sector Allocation Formula</strong>:</li>
+</ul>
+<pre class="formula-block"><code>Sector Allocation % = Σ (Disclosed Position Weights of Holdings belonging to Sector S)</code></pre>
+<h3 class="doc-h3">Holding Rank vs India Stock Rank</h3>
+<ul class="doc-list">
+<li><strong>Holding Rank</strong>: The ranking of that stock <strong>inside that specific fund</strong> (e.g. HDFC Bank is #1 Holding in Fund A at 8.2%).</li>
+<li><strong>India Stock Rank</strong>: The stock's position in the <strong>entire national Indian market cap universe</strong> (e.g. HDFC Bank is #3 nationally in India).</li>
+<li><em>They are completely independent</em>: A mid-cap company ranked #180 nationally could be the #1 largest holding inside a Mid Cap fund.</li>
+</ul>
+<h3 class="doc-h3">Supported Coverage vs Unsupported Schemes</h3>
+<ul class="doc-list">
+<li>MarketPulse queries FinAPI (Upvaly) as the primary holdings provider for all active mutual fund schemes.</li>
+<li>Where FinAPI (Upvaly) or official AMC disclosures provide verified holdings, they are displayed with complete source provenance (<code class="inline-code">FinAPI (Upvaly)</code> or <code class="inline-code">Official AMC Disclosure</code>).</li>
+<li>If neither FinAPI (Upvaly) nor official AMC filings contain disclosed portfolio holdings for a fund, MarketPulse strictly adheres to the <strong>Zero-Fabrication Standard</strong>: the holdings endpoint returns <code class="inline-code">DATA_UNAVAILABLE</code> with an empty position list rather than fabricating mock holdings.</li>
+</ul>
+<h3 class="doc-h3">Scheme AUM vs AMC AUM vs Industry AUM</h3>
+<ul class="doc-list">
+<li><strong>Scheme-Level AUM</strong>: The total asset size of that specific mutual fund scheme (illustrative example: <em>Parag Parikh Flexi Cap Fund manages approximately ₹72,500 Cr as of mid-2026 reporting</em>). This is the number used for all MarketPulse AUM rankings.</li>
+<li><strong>AMC Total AUM</strong>: The aggregate assets managed across all funds by that entire fund house (illustrative example: <em>HDFC AMC manages over ₹6,50,000 Cr across all its schemes as of 2026</em>).</li>
+<li><strong>Industry Total AUM</strong>: The total value of all mutual fund assets in India across all AMCs (illustrative example: <em>over ₹65 Lakh Crores as of mid-2026</em>).</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2">24. Mutual Fund Screener</h2>
+<p class="doc-p">The MarketPulse Mutual Fund Screener enables multi-factor filtering across the active Indian mutual fund universe.</p>
+<h3 class="doc-h3">Screener Direct Range Boundaries (Zero Synthetic Normalization)</h3>
+<p class="doc-p">MarketPulse evaluates all mutual fund filters directly against verified empirical metrics without synthetic scaling or arbitrary scores:</p>
+<pre class="formula-block"><code>minThreshold ≤ Observed Scheme Metric ≤ maxThreshold</code></pre>
+<h3 class="doc-h3">Implemented Mutual Fund Filters</h3>
+<p class="doc-p">1. <strong>Plan Filter</strong>: <code class="inline-code">Direct</code> (default) or <code class="inline-code">Regular</code>.</p>
+<p class="doc-p">2. <strong>Option Filter</strong>: <code class="inline-code">Growth</code> (default) or <code class="inline-code">IDCW</code>.</p>
+<p class="doc-p">3. <strong>AMC Filter</strong>: Filter by fund house (e.g. <em>Parag Parikh</em>, <em>HDFC</em>, <em>SBI</em>, <em>ICICI Prudential</em>, or <code class="inline-code">All</code>).</p>
+<p class="doc-p">4. <strong>Category Filter</strong>: <em>Equity</em>, <em>Debt</em>, <em>Hybrid</em>, <em>Solution Oriented</em>, <em>Other</em>.</p>
+<p class="doc-p">5. <strong>Subcategory Filter</strong>: Granular peer groups (<em>Flexi Cap</em>, <em>Large Cap</em>, <em>Small Cap</em>, <em>Liquid</em>, <em>Balanced Advantage</em>).</p>
+<p class="doc-p">6. <strong>AUM Range (₹ Cr)</strong>: <code class="inline-code">minAumCr</code> and <code class="inline-code">maxAumCr</code>.</p>
+<p class="doc-p">7. <strong>Ranking Ranges</strong>:</p>
+<ul class="doc-list">
+<li>Global AUM Rank range (<code class="inline-code">minGlobalRank</code>, <code class="inline-code">maxGlobalRank</code>)</li>
+<li>Category Rank range (<code class="inline-code">minCategoryRank</code>, <code class="inline-code">maxCategoryRank</code>)</li>
+<li>Subcategory Rank range (<code class="inline-code">minSubcategoryRank</code>, <code class="inline-code">maxSubcategoryRank</code>)</li>
+</ul>
+<p class="doc-p">8. <strong>Expense Ratio Range</strong>: <code class="inline-code">minExpenseRatio</code> and <code class="inline-code">maxExpenseRatio</code>.</p>
+<p class="doc-p">9. <strong>Return Horizons</strong>:</p>
+<ul class="doc-list">
+<li>1-Year Return % range</li>
+<li>3-Year CAGR % range</li>
+<li>5-Year CAGR % range</li>
+<li>Since Inception CAGR % range</li>
+</ul>
+<p class="doc-p">10. <strong>Risk Metrics</strong>:</p>
+<ul class="doc-list">
+<li>Volatility range (<code class="inline-code">minVolatility</code>, <code class="inline-code">maxVolatility</code>)</li>
+<li>Sharpe Ratio range (<code class="inline-code">minSharpe</code>, <code class="inline-code">maxSharpe</code>)</li>
+<li>Sortino Ratio range (<code class="inline-code">minSortino</code>, <code class="inline-code">maxSortino</code>)</li>
+<li>Maximum Drawdown range (<code class="inline-code">minMaxDrawdown</code>, <code class="inline-code">maxMaxDrawdown</code>)</li>
+<li>Beta range (<code class="inline-code">minBeta</code>, <code class="inline-code">maxBeta</code>)</li>
+<li>Alpha range (<code class="inline-code">minAlpha</code>, <code class="inline-code">maxAlpha</code>)</li>
+</ul>
+<p class="doc-p">11. <strong>Portfolio Composition</strong>:</p>
+<ul class="doc-list">
+<li>Holdings Count range (<code class="inline-code">minHoldingsCount</code>, <code class="inline-code">maxHoldingsCount</code>)</li>
+<li>Equity Exposure % range (<code class="inline-code">minEquityPct</code>, <code class="inline-code">maxEquityPct</code>)</li>
+<li>Debt Exposure % range (<code class="inline-code">minDebtPct</code>, <code class="inline-code">maxDebtPct</code>)</li>
+<li>Cash Exposure % range (<code class="inline-code">minCashPct</code>, <code class="inline-code">maxCashPct</code>)</li>
+</ul>
+<h3 class="doc-h3">Screener Output &amp; Labels</h3>
+<p class="doc-p">All matching schemes are labeled neutrally as <em>Matches criteria</em> or <em>Research candidate</em>. The platform never outputs subjective recommendation labels.</p>
+<hr class="doc-divider" />
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="25-mutual-fund-stock-weightage-screener">25. Mutual Fund Stock Weightage Screener</h2>
+<p class="doc-p">The <strong>Stock Weightage Screener</strong> in MarketPulse establishes an institutional market-wide intelligence engine by inverting traditional fund research: instead of analyzing one mutual fund at a time to inspect its constituent holdings, the engine aggregates the Indian mutual fund universe from the <strong>STOCK's perspective</strong>.</p>
+
+<h3 class="doc-h3">1. The Bi-Directional Relational Model</h3>
+<p class="doc-p">Traditional retail mutual fund platforms only provide one-way, fund-centric views (e.g. <em>What does Fund X hold?</em>). Investors, quantitative analysts, and equity researchers seeking institutional ownership intelligence are left unable to evaluate systemic institutional capital commitments.</p>
+<p class="doc-p">MarketPulse implements a <strong>Bi-Directional Relational Architecture</strong>:</p>
+<ul class="doc-list">
+<li><strong>Direction 1: Stock &xrarr; Funds (Institutional Aggregation)</strong>: For any listed equity (e.g. HDFC Bank, Infosys, Reliance, Tata Motors), discover total holding mutual funds (<code class="inline-code">fundsHoldingStock</code>), MF Universe Weightage % (<code class="inline-code">mfUniverseWeightage</code>), total institutional capital deployed across all schemes in &amp;#8377; Crores (<code class="inline-code">totalAumExposureCr</code> / <code class="inline-code">totalHoldingValueCr</code>), mean/max/min portfolio weights, and a paginated manifest of every holding scheme with scheme AUM and position values.</li>
+<li><strong>Direction 2: Fund &xrarr; Stocks (Reverse Scheme Drilldown)</strong>: For any holding mutual fund identified in the screener, launch an instant reverse drilldown to inspect 100% of the fund's complete disclosed portfolio holdings, top 10 equity weights, sector allocations, and cash/debt composition.</li>
+</ul>
+
+<div class="formula-block"><code>&ang;───────────────────────────────────────────────────────────────────────────┐
+│                    BI-DIRECTIONAL RELATIONAL MODEL                        │
+├─────────────────────────────────────────────┬─────────────────────────────┤
+│ 1. STOCK ──> FUNDS (Institutional Screener) │ 2. FUND ──> STOCKS (Lookup) │
+│ For any selected equity:                    │ For any holding scheme:     │
+│ • Total funds holding it (X / 226 funds)    │ • 100% portfolio disclosure │
+│ • MF Universe Weightage (%)                 │ • Top 10 equity weights     │
+│ • Total AUM Exposure (₹ Cr)                 │ • Scheme AUM &amp; Nav details  │
+│ • Average, Min &amp; Max portfolio weights      │ • Sector asset allocation   │
+│ • Paginated holding scheme manifest         │ • Reverse drilldown modal   │
+└─────────────────────────────────────────────┴─────────────────────────────┘</code></div>
+
+<h3 class="doc-h3">2. Authoritative Data Sources &amp; Provenance Model</h3>
+<p class="doc-p">The Stock Weightage Screener synthesizes data from four authoritative market registries and regulatory data pipelines:</p>
+<ul class="doc-list">
+<li><strong>AMFI Active Schemes Master (<code class="inline-code">amfi_active_schemes.json</code>)</strong>: Published by the Association of Mutual Funds in India (AMFI). Comprehensive active registry containing <strong>2,106 active open-ended Direct-Growth scheme records</strong> across <strong>43 Asset Management Companies (AMCs)</strong>. Dynamically evaluated on platform initialization using rule-based classification (<code class="inline-code">isEligibleScreenerFund</code>) without hardcoded AMC whitelists. Filters strictly for the 5 target active equity categories (Large Cap, Mid Cap, Small Cap, Contra, and Value mandates), isolating an authoritative universe of <strong>226 eligible schemes</strong>.</li>
+<li><strong>Statutory Monthly AMC Portfolio Disclosures</strong>: Mandated under Securities and Exchange Board of India (SEBI) regulatory circulars (including SEBI/HO/IMD/DF2/CIR/P/2018/92 and subsequent master circulars). Requires every mutual fund house to publicly disclose full monthly portfolio statements on AMC websites within 10 calendar days of month-end. Ingested via FinAPI (Upvaly) with an automated local verified AMC cache fallback (<code class="inline-code">HoldingsFallbackService.js</code>), covering <strong>211 verified fund portfolios</strong> across 31 unique AMCs.</li>
+<li><strong>National Stock Exchange (NSE) &amp; BSE Security Master Directory</strong>: Merges the official National Stock Exchange of India master directory (<code class="inline-code">EQUITY_L.csv</code>) with 157 Bombay Stock Exchange scrip mappings (<code class="inline-code">bse_scrip_mapping.json</code>) and the Indian equity master (<code class="inline-code">indian_equity_master.json</code>, 12,538 securities). Ingests listed Real Estate Investment Trusts (REITs), Infrastructure Investment Trusts (InvITs), and Exchange Traded Funds (ETFs). Normalizes raw alphanumeric ISIN keys (<code class="inline-code">INE...</code>) into standard, human-readable exchange tickers (e.g. <code class="inline-code">BOSCHLTD</code>, <code class="inline-code">HDFCBANK</code>, <code class="inline-code">INFY</code>).</li>
+<li><strong>Dynamic Stock Market Feeds</strong>: Live and delayed equity market quotes from Yahoo Finance / NSE/BSE feeds. Ingests Last Traded Price (LTP), Day Change %, Market Capitalization (₹ Cr), and 52-week trailing price series used to generate responsive inline SVG sparkline charts.</li>
+</ul>
+
+<h3 class="doc-h3">3. Fund Universe vs. Holdings Coverage (Critical Distinction)</h3>
+<p class="doc-p">Under MarketPulse's strict <strong>Zero-Fabrication Standard</strong>, the engine enforces a mathematical and semantic distinction between the total eligible fund universe and the parsed holdings coverage:</p>
+
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Metric</th>
+<th>Verified Value</th>
+<th>Definition &amp; Regulatory Provenance</th>
+</tr></thead><tbody>
+<tr>
+<td><strong><code class="inline-code">eligibleUniverseFunds</code></strong></td>
+<td><strong>226</strong></td>
+<td>Total active Direct + Growth equity schemes across 43 AMCs in the 5 target categories from the AMFI active schemes directory.</td>
+</tr>
+<tr>
+<td><strong><code class="inline-code">fundsWithVerifiedHoldings</code></strong></td>
+<td><strong>211</strong></td>
+<td>Eligible schemes for which latest statutory monthly portfolio disclosures have been successfully obtained, parsed, and indexed.</td>
+</tr>
+<tr>
+<td><strong><code class="inline-code">holdingsCoveragePct</code></strong></td>
+<td><strong>93.36%</strong></td>
+<td>Systemic coverage ratio: (211 &divide; 226) &times; 100 = 93.36%.</td>
+</tr>
+<tr>
+<td><strong><code class="inline-code">totalUniverseAumCr</code></strong></td>
+<td><strong>₹ 11,50,028.18 Cr</strong></td>
+<td>Sum of latest verified distinct month-end AUM across all 226 eligible funds in the universe (each fund counted exactly once).</td>
+</tr>
+</tbody></table></div>
+
+<p class="doc-p"><strong>Strict UI Denominator Invariant</strong>:</p>
+<ul class="doc-list">
+<li>The UI denominator <code class="inline-code">X / Y funds</code> strictly binds to <code class="inline-code">eligibleUniverseFunds</code> (e.g. <code class="inline-code">101 / 226 funds</code> for HDFC Bank). The system <strong>never</strong> silently replaces 226 with 211.</li>
+<li>The system does <strong>NOT</strong> falsely claim 100% holdings coverage of the 226-fund universe; the verified-holdings coverage of 211 schemes (93.36%) is explicitly surfaced in API metadata and platform diagnostics to prevent misleading investors.</li>
+<li>Funds whose statutory monthly disclosures are pending AMC publication remain in the universe denominator, while their holding count increments only upon verified disclosure parsing.</li>
+</ul>
+
+<h3 class="doc-h3">4. Mathematical Calculations &amp; Invariant Formulas</h3>
+<p class="doc-p">Every metric displayed in the Stock Weightage Screener is computed from mathematically rigorous, deterministic formulas:</p>
+
+<h4 class="doc-h4">1. Mutual Fund Universe Weightage (%)</h4>
+<p class="doc-p">Measures the proportion of the entire mutual fund universe's assets committed to an individual stock:</p>
+<div class="formula-block"><code>                                Total Holding Value (₹ Cr)
+MF Universe Weightage % = ────────────────────────────────────── × 100
+                                Total Universe AUM (₹ Cr)
+
+                                 Σ HoldingMarketValue(f, s)
+                         = ────────────────────────────────────── × 100
+                                 Σ AUM(f) for all f in Universe</code></div>
+<ul class="doc-list">
+<li><strong>Invariant</strong>: The denominator is the <strong>fixed total universe AUM</strong> (₹ 11,50,028.18 Cr for All Funds), <strong>not</strong> merely the AUM of funds holding the stock.</li>
+<li><strong>Example (HDFC Bank Ltd.)</strong>: (₹ 70,959.13 Cr &divide; ₹ 11,50,028.18 Cr) &times; 100 = 6.1702% &rarr; <strong>6.17%</strong>.</li>
+</ul>
+
+<h4 class="doc-h4">2. Total AUM Exposure (₹ Cr) / Total Holding Value</h4>
+<p class="doc-p">Represents the aggregate rupee value (institutional capital deployed) in a specific stock across all mutual fund holdings:</p>
+<div class="formula-block"><code>Total AUM Exposure (₹ Cr) ≡ Total Holding Value (₹ Cr) = Σ HoldingMarketValue(f, s)</code></div>
+<p class="doc-p">Where <code class="inline-code">HoldingMarketValue(f, s)</code> is sourced directly from disclosed rupee valuation or computed as:</p>
+<div class="formula-block"><code>HoldingMarketValue(f, s) = [ Disclosed Position Weight %(f, s) ÷ 100 ] × Scheme AUM(f)</code></div>
+
+<h4 class="doc-h4">3. Number of Funds Holdings</h4>
+<p class="doc-p">The discrete count of unique, distinct eligible Direct + Growth mutual fund schemes holding the security:</p>
+<div class="formula-block"><code>Funds Holding Stock = COUNT( { f ∈ VerifiedSchemes | holds(f, s) } )</code></div>
+<p class="doc-p">Deduplicated across multi-class share holdings or multiple portfolio tranches. Displayed in UI as <code class="inline-code">Funds Holding Stock / eligibleUniverseFunds</code> (e.g. <code class="inline-code">101 / 226 funds</code>).</p>
+
+<h4 class="doc-h4">4. Total Universe AUM (₹ Cr)</h4>
+<p class="doc-p">The sum of verified month-end scheme AUM across all eligible schemes in the selected scope:</p>
+<div class="formula-block"><code>Total Universe AUM (₹ Cr) = Σ AUM(f)   (for every distinct fund f in selected universe)</code></div>
+<p class="doc-p">Each scheme's AUM is counted <strong>exactly once</strong> (strict deduplication). Reconciled All Funds Universe AUM: <strong>₹ 11,50,028.18 Cr</strong>.</p>
+
+<h4 class="doc-h4">5. Average Weightage in Holding Funds (%)</h4>
+<p class="doc-p">The arithmetic mean portfolio weight assigned to the stock exclusively across funds that hold it:</p>
+<div class="formula-block"><code>                              1
+Average Weightage % = ─────────────────── × Σ Disclosed Position Weight %(f, s)
+                      Funds Holding Stock</code></div>
+
+<h4 class="doc-h4">6. Maximum &amp; Minimum Weightage (%)</h4>
+<p class="doc-p">The highest and lowest single-scheme portfolio concentration allocated to the stock among holding funds:</p>
+<div class="formula-block"><code>Max Weightage % = MAX { Disclosed Position Weight %(f, s) }
+Min Weightage % = MIN { Disclosed Position Weight %(f, s) }</code></div>
+
+<h3 class="doc-h3">5. Category Filter Isolation &amp; Mathematical AUM Reconciliation</h3>
+<p class="doc-p">SEBI mandates five primary active equity investment strategies: Large Cap, Mid Cap, Small Cap, Contra, and Value. These categories are <strong>mutually exclusive</strong> under SEBI categorisation rules.</p>
+
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Category</th>
+<th>Mandate Definition (SEBI)</th>
+<th>Eligible Universe (<code class="inline-code">eligibleUniverseFunds</code>)</th>
+<th>Verified Holdings (<code class="inline-code">fundsWithVerifiedHoldings</code>)</th>
+<th>Holdings Coverage (%)</th>
+<th>Total Category Universe AUM (₹ Cr)</th>
+<th>Top Held Stock</th>
+<th>Top Stock Funds Holding</th>
+<th>Top Stock Universe Weight (%)</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Large Cap</strong></td>
+<td>Min 80% in Top 100 stocks</td>
+<td><strong>35</strong></td>
+<td>23</td>
+<td>65.71%</td>
+<td><strong>₹ 2,82,755.23 Cr</strong></td>
+<td>HDFC Bank Ltd. (<code class="inline-code">HDFCBANK</code>)</td>
+<td>20 / 35</td>
+<td><strong>8.69%</strong></td>
+</tr>
+<tr>
+<td><strong>Mid Cap</strong></td>
+<td>Min 65% in 101st–250th stocks</td>
+<td><strong>85</strong></td>
+<td>21</td>
+<td>24.71%</td>
+<td><strong>₹ 3,73,640.72 Cr</strong></td>
+<td>HDFC Bank Ltd. (<code class="inline-code">HDFCBANK</code>)</td>
+<td>15 / 85</td>
+<td><strong>2.36%</strong></td>
+</tr>
+<tr>
+<td><strong>Small Cap</strong></td>
+<td>Min 65% in 251st+ stocks</td>
+<td><strong>65</strong></td>
+<td>16</td>
+<td>24.62%</td>
+<td><strong>₹ 3,53,173.88 Cr</strong></td>
+<td>Atul Limited (<code class="inline-code">ATUL</code>)</td>
+<td>7 / 65</td>
+<td><strong>1.50%</strong></td>
+</tr>
+<tr>
+<td><strong>Contra</strong></td>
+<td>Min 65% in contrarian equities</td>
+<td><strong>4</strong></td>
+<td>1</td>
+<td>25.00%</td>
+<td><strong>₹ 58,957.09 Cr</strong></td>
+<td>Infosys Ltd. (<code class="inline-code">INFY</code>)</td>
+<td>1 / 4</td>
+<td><strong>0.62%</strong></td>
+</tr>
+<tr>
+<td><strong>Value</strong></td>
+<td>Min 65% in value equities</td>
+<td><strong>37</strong></td>
+<td>13</td>
+<td>35.14%</td>
+<td><strong>₹ 81,501.26 Cr</strong></td>
+<td>Infosys Ltd. (<code class="inline-code">INFY</code>)</td>
+<td>8 / 37</td>
+<td><strong>0.78%</strong></td>
+</tr>
+<tr>
+<td><strong>All Funds Universe</strong></td>
+<td><strong>5 Target Active Equity Categories</strong></td>
+<td><strong>226</strong></td>
+<td><strong>211</strong></td>
+<td><strong>93.36%</strong></td>
+<td><strong>₹ 11,50,028.18 Cr</strong></td>
+<td><strong>HDFC Bank Ltd. (<code class="inline-code">HDFCBANK</code>)</strong></td>
+<td><strong>101 / 226</strong></td>
+<td><strong>6.17%</strong></td>
+</tr>
+</tbody></table></div>
+
+<p class="doc-p"><strong>Mathematical Category Reconciliation Proof</strong>:</p>
+<div class="formula-block"><code>Sum of Category AUMs = ₹ 2,82,755.23 Cr (Large Cap)
+                     + ₹ 3,73,640.72 Cr (Mid Cap)
+                     + ₹ 3,53,173.88 Cr (Small Cap)
+                     + ₹   58,957.09 Cr (Contra)
+                     + ₹   81,501.26 Cr (Value)
+                     ─────────────────────────────
+                     = ₹ 11,50,028.18 Cr  (Exact All Funds Universe AUM)
+
+Variance = ₹ 11,50,028.18 Cr − ₹ 11,50,028.18 Cr = ₹ 0.00 Cr (100.00% Exact Parity)
+
+Sum of Schemes = 35 + 85 + 65 + 4 + 37 = 226 Eligible Schemes (100.00% Exact Parity)</code></div>
+
+<p class="doc-p"><strong>Category Isolation Behavior</strong>:</p>
+<ul class="doc-list">
+<li><strong>Isolated Fund Universe</strong>: Holdings are filtered exclusively to schemes belonging to that category.</li>
+<li><strong>Dynamic Denominator Update</strong>: The UI denominator updates from 226 to the category's eligible fund count (e.g. <code class="inline-code">X / 35 funds</code> for Large Cap).</li>
+<li><strong>Independent Weight Recalculation</strong>: <code class="inline-code">totalUniverseAumCr</code> is recalculated strictly from that category's schemes (₹ 2,82,755.23 Cr), and stock weightages reflect their share of that specific category's capital.</li>
+</ul>
+
+<h3 class="doc-h3">6. Security Master Integration &amp; Validated Deduplication</h3>
+<p class="doc-p">To eliminate raw alphanumeric ISIN identifiers (<code class="inline-code">INE...</code>) and resolve duplicate listings, MarketPulse integrated the official National Stock Exchange of India (NSE) master directory (<code class="inline-code">EQUITY_L.csv</code>) merged with 157 BSE scrip mappings and major REIT/InvIT/ETF listings.</p>
+
+<div class="formula-block"><code>  933 Raw Indexed Positions
+− 104 Deduplicated Aliases
+─────────────────────────────
+= 829 Canonical Distinct Securities
+
+829 Canonical Securities = 809 Clean Exchange Tickers + 20 Unlisted / Debt / Commodity Instruments</code></div>
+
+<p class="doc-p"><strong>Deduplication Resolution Logic</strong>:</p>
+<ul class="doc-list">
+<li><strong>ISIN Canonicalization</strong>: Schemes disclosing raw ISINs (e.g. <code class="inline-code">INE323A01026</code>) are matched deterministically to their official exchange ticker (<code class="inline-code">BOSCHLTD</code>).</li>
+<li><strong>Exchange Suffix Truncation</strong>: Positions with <code class="inline-code">.BO</code>, <code class="inline-code">.NS</code>, or <code class="inline-code">.B</code> suffixes (e.g. <code class="inline-code">HDFCBANK.B</code>, <code class="inline-code">INDHOTEL.B</code>) are normalized to their clean root exchange ticker (<code class="inline-code">HDFCBANK</code>, <code class="inline-code">INDHOTEL</code>).</li>
+<li><strong>Zero-Loss Consolidation</strong>: Multiple tranches or share classes of the same corporate issuer are summed across weight percentages and rupee holding values without dropping any scheme holdings.</li>
+</ul>
+
+<h3 class="doc-h3">7. 5-Tier Sector Provenance Hierarchy (Zero-Fabrication Standard)</h3>
+<p class="doc-p">To maintain absolute data integrity and prevent arbitrary sector hallucinations, MarketPulse routes every security through a strict <strong>5-Tier Sector Provenance Hierarchy</strong>:</p>
+
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Tier</th>
+<th>Provenance Source</th>
+<th>Confidence Level</th>
+<th>Canonical Count</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Tier 1</strong></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td><strong>HIGH</strong></td>
+<td>17</td>
+<td>Authoritative exchange scrip classification master (NSE/BSE).</td>
+</tr>
+<tr>
+<td><strong>Tier 2</strong></td>
+<td><code class="inline-code">OFFICIAL_DISCLOSURE</code></td>
+<td><strong>HIGH</strong></td>
+<td>713</td>
+<td>Statutory monthly portfolio disclosures published by AMCs under SEBI mandate.</td>
+</tr>
+<tr>
+<td><strong>Tier 3</strong></td>
+<td><code class="inline-code">VERIFIED_SNAPSHOT</code></td>
+<td><strong>HIGH</strong></td>
+<td>10</td>
+<td>Authoritative industry dataset closing snapshot.</td>
+</tr>
+<tr>
+<td><strong>Tier 4</strong></td>
+<td><code class="inline-code">HEURISTIC_FALLBACK</code></td>
+<td><strong>LOW</strong></td>
+<td>29</td>
+<td>Deterministic keyword pattern matching explicitly flagged with LOW confidence.</td>
+</tr>
+<tr>
+<td><strong>Tier 5</strong></td>
+<td><code class="inline-code">UNMAPPED</code></td>
+<td><strong>NONE</strong></td>
+<td>60</td>
+<td>Preserved strictly as 'Unknown / Unmapped' with zero confidence. No fabricated sectors.</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td></td>
+<td><strong>829</strong></td>
+<td><strong>Total Canonical Distinct Securities</strong></td>
+</tr>
+</tbody></table></div>
+
+<p class="doc-p"><strong>Provenance Invariant Equation</strong>:</p>
+<div class="formula-block"><code>740 High-Confidence Securities + 29 Heuristic Securities + 60 Unmapped Securities = 829 Canonical Securities</code></div>
+<p class="doc-p"><strong>Zero Fabrication</strong>: If a security's sector cannot be authoritatively established, it is tagged as <code class="inline-code">Unknown / Unmapped</code>. MarketPulse never invents a sector to fill an empty cell.</p>
+
+<h3 class="doc-h3">8. Marquee Stock Mathematical Reconciliation Table</h3>
+<p class="doc-p">The following audited reconciliation demonstrates exact mathematical parity across marquee Indian equities evaluated against the All Funds universe (₹ 11,50,028.18 Cr AUM across 226 eligible funds):</p>
+
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Stock Legal Name</th>
+<th>Root Ticker</th>
+<th>Authentic Sector</th>
+<th>Sector Source</th>
+<th>Confidence</th>
+<th>Funds Holding</th>
+<th>Total Holding Value (₹ Cr)</th>
+<th>Total AUM Exposure (₹ Cr)</th>
+<th>MF Universe Weightage (%)</th>
+<th>Exact Mathematical Formula Verification</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>HDFC Bank Ltd.</strong></td>
+<td><code class="inline-code">HDFCBANK</code></td>
+<td><code class="inline-code">Banks</code></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td>HIGH</td>
+<td><strong>101 / 226</strong></td>
+<td>₹ 70,959.13 Cr</td>
+<td>₹ 70,959.13 Cr</td>
+<td><strong>6.17%</strong></td>
+<td>(70,959.13 &divide; 11,50,028.18) &times; 100 = 6.1702% &rarr; <strong>6.17%</strong></td>
+</tr>
+<tr>
+<td><strong>ICICI Bank Ltd.</strong></td>
+<td><code class="inline-code">ICICIBANK</code></td>
+<td><code class="inline-code">Banks</code></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td>HIGH</td>
+<td><strong>86 / 226</strong></td>
+<td>₹ 64,879.33 Cr</td>
+<td>₹ 64,879.33 Cr</td>
+<td><strong>5.64%</strong></td>
+<td>(64,879.33 &divide; 11,50,028.18) &times; 100 = 5.6415% &rarr; <strong>5.64%</strong></td>
+</tr>
+<tr>
+<td><strong>Axis Bank Ltd.</strong></td>
+<td><code class="inline-code">AXISBANK</code></td>
+<td><code class="inline-code">Banks</code></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td>HIGH</td>
+<td><strong>72 / 226</strong></td>
+<td>₹ 38,589.09 Cr</td>
+<td>₹ 38,589.09 Cr</td>
+<td><strong>3.36%</strong></td>
+<td>(38,589.09 &divide; 11,50,028.18) &times; 100 = 3.3555% &rarr; <strong>3.36%</strong></td>
+</tr>
+<tr>
+<td><strong>Reliance Industries Ltd.</strong></td>
+<td><code class="inline-code">RELIANCE</code></td>
+<td><code class="inline-code">Energy &amp; Diversified</code></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td>HIGH</td>
+<td><strong>77 / 226</strong></td>
+<td>₹ 34,470.09 Cr</td>
+<td>₹ 34,470.09 Cr</td>
+<td><strong>3.00%</strong></td>
+<td>(34,470.09 &divide; 11,50,028.18) &times; 100 = 2.9973% &rarr; <strong>3.00%</strong></td>
+</tr>
+<tr>
+<td><strong>Infosys Ltd.</strong></td>
+<td><code class="inline-code">INFY</code></td>
+<td><code class="inline-code">IT - Software</code></td>
+<td><code class="inline-code">EXCHANGE_CLASSIFICATION</code></td>
+<td>HIGH</td>
+<td><strong>93 / 226</strong></td>
+<td>₹ 33,185.38 Cr</td>
+<td>₹ 33,185.38 Cr</td>
+<td><strong>2.89%</strong></td>
+<td>(33,185.38 &divide; 11,50,028.18) &times; 100 = 2.8856% &rarr; <strong>2.89%</strong></td>
+</tr>
+</tbody></table></div>
+
+<h3 class="doc-h3">9. User Interface &amp; Interaction Architecture</h3>
+<p class="doc-p">The Stock Weightage Screener provides a clean, responsive, institutional research interface:</p>
+<ul class="doc-list">
+<li><strong>Navigation Tabs</strong>: <strong>"Most Held Stocks" Tab</strong> (the primary default view, presenting equities sorted descending by Number of Funds Holdings &mdash; <code class="inline-code">fundCount DESC</code>) and <strong>"Sector View" Tab</strong> (aggregates institutional equity commitments by standardized economic sectors, displaying advancing/declining breadth and total rupee exposure per sector).</li>
+<li><strong>Sorting &amp; Filtering Engine</strong>: Instant client-side search filtering across stock tickers, legal company names, and sectors. Sort By options include: Number of Funds Holdings (<code class="inline-code">fundCount DESC</code>, default), MF Universe Weightage (%) (<code class="inline-code">universeWeightPct DESC</code>), Total AUM Exposure (₹ Cr) (<code class="inline-code">holdingValue DESC</code>), Sector (<code class="inline-code">sector ASC</code>), Stock Name (<code class="inline-code">name ASC</code>), and Average Weightage (%) (<code class="inline-code">avgWeightage DESC</code>).</li>
+<li><strong>Bi-Directional Modal Drilldown</strong>: <strong>Stock Detail Panel</strong> (clicking any equity opens a slide-over panel displaying institutional ownership KPIs, weightage distribution brackets &lt;1%, 1&ndash;3%, 3&ndash;5%, &gt;5%, and a paginated list of every holding mutual fund with its scheme AUM, portfolio weight %, and holding market value) and <strong>Fund Portfolio Modal</strong> (clicking any holding scheme opens a complete scheme portfolio modal displaying 100% of the fund's constituent holdings, sector allocations, and top 10 positions).</li>
+</ul>
+
+<h3 class="doc-h3">10. Performance Optimization &amp; Latency Guards</h3>
+<p class="doc-p">To deliver sub-second performance across thousands of securities and funds:</p>
+<ul class="doc-list">
+<li><strong>O(1) Hash Map Lookups</strong>: Master ISIN and ticker resolution dictionaries are indexed into in-memory hash maps on service startup.</li>
+<li><strong>Base Aggregation Memoization</strong>: Category aggregation matrices are memoized with background pre-warming.</li>
+<li><strong>Sector Breakdown Cache</strong>: Memoized <code class="inline-code">getSectorBreakdown()</code> executes in <strong>5.8 ms</strong> (reduced from 180 ms).</li>
+<li><strong>Snapshot Fast-Path &amp; Timeout Guard</strong>: In-memory snapshot check (0.01 ms) combined with a 350 ms timeout guard reduces full screener page loads from <strong>24.6s</strong> to <strong>~360 ms</strong>.</li>
+</ul>
+
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="26-mutual-fund-limitations">26. Mutual Fund Limitations</h2>
+<p class="doc-p">1. <strong>Daily NAV Publication Window</strong>: Official daily NAVs are finalized by AMCs in the evening (between 9:00 PM and 11:00 PM IST). Intraday live NAVs do not exist in mutual funds.</p>
+<p class="doc-p">2. <strong>Monthly Portfolio Reporting Lag</strong>: AMCs disclose complete portfolio holdings once per month (within 10 days of month-end), which are subsequently synchronized into FinAPI (Upvaly) and AMC disclosures. Changes made by fund managers during the active calendar month are not visible until the next official monthly filing.</p>
+<p class="doc-p">3. <strong>AUM Coverage</strong>: Complete verified monthly AUM is integrated for active schemes; newly launched or merging schemes may have temporary reporting gaps.</p>
+<p class="doc-p">4. <strong>Holdings Coverage Boundary</strong>: Constituent stock holdings are fetched via FinAPI (Upvaly) and verified AMC disclosures. Schemes without active disclosures display <code class="inline-code">Data unavailable</code> rather than synthetic holdings.</p>
+<hr class="doc-divider" />
+<h1 class="doc-h1">PART III — SHARED REFERENCE</h1>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="27-dynamic--periodic--calculated--static--manual">27. Dynamic / Periodic / Calculated / Static / Manual</h2>
+<p class="doc-p">Understanding how data is classified on MarketPulse clarifies how often numbers update, where they originate, and how reliable they are.</p>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Data Classification</th>
+<th>Simple Definition</th>
+<th>Concrete Platform Examples</th>
+<th>Update Cadence</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>DYNAMIC</strong></td>
+<td>Live or delayed market feed data depending on the underlying feed that updates during active exchange trading hours.</td>
+<td>Last Traded Price (LTP), Day Change (₹), Day Change %, Traded Volume, Live Sector Advances/Declines.</td>
+<td>Seconds to minutes during 9:15 AM – 3:30 PM IST</td>
+</tr>
+<tr>
+<td><strong>PERIODIC</strong></td>
+<td>Numbers officially released by companies, AMCs, or regulators at fixed, scheduled calendar intervals.</td>
+<td>Daily AMFI NAVs, Monthly Scheme AUM, Monthly Portfolio Holdings, Quarterly Corporate Revenue and Profits.</td>
+<td>Daily (nightly), Monthly (by the 10th), or Quarterly (earnings season)</td>
+</tr>
+<tr>
+<td><strong>CALCULATED</strong></td>
+<td>Figures computed internally by MarketPulse formulas using primary source inputs.</td>
+<td>Same-Quarter Revenue YoY %, 3Y CAGR, Sharpe Ratio, Sortino Ratio, India Stock Rank, Category AUM Rank.</td>
+<td>Recomputed dynamically when underlying primary inputs update</td>
+</tr>
+<tr>
+<td><strong>STATIC</strong></td>
+<td>Permanent or slowly evolving reference metadata identifying the corporate or fund entity.</td>
+<td>Company Legal Name, NSE Symbol, BSE Scrip Code, ISIN, Sector ID, Scheme Inception Date, AMC Name.</td>
+<td>Maintained permanently; updated only upon corporate actions or rebranding</td>
+</tr>
+<tr>
+<td><strong>MANUAL</strong></td>
+<td>Verified administrative mapping dictionaries maintained to ensure cross-exchange integrity.</td>
+<td>BSE Scrip to NSE Symbol mapping registry, sector basket constituent lists.</td>
+<td>Updated by platform administrators upon index rebalances or new IPO listings</td>
+</tr>
+<tr>
+<td><strong>CACHED</strong></td>
+<td>Validated data temporarily stored in fast in-memory storage to ensure sub-second page loads.</td>
+<td>Sector overview summaries, ranked equities lists, mutual fund directory snapshots.</td>
+<td>Automatically warmed and refreshed according to strict background TTL rules</td>
+</tr>
+<tr>
+<td><strong>DATA UNAVAILABLE</strong></td>
+<td>Information that has not been reported by the entity, exchange, or regulator, or is missing.</td>
+<td>Unreported quarterly revenue, loss-making P/E, EBIT for commercial banks, holdings for unsupported funds.</td>
+<td>Displayed strictly as — or Data unavailable; never coerced to zero</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="28-data-source-vs-calculated-data">28. Data Source vs Calculated Data</h2>
+<p class="doc-p">MarketPulse maintains a clear line between data received directly from external feeds and data computed internally by the platform:</p>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Financial Metric</th>
+<th>Primary Source Data Origin</th>
+<th>API / Regulatory Provider</th>
+<th>Calculated by MarketPulse?</th>
+<th>Update Type</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Stock Price (LTP)</strong></td>
+<td>Direct exchange market feed</td>
+<td>Yahoo Finance API (live / delayed feed)</td>
+<td>No (Direct)</td>
+<td>Dynamic</td>
+</tr>
+<tr>
+<td><strong>Previous Close</strong></td>
+<td>Prior session closing price</td>
+<td>Yahoo Finance API</td>
+<td>No (Direct)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Market Capitalization</strong></td>
+<td>Share price × Total shares</td>
+<td>Yahoo Finance / Exchange</td>
+<td>Yes (Unit normalized to ₹ Cr)</td>
+<td>Dynamic</td>
+</tr>
+<tr>
+<td><strong>India Stock Rank</strong></td>
+<td>Market Cap ranking across India</td>
+<td>MarketPulse Ranking Engine</td>
+<td>Yes (Sorted MCap DESC)</td>
+<td>Dynamic / Daily</td>
+</tr>
+<tr>
+<td><strong>Quarterly Revenue</strong></td>
+<td>Corporate financial filing / disclosure</td>
+<td>BSE Filings / Yahoo Finance</td>
+<td>No (Direct in ₹ Cr)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Revenue YoY %</strong></td>
+<td>Current &amp; prior same-quarter revenue</td>
+<td>MarketPulse Financial Engine</td>
+<td>Yes (Same-quarter formula)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Reported EBIT (₹ Cr)</strong></td>
+<td>Revenue × Operating Margin</td>
+<td>MarketPulse Accounting Engine</td>
+<td>Yes (Rev × Margin ÷ 10^7)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Operating Margin %</strong></td>
+<td>Corporate income statement</td>
+<td>BSE Filings / Corporate report</td>
+<td>No (Direct ratio)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Net Profit (₹ Cr)</strong></td>
+<td>Corporate income statement</td>
+<td>BSE Filings / Corporate report</td>
+<td>No (Direct in ₹ Cr)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Net Profit YoY %</strong></td>
+<td>Current &amp; prior same-quarter profit</td>
+<td>MarketPulse Financial Engine</td>
+<td>Yes (Same-quarter formula)</td>
+<td>Periodic (Quarterly)</td>
+</tr>
+<tr>
+<td><strong>Stock Price Returns</strong></td>
+<td>Historical closing price series</td>
+<td>MarketPulse Return Engine</td>
+<td>Yes (1W, 1M, 6M, 1Y, 3Y, 5Y, ALL)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>52-Week Recovery %</strong></td>
+<td>Current price and 52W low</td>
+<td>MarketPulse Financial Engine</td>
+<td>Yes ((LTP − 52W Low) ÷ 52W Low)</td>
+<td>Dynamic</td>
+</tr>
+<tr>
+<td><strong>ATH Drawdown %</strong></td>
+<td>Current price and all-time high</td>
+<td>MarketPulse Financial Engine</td>
+<td>Yes ((LTP − ATH) ÷ ATH)</td>
+<td>Dynamic</td>
+</tr>
+<tr>
+<td><strong>Mutual Fund NAV</strong></td>
+<td>Official daily NAV feed</td>
+<td>AMFI Official Portal</td>
+<td>No (Direct)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Scheme AUM (₹ Cr)</strong></td>
+<td>Monthly AMC regulatory disclosure</td>
+<td>FinAPI (Upvaly) / AMC Factsheet</td>
+<td>Yes (Normalized to ₹ Cr)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Global MF Rank</strong></td>
+<td>Scheme AUM across all funds</td>
+<td>MarketPulse Ranking Engine</td>
+<td>Yes (Sorted AUM DESC)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Category MF Rank</strong></td>
+<td>Scheme AUM within broad category</td>
+<td>MarketPulse Ranking Engine</td>
+<td>Yes (Sorted AUM DESC in Cat)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Subcategory MF Rank</strong></td>
+<td>Scheme AUM within peer subcategory</td>
+<td>MarketPulse Ranking Engine</td>
+<td>Yes (Sorted AUM DESC in Sub)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Star Marking (★)</strong></td>
+<td>5Y CAGR, Inception CAGR, AUM</td>
+<td>MarketPulse Star Engine</td>
+<td>Yes (3-Way Intersection Rule)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Fund Returns &amp; CAGR</strong></td>
+<td>Historical NAV time series</td>
+<td>MarketPulse Return Engine</td>
+<td>Yes (Absolute &amp; Annualized)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Fund Volatility</strong></td>
+<td>36-month NAV returns</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Monthly std dev × sqrt(12))</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Sharpe Ratio</strong></td>
+<td>NAV returns &amp; RBI 91D T-Bill</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Trailing 3Y excess return)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Sortino Ratio</strong></td>
+<td>NAV returns &amp; RBI 91D T-Bill</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Trailing 3Y downside dev)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Beta</strong></td>
+<td>Fund returns vs Nifty 50 TRI</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Covariance ÷ Variance)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Jensen's Alpha</strong></td>
+<td>Fund return, Beta, Benchmark</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Alpha formulation)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Maximum Drawdown</strong></td>
+<td>Full historical NAV series</td>
+<td>MarketPulse Risk Engine</td>
+<td>Yes (Peak-to-trough drop)</td>
+<td>Periodic (Daily)</td>
+</tr>
+<tr>
+<td><strong>Portfolio Holdings</strong></td>
+<td>Monthly fund stock portfolio</td>
+<td>FinAPI (Upvaly) / AMC Disclosures</td>
+<td>No (Direct)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Holding Weight %</strong></td>
+<td>Monthly fund stock portfolio</td>
+<td>FinAPI (Upvaly) / AMC Disclosures</td>
+<td>No (Direct reported %)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Sector Allocation %</strong></td>
+<td>Disclosed sector weights</td>
+<td>FinAPI (Upvaly) / AMC Disclosures</td>
+<td>Yes (Aggregated)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Fund P/E and P/B</strong></td>
+<td>Disclosed portfolio multiples</td>
+<td>FinAPI (Upvaly)</td>
+<td>No (Direct)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>MF Universe Weightage %</strong></td>
+<td>Disclosed fund holdings &amp; Universe AUM</td>
+<td>MarketPulse Stock Weightage Engine</td>
+<td>Yes (Holding Value &divide; Universe AUM)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Total AUM Exposure (₹ Cr)</strong></td>
+<td>Disclosed fund holdings &amp; Scheme AUM</td>
+<td>MarketPulse Stock Weightage Engine</td>
+<td>Yes (Sum of Holding Values across funds)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Number of Funds Holdings</strong></td>
+<td>Disclosed mutual fund portfolios</td>
+<td>MarketPulse Stock Weightage Engine</td>
+<td>Yes (Count of distinct holding funds)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Eligible Universe Funds</strong></td>
+<td>AMFI Active Schemes Master</td>
+<td>MarketPulse Fund Discovery Engine</td>
+<td>Yes (Direct-Growth in 5 target categories)</td>
+<td>Periodic (Daily/Monthly)</td>
+</tr>
+<tr>
+<td><strong>Funds with Verified Holdings</strong></td>
+<td>Statutory AMC portfolio disclosures</td>
+<td>MarketPulse Ingestion Pipeline</td>
+<td>Yes (Count of schemes with parsed holdings)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Holdings Coverage %</strong></td>
+<td>Verified holdings &amp; Eligible universe</td>
+<td>MarketPulse Audit Engine</td>
+<td>Yes ((Verified Funds &divide; Eligible Funds) &times; 100)</td>
+<td>Periodic (Monthly)</td>
+</tr>
+<tr>
+<td><strong>Stock Sector Provenance</strong></td>
+<td>Exchange masters &amp; AMC disclosures</td>
+<td>MarketPulse 5-Tier Provenance Engine</td>
+<td>Yes (Tier 1-5 hierarchical classification)</td>
+<td>Periodic (Monthly/Dynamic)</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="29-as-of-date-vs-update-date">29. As-Of Date vs Update Date</h2>
+<p class="doc-p">A fundamental concept on MarketPulse is the difference between an <strong>As-Of Date</strong> and an <strong>Updated / Fetched Date</strong>:</p>
+<ul class="doc-list">
+<li><strong>As-Of Date</strong>: The official financial date that the number actually represents.</li>
+<li><strong>Updated / Fetched Date</strong>: The date and time when MarketPulse fetched, verified, and refreshed the number in its system.</li>
+</ul>
+<h3 class="doc-h3">Concrete Real-World Examples</h3>
+<p class="doc-p">1. <strong>Quarterly Revenue</strong>:</p>
+<ul class="doc-list">
+<li><em>As-Of Date</em>: June 30, 2026 (the final day of the financial quarter being reported).</li>
+<li><em>Fetched Date</em>: August 10, 2026 (the day the company filed its results with the exchange and MarketPulse updated its database).</li>
+</ul>
+<p class="doc-p">2. <strong>Mutual Fund Portfolio Holdings</strong>:</p>
+<ul class="doc-list">
+<li><em>As-Of Date</em>: June 30, 2026 (the snapshot date of the fund's actual holdings).</li>
+<li><em>Fetched Date</em>: July 10, 2026 (the day the AMC published its monthly portfolio disclosure spreadsheet).</li>
+</ul>
+<p class="doc-p">3. <strong>Mutual Fund NAV</strong>:</p>
+<ul class="doc-list">
+<li><em>As-Of Date</em>: September 11, 2026 (the trading session represented by the NAV).</li>
+<li><em>Fetched Date</em>: September 11, 2026 at 10:15 PM IST (the moment AMFI published the data).</li>
+</ul>
+<p class="doc-p">Users should always look at the <strong>As-Of Date</strong> to know what reporting period a financial metric reflects.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="30-missing-data">30. Missing Data</h2>
+<p class="doc-p">MarketPulse operates under an institutional <strong>Zero-Fabrication Standard</strong>.</p>
+<h3 class="doc-h3">The Golden Rule: Missing Data Is Never Zero</h3>
+<pre class="formula-block"><code>Missing Data ≠ 0</code></pre>
+<ul class="doc-list">
+<li>If a company's revenue has not been filed: it is <strong>NOT</strong> ₹0.</li>
+<li>If a stock has no debt: its debt is 0. But if debt data is unreported: it is <strong>NOT</strong> 0.</li>
+<li>If a mutual fund is less than 3 years old: its 3-year CAGR does <strong>NOT</strong> exist. It is <strong>NOT</strong> 0.00%.</li>
+<li>If a bank has no operating income: it is <strong>NOT</strong> ₹0 EBIT. Interest expense makes EBIT non-applicable.</li>
+</ul>
+<h3 class="doc-h3">Concrete Presentation Rules</h3>
+<p class="doc-p">1. <strong>The Em-Dash (—)</strong>: Whenever a data point is missing, unreported, mathematically non-computable, or unverified, it is strictly displayed as <strong>—</strong>.</p>
+<p class="doc-p">2. <strong>Data Unavailable</strong>: In portfolio holdings and factsheet panels, schemes without official AMC filing integration clearly display <strong>Data unavailable</strong>.</p>
+<p class="doc-p">3. <strong>No Synthetic Fillers</strong>: MarketPulse never generates synthetic stock prices, estimated revenues, placeholder PE ratios, or fake portfolio holdings.</p>
+<p class="doc-p">4. <strong>Screener Safety</strong>: Missing values are excluded from numeric range filters. For example, filtering for <code class="inline-code">P/E &lt; 25</code> will not include companies with missing P/E or negative earnings.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="31-formula-reference">31. Formula Reference</h2>
+<p class="doc-p">The master mathematical formula reference table for all calculated metrics across MarketPulse:</p>
+<div class="table-container"><table class="data-table"><thead><tr>
+<th>Metric</th>
+<th>Exact Mathematical Formula</th>
+<th>Inputs</th>
+<th>Frequency</th>
+<th>Calculation Type</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Day Change (₹)</strong></td>
+<td>P<sub>current</sub> &minus; P<sub>prev_close</sub></td>
+<td>Current Share Price (LTP), Previous Day Close Price</td>
+<td>Real-Time / Dynamic (Market Hours)</td>
+<td>Absolute Price Difference</td>
+</tr>
+<tr>
+<td><strong>Day Change %</strong></td>
+<td>[ (P<sub>current</sub> &minus; P<sub>prev_close</sub>) &divide; P<sub>prev_close</sub> ] &times; 100</td>
+<td>Current Share Price (LTP), Previous Day Close Price</td>
+<td>Real-Time / Dynamic (Market Hours)</td>
+<td>Percentage Return</td>
+</tr>
+<tr>
+<td><strong>Market Capitalization (Market Cap)</strong></td>
+<td>(Current Share Price &times; Total Outstanding Shares) &divide; 10,000,000</td>
+<td>Current Share Price (LTP), Total Outstanding Shares</td>
+<td>Real-Time / Dynamic</td>
+<td>Total Equity Valuation (₹ Cr)</td>
+</tr>
+<tr>
+<td><strong>Revenue YoY %</strong></td>
+<td>[ (Revenue<sub>current_qtr</sub> &minus; Revenue<sub>prior_year_same_qtr</sub>) &divide; |Revenue<sub>prior_year_same_qtr</sub>| ] &times; 100</td>
+<td>Current Quarter Revenue from Operations, Same Quarter Prior Fiscal Year Revenue</td>
+<td>Quarterly (Earnings Disclosures)</td>
+<td>Same-Quarter Year-over-Year Growth</td>
+</tr>
+<tr>
+<td><strong>Net Profit YoY %</strong></td>
+<td>[ (Net Profit<sub>current_qtr</sub> &minus; Net Profit<sub>prior_year_same_qtr</sub>) &divide; |Net Profit<sub>prior_year_same_qtr</sub>| ] &times; 100</td>
+<td>Current Quarter Net Profit After Tax, Same Quarter Prior Fiscal Year Net Profit After Tax</td>
+<td>Quarterly (Earnings Disclosures)</td>
+<td>Same-Quarter Year-over-Year Growth</td>
+</tr>
+<tr>
+<td><strong>P/E Ratio</strong></td>
+<td>Current Share Price &divide; Trailing 12-Month Diluted EPS</td>
+<td>Current Share Price (LTP), TTM Diluted EPS (Sum of last 4 quarters; &mdash; if &le; 0)</td>
+<td>Real-Time / Dynamic</td>
+<td>Valuation Multiple</td>
+</tr>
+<tr>
+<td><strong>P/B Ratio</strong></td>
+<td>Current Share Price &divide; Book Value Per Share</td>
+<td>Current Share Price (LTP), Most Recent Reported Book Value Per Share (&mdash; if &le; 0)</td>
+<td>Real-Time / Dynamic</td>
+<td>Valuation Multiple</td>
+</tr>
+<tr>
+<td><strong>Dividend Yield %</strong></td>
+<td>(Annual Cash Dividend Per Share &divide; Current Share Price) &times; 100</td>
+<td>Trailing 12-Month Cash Dividends Per Share, Current Share Price (LTP)</td>
+<td>Real-Time / Dynamic</td>
+<td>Income Yield Percentage</td>
+</tr>
+<tr>
+<td><strong>Stock Price Return %</strong></td>
+<td>[ (P<sub>t</sub> &minus; P<sub>t0</sub>) &divide; P<sub>t0</sub> ] &times; 100</td>
+<td>Current Adjusted Share Price (P<sub>t</sub>), Historical Benchmark Price (P<sub>t0</sub>)</td>
+<td>Periodic / Lookback Horizons (1W, 1M, 3M, 6M, 1Y, 3Y, 5Y, ALL)</td>
+<td>Historical Price Appreciation</td>
+</tr>
+<tr>
+<td><strong>Reported EBIT (₹ Cr)</strong></td>
+<td>(TTM Total Revenue &times; TTM Operating Margin %) &divide; 10,000,000</td>
+<td>TTM Revenue, TTM Operating Margin (Suppressed for Banks &amp; Financials)</td>
+<td>Quarterly / TTM</td>
+<td>Accounting Operating Profit</td>
+</tr>
+<tr>
+<td><strong>Operating Margin %</strong></td>
+<td>(Reported EBIT &divide; Revenue from Operations) &times; 100</td>
+<td>Reported EBIT, Core Revenue from Operations (Suppressed for Banks)</td>
+<td>Quarterly / TTM</td>
+<td>Operational Profitability Ratio</td>
+</tr>
+<tr>
+<td><strong>Net Profit Margin %</strong></td>
+<td>(Net Profit After Tax &divide; Revenue from Operations) &times; 100</td>
+<td>Net Profit After Tax, Revenue from Operations</td>
+<td>Quarterly / TTM</td>
+<td>Bottom-Line Profitability Ratio</td>
+</tr>
+<tr>
+<td><strong>52W Low Recovery %</strong></td>
+<td>[ (Current Price &minus; 52W Low) &divide; 52W Low ] &times; 100</td>
+<td>Current Share Price, Rolling 52-Week Lowest Close</td>
+<td>Real-Time / Dynamic</td>
+<td>Technical Momentum Indicator</td>
+</tr>
+<tr>
+<td><strong>ATH Drawdown %</strong></td>
+<td>[ (Current Price &minus; All-Time High) &divide; All-Time High ] &times; 100</td>
+<td>Current Share Price, Lifetime Inception Peak Price</td>
+<td>Real-Time / Dynamic</td>
+<td>Peak-to-Current Drawdown</td>
+</tr>
+<tr>
+<td><strong>Fund Absolute Return % (&lt; 1Y)</strong></td>
+<td>[ (NAV<sub>current</sub> &minus; NAV<sub>past</sub>) &divide; NAV<sub>past</sub> ] &times; 100</td>
+<td>Latest AMFI Published NAV, Historical Benchmark NAV (Holding Period &lt; 1 Year / 360 Days)</td>
+<td>Daily (Post-Market Close)</td>
+<td>Point-to-Point NAV Return</td>
+</tr>
+<tr>
+<td><strong>Fund CAGR % (&ge; 1Y)</strong></td>
+<td>[ (NAV<sub>current</sub> &divide; NAV<sub>past</sub>)<sup>(365.25 &divide; Days)</sup> &minus; 1 ] &times; 100</td>
+<td>Latest AMFI NAV, Historical Benchmark NAV, Elapsed Calendar Days (Days &ge; 360)</td>
+<td>Daily (Post-Market Close)</td>
+<td>Compound Annual Growth Rate</td>
+</tr>
+<tr>
+<td><strong>Monthly NAV Return (R<sub>i</sub>)</strong></td>
+<td>(NAV<sub>t</sub> &minus; NAV<sub>t&minus;1</sub>) &divide; NAV<sub>t&minus;1</sub></td>
+<td>Consecutive Official Month-End AMFI NAV Observations (t and t&minus;1)</td>
+<td>Monthly Series</td>
+<td>Monthly Discrete Return</td>
+</tr>
+<tr>
+<td><strong>Monthly MAR / Risk-Free Rate (R<sub>f,monthly</sub>)</strong></td>
+<td>(1 + R<sub>f,annual</sub>)<sup>(1 &divide; 12)</sup> &minus; 1</td>
+<td>Official Annualized RBI 91-Day Treasury Bill Cutoff Yield (R<sub>f,annual</sub>)</td>
+<td>Monthly / Benchmark Reset</td>
+<td>Decompounded Monthly Hurdle Rate</td>
+</tr>
+<tr>
+<td><strong>Annualized Volatility (&sigma;<sub>ann</sub>)</strong></td>
+<td>&sigma;<sub>monthly</sub> &times; &radic;12, where &sigma;<sub>monthly</sub> = &radic;[ (1 &divide; (N &minus; 1)) &times; &Sigma; (R<sub>i</sub> &minus; R̄)<sup>2</sup> ]</td>
+<td>Trailing 36 Consecutive Monthly NAV Returns (N = 36; minimum 36 months required)</td>
+<td>Daily / Rolling Monthly Series</td>
+<td>Annualized Statistical Dispersion</td>
+</tr>
+<tr>
+<td><strong>Sharpe Ratio</strong></td>
+<td>[ (R̄<sub>fund</sub> &minus; R̄<sub>f,monthly</sub>) &divide; &sigma;<sub>monthly</sub> ] &times; &radic;12</td>
+<td>Trailing 36 Monthly NAV Returns, Monthly MAR (RBI 91-Day T-Bill), Monthly Volatility</td>
+<td>Daily / Rolling 36-Month Series</td>
+<td>Total Risk-Adjusted Excess Return</td>
+</tr>
+<tr>
+<td><strong>Downside Deviation (&sigma;<sub>down</sub>)</strong></td>
+<td>&radic;[ (1 &divide; N) &times; &Sigma; min(R<sub>i</sub> &minus; R<sub>f,monthly</sub>, 0)<sup>2</sup> ]</td>
+<td>Trailing 36 Monthly NAV Returns, Monthly MAR (RBI 91-Day T-Bill Hurdle)</td>
+<td>Daily / Rolling 36-Month Series</td>
+<td>Semi-Variance Downside Volatility</td>
+</tr>
+<tr>
+<td><strong>Sortino Ratio</strong></td>
+<td>[ (R̄<sub>fund</sub> &minus; R̄<sub>f,monthly</sub>) &divide; &sigma;<sub>down</sub> ] &times; &radic;12</td>
+<td>Trailing 36 Monthly NAV Returns, Monthly MAR, Monthly Downside Deviation</td>
+<td>Daily / Rolling 36-Month Series</td>
+<td>Harmful Risk-Adjusted Excess Return</td>
+</tr>
+<tr>
+<td><strong>Beta (&beta;)</strong></td>
+<td>Covariance(R<sub>fund</sub>, R<sub>market</sub>) &divide; Variance(R<sub>market</sub>)</td>
+<td>36 Monthly Fund Returns, 36 Monthly Benchmark Returns (Nifty 50 TRI; neutral 1.0 fallback if missing)</td>
+<td>Monthly (Trailing 36 Months)</td>
+<td>Systematic Market Sensitivity</td>
+</tr>
+<tr>
+<td><strong>Jensen's Alpha (&alpha;)</strong></td>
+<td>R<sub>fund</sub> &minus; [ R<sub>f</sub> + &beta; &times; (R<sub>market</sub> &minus; R<sub>f</sub>) ]</td>
+<td>Annualized Fund CAGR, Annualized Benchmark CAGR (Nifty 50 TRI), Systematic Beta (&beta;), Risk-Free Rate (R<sub>f</sub>)</td>
+<td>Monthly (Trailing 36 Months)</td>
+<td>Excess Risk-Adjusted Manager Performance</td>
+</tr>
+<tr>
+<td><strong>Maximum Drawdown % (MDD)</strong></td>
+<td>min<sub>t</sub> { [ NAV<sub>t</sub> &minus; max<sub>s&le;t</sub>(NAV<sub>s</sub>) ] &divide; max<sub>s&le;t</sub>(NAV<sub>s</sub>) } &times; 100</td>
+<td>Full Historical Inception-to-Date Daily AMFI NAV Series</td>
+<td>Daily (Rolling Lifetime NAV Series)</td>
+<td>Peak-to-Trough Capital Loss</td>
+</tr>
+<tr>
+<td><strong>India Stock Rank (indiaStockRank)</strong></td>
+<td>Dense Rank (1 .. N) ordered by Market Capitalization DESC</td>
+<td>Full Market Capitalization across all 12,536 listed Indian equities on NSE &amp; BSE</td>
+<td>Real-Time / Daily Close</td>
+<td>National Equity Market Rank</td>
+</tr>
+<tr>
+<td><strong>India MF AUM Rank (indiaMfRank)</strong></td>
+<td>Rank (1 .. N) ordered by Scheme-Level AUM DESC (Strictly excluding AAUM)</td>
+<td>Authoritative Month-End Scheme-Level AUM across active Direct-Growth mutual fund schemes</td>
+<td>Monthly (Post AMC / AMFI Disclosures)</td>
+<td>National Mutual Fund AUM Rank</td>
+</tr>
+<tr>
+<td><strong>Fund Holding Rank</strong></td>
+<td>Rank (1 .. K) ordered by Disclosed Holding Weight % DESC</td>
+<td>Disclosed Portfolio Holding Weights (FinAPI / Official AMC Monthly Disclosures)</td>
+<td>Monthly (Post Portfolio Disclosures)</td>
+<td>Portfolio Weight Position Rank</td>
+</tr>
+<tr>
+<td><strong>Sector Allocation %</strong></td>
+<td>&Sigma; (Holding Weight<sub>i</sub>) for all stocks i where Sector<sub>i</sub> = Sector S</td>
+<td>Underlying Portfolio Equity Holdings, Official Stock Sector Classifications</td>
+<td>Monthly (Post Portfolio Ingestion)</td>
+<td>Portfolio Sector Breakdown Percentage</td>
+</tr>
+<tr>
+<td><strong>MF Star Allocation (&starf; Gold Star)</strong></td>
+<td>Top 3 by Authoritative AUM in { Top 10 by 5Y CAGR &cap; Top 10 by Inception CAGR }</td>
+<td>5-Year CAGR (&ge; 5Y history), Inception CAGR, Authoritative Scheme AUM (Direct-Growth peers)</td>
+<td>Daily (Updated with Official NAV &amp; Monthly AUM)</td>
+<td>Subcategory Gold Star Designation</td>
+</tr>
+<tr>
+<td><strong>MF Universe Weightage %</strong></td>
+<td>[ Total Holding Value (₹ Cr) &divide; Total Universe AUM (₹ Cr) ] &times; 100</td>
+<td>Disclosed Portfolio Holding Values, Total AUM across all 226 eligible funds (₹ 11,50,028.18 Cr for All Funds)</td>
+<td>Monthly (Post Portfolio Disclosures)</td>
+<td>Institutional Equity Allocation %</td>
+</tr>
+<tr>
+<td><strong>Total AUM Exposure (₹ Cr)</strong></td>
+<td>&Sigma; (Holding Market Value<sub>f</sub>) for all holding funds f</td>
+<td>Disclosed Portfolio Holding Values or (Position Weight % &times; Scheme AUM) across all holding funds</td>
+<td>Monthly (Post Portfolio Disclosures)</td>
+<td>Aggregate Capital Exposure (₹ Cr)</td>
+</tr>
+<tr>
+<td><strong>Number of Funds Holdings</strong></td>
+<td>COUNT(DISTINCT fundId) for all schemes holding stock</td>
+<td>Disclosed Portfolio Constituent Lists across 211 verified schemes (evaluated as X / 226 funds)</td>
+<td>Monthly (Post Portfolio Disclosures)</td>
+<td>Institutional Breadth Metric</td>
+</tr>
+<tr>
+<td><strong>Total Universe AUM (₹ Cr)</strong></td>
+<td>&Sigma; AUM(f) for all distinct funds f in Eligible Category Universe</td>
+<td>Official Month-End Scheme AUM across all eligible Direct-Growth funds in scope (counted exactly once)</td>
+<td>Monthly (Post AMC Disclosures)</td>
+<td>Aggregate Universe Denominator</td>
+</tr>
+<tr>
+<td><strong>Holdings Coverage %</strong></td>
+<td>[ Funds with Verified Holdings &divide; Eligible Universe Funds ] &times; 100</td>
+<td>Verified Holdings Count (211), Total Eligible Schemes in Target Categories (226)</td>
+<td>Monthly (Post Pipeline Ingestion)</td>
+<td>Portfolio Data Transparency Metric</td>
+</tr>
+<tr>
+<td><strong>Average Weightage in Holding Funds %</strong></td>
+<td>(1 &divide; Funds Holding Stock) &times; &Sigma; (Holding Weight<sub>f</sub> %)</td>
+<td>Disclosed Position Weights in all schemes holding the stock</td>
+<td>Monthly (Post Portfolio Disclosures)</td>
+<td>Mean Institutional Allocation %</td>
+</tr>
+</tbody></table></div>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="32-data-quality">32. Data Quality</h2>
+<h3 class="doc-h3">The Zero-Fabrication Rulebook</h3>
+<p class="doc-p">MarketPulse never intentionally creates fake financial numbers.</p>
+<ul class="doc-list">
+<li><strong>No fake stock prices</strong>: Missing quotes evaluate strictly to —.</li>
+<li><strong>No fake revenue or profit</strong>: If an earnings release is delayed or unavailable, the quarterly cells display —.</li>
+<li><strong>No fake NAVs</strong>: NAVs update solely upon AMFI publication.</li>
+<li><strong>No fake AUM</strong>: Scheme scale reflects official AMC disclosures.</li>
+<li><strong>No fake holdings</strong>: Unsupported mutual fund holdings display <em>Data unavailable</em>.</li>
+<li><strong>No fake rankings</strong>: Unranked securities display —.</li>
+<li><strong>No fake star ratings</strong>: MarketPulse only awards stars based on verified 5Y and Inception CAGR and reported AUM.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="33-research-interpretation">33. Research Interpretation</h2>
+<h3 class="doc-h3">How to Interpret MarketPulse Data Responsibly</h3>
+<p class="doc-p">1. <strong>Combine Fundamentals with Valuation</strong>: A company ranked #1 or with +40% Revenue YoY is not automatically an attractive purchase. Users must examine its valuation multiples (P/E, P/B, EV/EBITDA) and debt burden.</p>
+<p class="doc-p">2. <strong>Examine Both Returns and Risk</strong>: High 3-Year CAGR means little if accompanied by high volatility and severe drawdowns. Always cross-reference returns with Sharpe and Sortino ratios.</p>
+<p class="doc-p">3. <strong>Respect Scheme Mandates</strong>: A Small Cap fund will naturally exhibit higher volatility and larger drawdowns than a Large Cap or Balanced Advantage fund. Compare funds only within their direct peer group.</p>
+<p class="doc-p">4. <strong>Beware of Short Track Records</strong>: A mutual fund with only 1 year of history may have benefited from a temporary market cycle. Prefer funds with verified 3-Year and 5-Year CAGR records.</p>
+<p class="doc-p">5. <strong>Notice the Star Badge (★)</strong>: The Gold Star in mutual funds highlights schemes with dual long-term excellence (both 5-year and lifetime top 10 performance) backed by substantial institutional AUM.</p>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="34-complete-glossary">34. Complete Glossary</h2>
+<ul class="doc-list">
+<li><strong>AAUM (Average Assets Under Management)</strong>: The arithmetic average of a mutual fund scheme's daily net asset values over a calendar month or quarter. In MarketPulse, AAUM is strictly isolated into <code class="inline-code">aaumCr</code> and is NEVER conflated with, displayed inside, or substituted for month-end scheme AUM (<code class="inline-code">aumCr</code>) or used in AUM rankings.</li>
+<li><strong>All-Time High (ATH)</strong>: The highest traded market price an equity or index has achieved throughout its entire historical existence on the exchange.</li>
+<li><strong>Alpha (Jensen's Alpha)</strong>: The risk-adjusted excess return generated by an active portfolio manager over and above the return expected under the Capital Asset Pricing Model (CAPM) given the scheme's systematic market risk (Beta).</li>
+<li><strong>AMC (Asset Management Company)</strong>: The SEBI-registered corporate management entity that oversees, operates, and administers mutual fund investment portfolios on behalf of unitholders.</li>
+<li><strong>AMFI (Association of Mutual Funds in India)</strong>: The apex regulatory industry body representing all SEBI-registered mutual funds in India, publishing official daily Net Asset Values (NAVs), scheme masters, and monthly disclosures.</li>
+<li><strong>Annualized Return</strong>: A cumulative return earned over multiple years expressed as an equivalent steady annual compounding percentage rate.</li>
+<li><strong>Annualized Volatility (&sigma;<sub>ann</sub>)</strong>: The annualized statistical standard deviation of a mutual fund scheme's returns, computed from 36 monthly returns multiplied by the square root of 12 (&radic;12).</li>
+<li><strong>Arbitrage Fund</strong>: A low-risk hybrid mutual fund that exploits simultaneous mispricings between cash and derivative equity futures markets without taking directional equity exposure.</li>
+<li><strong>As-Of Date</strong>: The exact cutoff valuation date to which a specific financial data point, quarterly earnings statement, portfolio holding list, or NAV strictly applies, distinct from the date it was fetched or ingested.</li>
+<li><strong>AUM (Assets Under Management)</strong>: The authoritative month-end total market value of financial assets managed by a mutual fund scheme. On MarketPulse, AUM strictly populates <code class="inline-code">aumCr</code> and determines all national, category, subcategory, and sector AUM rankings.</li>
+<li><strong>Balanced Advantage Fund (BAF)</strong>: An open-ended dynamic hybrid fund that dynamically rebalances its portfolio between equities and debt instruments based on proprietary valuation indicators.</li>
+<li><strong>Benchmark</strong>: A standard market index (e.g., Nifty 50 TRI, BSE 500 TRI) against which the relative performance and risk profile of a fund or stock are measured.</li>
+<li><strong>Beta (&beta;)</strong>: A statistical regression coefficient measuring an asset's systematic risk and price sensitivity relative to broad market fluctuations (Nifty 50 TRI). When sufficient empirical data is unavailable, a neutral value of 1.0 may be used as a fallback.</li>
+<li><strong>Bluechip</strong>: A large, established, and financially sound corporation with a multi-decade operating record, large market capitalization, and stable dividends.</li>
+<li><strong>Book Value Per Share (BVPS)</strong>: Common shareholders' equity divided by total outstanding common shares, reflecting the company's net accounting worth per unit of ownership.</li>
+<li><strong>BSE (Bombay Stock Exchange)</strong>: Asia's oldest stock exchange, established in 1875 in Mumbai, listing over 5,000 corporate securities.</li>
+<li><strong>CAGR (Compound Annual Growth Rate)</strong>: The smoothed annual compounding rate of an investment over horizons of 1 year or longer, calculated using a 365.25-day leap-year normalized formula.</li>
+<li><strong>Capital Gains</strong>: The taxable financial profit realized from the sale of an equity, mutual fund unit, or capital asset above its acquisition cost basis.</li>
+<li><strong>Cash Flow from Operations (CFO)</strong>: Cash generated or consumed directly by a company's principal operating and commercial activities, excluding non-operating financing and investment flows.</li>
+<li><strong>Contra Fund</strong>: An active equity mutual fund that follows a contrarian investment philosophy, systematically purchasing out-of-favor, cyclical, or distressed companies trading below intrinsic value.</li>
+<li><strong>Current Ratio</strong>: Current assets divided by current liabilities; a core balance-sheet test evaluating short-term solvency and liquidity.</li>
+<li><strong>DATA UNAVAILABLE Standard</strong>: MarketPulse's institutional standard ensuring that whenever underlying regulatory, filing, or market data is absent, the UI displays <code class="inline-code">&mdash;</code> or <em>Data unavailable</em> rather than zero, fabricated estimates, or synthetic placeholders.</li>
+<li><strong>Day Change (₹) &amp; Day Change %</strong>: The absolute rupee movement and percentage difference between the current Last Traded Price (LTP) and the preceding session's official exchange closing price.</li>
+<li><strong>Debt-to-Equity Ratio (D/E)</strong>: Total interest-bearing debt divided by total common equity, evaluating financial leverage and solvency risk.</li>
+<li><strong>Diluted EPS</strong>: Earnings Per Share calculated assuming the conversion and exercise of all outstanding stock options, warrants, and convertible debt into common shares.</li>
+<li><strong>Direct Plan</strong>: A mutual fund investment route where units are purchased directly from the AMC without distributor commissions, resulting in a lower Total Expense Ratio (TER) and higher compounded returns.</li>
+<li><strong>Dividend Yield %</strong>: Total cash dividends paid per share over the trailing 12 months expressed as a percentage of the current share price.</li>
+<li><strong>Downside Deviation (&sigma;<sub>down</sub>)</strong>: A semi-variance volatility metric that measures return dispersion by evaluating only those returns that fall below the monthly minimum acceptable hurdle rate (RBI 91-Day T-Bill).</li>
+<li><strong>Drawdown</strong>: The percentage decline from a peak historical price or NAV to a subsequent trough over a designated lookback window.</li>
+<li><strong>EBIT (Earnings Before Interest and Taxes)</strong>: Operating profit generated from core business operations before deducting debt servicing interest expenses and corporate income taxes.</li>
+<li><strong>EBITDA</strong>: Earnings Before Interest, Taxes, Depreciation, and Amortization; a non-GAAP measure of core operational cash generation before non-cash depreciation and capital structure costs.</li>
+<li><strong>Eligible Universe Funds</strong>: The total count of all active open-ended Direct-Growth mutual fund schemes in the five target categories (Large Cap, Mid Cap, Small Cap, Contra, Value) discovered from the authoritative AMFI scheme registry, serving as the official UI denominator (226 funds).</li>
+<li><strong>ELSS (Equity Linked Savings Scheme)</strong>: A diversified equity mutual fund offering tax deductions under Section 80C of the Indian Income Tax Act, subject to a statutory 3-year lock-in period.</li>
+<li><strong>Em-Dash (&mdash;)</strong>: The universal representation on MarketPulse for missing, unfiled, unverified, or mathematically non-computable metrics.</li>
+<li><strong>EPS (Earnings Per Share)</strong>: Net profit attributable to common equity shareholders divided by the weighted average number of common shares outstanding.</li>
+<li><strong>EV / EBITDA</strong>: Enterprise Value (Market Cap + Net Debt) divided by EBITDA; an institutional valuation multiple that enables capital-structure-neutral corporate comparisons.</li>
+<li><strong>Expense Ratio (TER - Total Expense Ratio)</strong>: The annual recurring operational, management, and administrative fee deducted from a mutual fund's daily Net Asset Value, expressed as a percentage.</li>
+<li><strong>FinAPI (Upvaly)</strong>: The specialized financial market API service (<code class="inline-code">https://finapi.upvaly.com</code>) serving as MarketPulse's primary provider for mutual fund stock portfolios, constituent holdings, equity weights, and sector breakdowns.</li>
+<li><strong>Fiscal Year (FY)</strong>: The Indian accounting and taxation year running from April 1 through March 31 of the subsequent calendar year.</li>
+<li><strong>Flexi Cap Fund</strong>: An open-ended equity mutual fund scheme with full statutory flexibility to allocate capital dynamically across Large Cap, Mid Cap, and Small Cap stocks without fixed percentage constraints.</li>
+<li><strong>Fund Absolute Return %</strong>: The point-to-point percentage gain in mutual fund Net Asset Value over holding periods shorter than one year (1M, 3M, 6M).</li>
+<li><strong>Fund Holding Rank</strong>: The ordinal rank (1 .. K) of a constituent stock or security within a mutual fund's portfolio, ordered descending by percentage portfolio weight.</li>
+<li><strong>Funds with Verified Holdings</strong>: The count of eligible mutual fund schemes for which a latest verified statutory monthly portfolio disclosure was successfully retrieved, parsed, and indexed into the holdings database (211 funds, representing 93.36% coverage).</li>
+<li><strong>Gilt Fund</strong>: A debt mutual fund mandated to invest a minimum of 80% of total assets in sovereign debt securities issued by the Central and State Governments of India, carrying near-zero credit default risk.</li>
+<li><strong>Growth Option</strong>: A mutual fund plan option where generated dividends and capital gains remain reinvested within the scheme to compound unit NAV over time, rather than being distributed as cash.</li>
+<li><strong>Holdings Coverage %</strong>: The mathematical ratio of mutual fund schemes with verified parsed portfolio holdings divided by the total eligible fund universe, expressed as a percentage ([211 &divide; 226] &times; 100 = 93.36%). MarketPulse explicitly publishes this metric in diagnostics to maintain complete transparency.</li>
+<li><strong>IDCW (Income Distribution cum Capital Withdrawal)</strong>: The official SEBI designation (formerly known as the Dividend Option) for mutual fund plans that periodically distribute cash payouts to unitholders out of distributable surplus.</li>
+<li><strong>India MF AUM Rank (<code class="inline-code">indiaMfRank</code>)</strong>: The nationwide ordinal ranking (1 .. N) of an active Direct-Growth mutual fund scheme, sorted strictly descending by verified month-end scheme-level AUM.</li>
+<li><strong>India Stock Rank (<code class="inline-code">indiaStockRank</code>)</strong>: The comprehensive nationwide ranking (1 .. 12,536) of all listed Indian equities across NSE and BSE, ranked strictly descending by full market capitalization.</li>
+<li><strong>Interest Coverage Ratio</strong>: EBIT divided by total interest expense, measuring how comfortably a corporation can service debt obligations from operating earnings.</li>
+<li><strong>ISIN (International Securities Identification Number)</strong>: A globally standardized 12-character alphanumeric code uniquely identifying a specific financial security (e.g., <code class="inline-code">INF879O01027</code> for Parag Parikh Flexi Cap Direct Growth).</li>
+<li><strong>Large &amp; Mid Cap Fund</strong>: An equity mutual fund mandated by SEBI to invest at least 35% of total assets in Large Cap equities and at least 35% in Mid Cap equities.</li>
+<li><strong>Large Cap</strong>: Public companies ranked 1 through 100 in terms of full market capitalization on Indian stock exchanges.</li>
+<li><strong>Liquid Fund</strong>: A short-term money market mutual fund mandated to invest exclusively in debt securities and cash equivalents with residual maturities of up to 91 days.</li>
+<li><strong>LTP (Last Traded Price)</strong>: The price at which the most recent transaction for an equity or security was executed on the exchange during trading hours.</li>
+<li><strong>Market Breadth</strong>: The structural ratio of advancing versus declining equities across an index or sector, indicating the broad underlying health of market momentum.</li>
+<li><strong>Market Capitalization</strong>: The aggregate rupee value of a corporation's equity, computed as Current Share Price multiplied by Total Outstanding Shares.</li>
+<li><strong>Maximum Drawdown (MDD)</strong>: The peak-to-trough percentage loss experienced by an asset or fund from its historical peak to its lowest subsequent trough before a new peak is reached.</li>
+<li><strong>MF Star Allocation (&starf; Gold Star)</strong>: An objective badge awarded to the top 3 mutual fund schemes by AUM within each peer subcategory that simultaneously qualify in the Top 10 by 5-Year CAGR and Top 10 by Since-Inception CAGR.</li>
+<li><strong>Mid Cap</strong>: Public companies ranked 101 through 250 in terms of full market capitalization on Indian stock exchanges.</li>
+<li><strong>Minimum Acceptable Return (MAR)</strong>: The baseline hurdle rate used in downside risk modeling, set in MarketPulse to the decompounded monthly yield of the RBI 91-Day Treasury Bill.</li>
+<li><strong>Monthly NAV Return (R<sub>i</sub>)</strong>: The discrete percentage change between consecutive official AMFI month-end Net Asset Values.</li>
+<li><strong>Multi Asset Allocation Fund</strong>: A hybrid mutual fund scheme mandated to maintain at least 10% allocation in each of a minimum of three distinct asset classes (e.g., Equity, Debt, and Gold/Commodities).</li>
+<li><strong>Multi Cap Fund</strong>: An equity mutual fund scheme mandated by SEBI to invest at least 25% each in Large Cap, Mid Cap, and Small Cap stocks at all times.</li>
+<li><strong>NAV (Net Asset Value)</strong>: The per-unit intrinsic book value of a mutual fund scheme, calculated daily by AMFI by dividing net portfolio assets by total outstanding scheme units.</li>
+<li><strong>Net Profit (PAT - Profit After Tax)</strong>: The residual accounting profit remaining after subtracting all operational expenses, depreciation, interest charges, and income tax provisions from gross revenue.</li>
+<li><strong>Net Profit Margin %</strong>: Net profit after tax expressed as a percentage of operational revenue.</li>
+<li><strong>Net Profit YoY %</strong>: The same-quarter year-over-year percentage growth in net profit after tax, evaluated strictly against the corresponding fiscal quarter of the prior year.</li>
+<li><strong>Nifty 50 / Nifty 50 TRI</strong>: India's flagship 50-stock bluechip index maintained by NSE Indices. The Total Returns Index (TRI) accounts for both price movements and reinvested cash dividends and serves as MarketPulse's primary mutual fund performance benchmark.</li>
+<li><strong>NSE (National Stock Exchange of India)</strong>: India's largest and most liquid electronic financial securities exchange, located in Mumbai.</li>
+<li><strong>Operating Margin %</strong>: Operating profit (Reported EBIT) expressed as a percentage of revenue from operations, reflecting core pricing power and cost efficiency.</li>
+<li><strong>P/B Ratio (Price-to-Book)</strong>: The ratio of current share price to book value per share, comparing market valuation against accounting net equity.</li>
+<li><strong>P/E Ratio (Price-to-Earnings)</strong>: The ratio of current share price to trailing 12-month diluted earnings per share, reflecting the price multiple paid for current earnings.</li>
+<li><strong>Previous Close</strong>: The final official trade-weighted settlement price of an equity on the exchange at the end of the immediately preceding trading day.</li>
+<li><strong>Regular Plan</strong>: A mutual fund plan sold through intermediaries, brokers, and mutual fund distributors (MFDs) that includes ongoing trailing commission deductions from the scheme NAV.</li>
+<li><strong>Revenue from Operations</strong>: Top-line sales and operational turnover derived exclusively from a company's core commercial operations, excluding other non-operating income.</li>
+<li><strong>Revenue YoY %</strong>: The percentage change in top-line revenue from operations comparing a quarterly reporting period directly with the identical quarter from the previous fiscal year.</li>
+<li><strong>Risk-Free Rate (R<sub>f</sub>)</strong>: The theoretical rate of return on an investment with zero credit risk, represented in MarketPulse by the sovereign cutoff yield of the RBI 91-Day Treasury Bill.</li>
+<li><strong>ROCE (Return on Capital Employed)</strong>: EBIT divided by total capital employed (Equity + Long-Term Debt), indicating capital efficiency.</li>
+<li><strong>ROE (Return on Equity)</strong>: Net profit after tax divided by average shareholder equity, measuring the return generated on shareholders' invested capital.</li>
+<li><strong>Sector Allocation %</strong>: The aggregate percentage weight of a mutual fund portfolio invested in companies belonging to a specific industry or economic sector.</li>
+<li><strong>Sharpe Ratio</strong>: The annualized ratio of excess return over the risk-free rate divided by total return volatility (standard deviation), evaluating total risk-adjusted efficiency.</li>
+<li><strong>Small Cap</strong>: Public companies ranked 251 and below in terms of full market capitalization on Indian stock exchanges.</li>
+<li><strong>Sortino Ratio</strong>: The annualized ratio of excess return over the minimum acceptable return (MAR) divided exclusively by downside deviation, evaluating returns per unit of harmful volatility.</li>
+<li><strong>Stock Price Return %</strong>: The percentage change in an equity's adjusted market price between the current quote and a historical lookback benchmark price.</li>
+<li><strong>Stock Weightage Screener</strong>: MarketPulse's institutional analytical screener that inverts traditional fund research to analyze the mutual fund universe from the stock's perspective, aggregating fund counts, average/min/max weightages, universe weightage %, and total rupee exposure across 829 canonical securities.</li>
+<li><strong>TTM (Trailing Twelve Months)</strong>: Financial results aggregated across the four most recently completed consecutive fiscal quarters.</li>
+<li><strong>Total AUM Exposure (₹ Cr)</strong>: The aggregate rupee value of a specific equity held across all mutual fund schemes in the universe or selected category, identical to Total Holding Value (&Sigma; HoldingMarketValue).</li>
+<li><strong>Value Fund</strong>: An active equity fund that adheres to a value investing strategy, buying undervalued stocks trading below their intrinsic liquidation or earnings potential.</li>
+<li><strong>Volatility</strong>: The statistical dispersion of asset price or NAV returns around their mean over a specified historical timeframe.</li>
+<li><strong>Volume</strong>: The total number of shares of an equity bought and sold on the exchange during a specific market session.</li>
+<li><strong>YoY (Year-on-Year)</strong>: A comparison of financial figures for a given reporting period against the exact equivalent period of the prior year (e.g., Q1 FY27 vs Q1 FY26).</li>
+<li><strong>Zero-Fabrication Standard</strong>: MarketPulse's fundamental data pledge: missing, unfiled, or non-computable data is presented strictly as <code class="inline-code">&mdash;</code> or <em>Data unavailable</em> and never replaced with artificial numbers, synthetic zeros, or imputed estimates.</li>
+</ul>
+<hr class="doc-divider" />
+<h2 class="doc-h2" id="35-research-disclaimer">35. Research Disclaimer</h2>
+<h3 class="doc-h3">Institutional Notice &amp; Terms of Use</h3>
+<p class="doc-p">1. <strong>Research &amp; Educational Platform Only</strong>:</p>
+<p class="doc-p">MarketPulse is built solely as an analytical, educational, and information dashboard for market visualization. MarketPulse is <strong>NOT</strong> a registered investment adviser, broker-dealer, portfolio manager, or research analyst under the Securities and Exchange Board of India (SEBI) or any foreign regulatory authority.</p>
+<p class="doc-p">2. <strong>No Investment Recommendations</strong>:</p>
+<p class="doc-p">Nothing on MarketPulse constitutes investment advice, financial planning, a stock tip, or a solicitation to buy, sell, or hold any security, derivative, mutual fund unit, or financial instrument.</p>
+<p class="doc-p">3. <strong>Past Performance Warning</strong>:</p>
+<p class="doc-p">Historical returns, CAGR figures, Sharpe ratios, and rankings are backward-looking historical calculations. <strong>Past performance does not guarantee future financial results.</strong></p>
+<p class="doc-p">4. <strong>Independent Verification Required</strong>:</p>
+<p class="doc-p">While MarketPulse strives for institutional accuracy and adheres to a strict Zero-Fabrication Standard, financial data is sourced from third-party market feeds, public filings, and regulatory disclosures that may contain delays, timing differences, or reporting revisions. Users must independently verify all critical financial data through official exchange announcements (NSE/BSE), company quarterly reports, and AMC scheme information documents before executing any financial transaction.</p>
+</body>
+</html>

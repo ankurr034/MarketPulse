@@ -132,10 +132,18 @@ async function runTests() {
       assert(metrics.return3Y !== null, `${fund.name} must have valid 3Y CAGR`);
       assert(typeof metrics.return3Y === 'number' && !isNaN(metrics.return3Y), `${fund.name} 3Y CAGR is not a valid number`);
 
-      if (fund.exp5YNull) {
-        assert.strictEqual(metrics.return5Y, null, `${fund.name} launched < 5 years ago, 5Y CAGR must be null`);
+      function parseDateLocal(dStr) {
+        const p = dStr.split('-');
+        return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+      }
+      const newestDate = parseDateLocal(data.data[0].date);
+      const oldestDate = parseDateLocal(data.data[data.data.length - 1].date);
+      const elapsedYears = (newestDate.getTime() - oldestDate.getTime()) / (365.25 * 24 * 3600 * 1000);
+
+      if (elapsedYears < 5.0) {
+        assert.strictEqual(metrics.return5Y, null, `${fund.name} has ${elapsedYears.toFixed(1)}Y history (< 5Y), 5Y CAGR must be null`);
       } else {
-        assert(metrics.return5Y !== null, `${fund.name} must have valid 5Y CAGR`);
+        assert(metrics.return5Y !== null, `${fund.name} has ${elapsedYears.toFixed(1)}Y history (>= 5Y), 5Y CAGR must be valid`);
         assert(typeof metrics.return5Y === 'number' && !isNaN(metrics.return5Y), `${fund.name} 5Y CAGR is not a valid number`);
       }
 

@@ -2,6 +2,8 @@ import express from 'express';
 import upstoxAuthService from '../services/UpstoxAuthService.js';
 import upstoxMarketDataService from '../services/UpstoxMarketDataService.js';
 
+import authenticateToken, { requireRole } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
 // GET /api/upstox/login
@@ -19,10 +21,12 @@ router.get('/callback', async (req, res) => {
     }
 
     await upstoxAuthService.exchangeCodeForToken(code);
-    res.redirect('http://localhost:3000/?upstox=connected');
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    res.redirect(`${frontendUrl}/?upstox=connected`);
   } catch (err) {
     console.error('Upstox callback error:', err.message);
-    res.redirect('http://localhost:3000/?upstox=error');
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    res.redirect(`${frontendUrl}/?upstox=error`);
   }
 });
 
@@ -37,7 +41,7 @@ router.get('/status', async (req, res) => {
 });
 
 // POST /api/upstox/token
-router.post('/token', async (req, res) => {
+router.post('/token', authenticateToken, requireRole('admin'), async (req, res) => {
   const { token, expiryHours } = req.body;
   if (!token) {
     return res.status(400).json({ error: 'Token is required' });

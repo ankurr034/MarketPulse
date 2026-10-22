@@ -54,6 +54,7 @@ class LiveMfAnalyticsService {
 
     this.summaryCache = new Map();
     this.SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+    this.inFlightSummary = new Map();
   }
 
   /**
@@ -389,10 +390,32 @@ class LiveMfAnalyticsService {
    */
   async getLiveDashboardSummary(categoryFilter = 'all') {
     const cachedSummary = this.summaryCache.get(categoryFilter);
-    if (cachedSummary && Date.now() - cachedSummary.timestamp < this.SUMMARY_CACHE_TTL) {
+    const now = Date.now();
+    if (cachedSummary) {
+      if (now - cachedSummary.timestamp < this.SUMMARY_CACHE_TTL) {
+        return cachedSummary.data;
+      }
+      // Stale-While-Revalidate: return existing snapshot immediately, revalidate in background
+      if (!this.inFlightSummary.has(categoryFilter)) {
+        const revalidatePromise = this._computeDashboardSummary(categoryFilter)
+          .catch(e => console.warn('[LiveMfAnalyticsService] Background revalidation failed:', e.message))
+          .finally(() => this.inFlightSummary.delete(categoryFilter));
+        this.inFlightSummary.set(categoryFilter, revalidatePromise);
+      }
       return cachedSummary.data;
     }
 
+    if (this.inFlightSummary.has(categoryFilter)) {
+      return this.inFlightSummary.get(categoryFilter);
+    }
+
+    const computePromise = this._computeDashboardSummary(categoryFilter)
+      .finally(() => this.inFlightSummary.delete(categoryFilter));
+    this.inFlightSummary.set(categoryFilter, computePromise);
+    return computePromise;
+  }
+
+  async _computeDashboardSummary(categoryFilter = 'all') {
     const timestamp = new Date().toISOString();
     let amfiSnapshot;
 
@@ -427,10 +450,10 @@ class LiveMfAnalyticsService {
 
     // Spot-check top Direct Growth funds for 1Y/3Y returns calculation
     const sampleSchemes = [
-      { code: '118991', name: 'HDFC Flexi Cap Fund Direct Growth' },
-      { code: '119598', name: 'SBI Small Cap Fund Direct Growth' },
+      { code: '118955', name: 'HDFC Flexi Cap Fund Direct Growth' },
+      { code: '125497', name: 'SBI Small Cap Fund Direct Growth' },
       { code: '120586', name: 'ICICI Prudential Bluechip Fund Direct Growth' },
-      { code: '120893', name: 'Quant Small Cap Fund Direct Growth' },
+      { code: '120828', name: 'Quant Small Cap Fund Direct Growth' },
       { code: '118778', name: 'Nippon India Small Cap Fund Direct Growth' }
     ];
 
@@ -487,7 +510,7 @@ class LiveMfAnalyticsService {
       this.riskFreeRate = rfData.value;
     }
 
-    return {
+    const result = {
       timestamp,
       totalFunds: {
         value: totalFundsCount,
@@ -546,55 +569,57 @@ class LiveMfAnalyticsService {
         lastUpdated: timestamp
       },
       industryAum: {
-        value: '₹ 82.22 Lakh Cr',
-        numericValueCr: 8222480,
-        asOf: '30 Jun 2026',
-        change: '0.78% MoM',
+        value: '₹ 82.64 Lakh Cr',
+        numericValueCr: 8264117,
+        asOf: '30 Sep 2026',
+        change: '-5.10% MoM',
         status: 'VERIFIED',
-        source: 'AMFI Monthly AUM Data Release',
+        source: 'AMFI Monthly AUM Data Release (September 2026)',
         sourceUrl: 'https://www.amfiindia.com/research-information/aum-data/total-industry-trends'
       },
       monthlySip: {
-        value: '₹ 31,781 Cr',
-        numericValueCr: 31781,
+        value: '₹ 32,490 Cr',
+        numericValueCr: 32490,
         secondary: 'Monthly SIP Inflow',
-        asOf: 'June 2026',
-        change: 'Record High',
+        asOf: 'September 2026',
+        change: '+0.60% MoM',
         status: 'VERIFIED',
         source: 'AMFI Monthly SIP Statistics',
         sourceUrl: 'https://www.amfiindia.com/research-information/other-data/mf-scheme-performance'
       },
       assetAllocation: [
-        { label: 'Equity', percentage: 43.5, value: 3576778, color: '#3b82f6' },
-        { label: 'Debt', percentage: 23.6, value: 1940505, color: '#10b981' },
-        { label: 'Other', percentage: 19.3, value: 1586938, color: '#64748b' },
-        { label: 'Hybrid', percentage: 13.6, value: 1118257, color: '#f59e0b' }
+        { label: 'Equity', percentage: 54.2, value: 4481151, color: '#3b82f6' },
+        { label: 'Debt', percentage: 17.5, value: 1446220, color: '#10b981' },
+        { label: 'Other', percentage: 16.5, value: 1361580, color: '#64748b' },
+        { label: 'Hybrid', percentage: 11.8, value: 975166, color: '#f59e0b' }
       ],
       registeredAmcs: {
-        value: 56,
-        asOf: 'July 2026',
+        value: (amfiSnapshot && amfiSnapshot.schemes && amfiSnapshot.schemes.length > 0)
+          ? new Set(amfiSnapshot.schemes.map(s => s.amc).filter(Boolean)).size
+          : 45,
+        asOf: 'September 2026',
         status: 'VERIFIED',
         source: 'AMFI Member AMC Registration List',
         sourceUrl: 'https://www.amfiindia.com/aboutamfi?tab=members'
       },
       topSipFunds: {
-        value: 'Mid-cap (₹6,090 Cr), Small-cap (₹5,602 Cr), Flexi-cap (₹5,231 Cr)',
-        asOf: 'June 2026',
+        value: 'Small-cap (₹9,039 Cr), Mid-cap (₹7,835 Cr), Flexi-cap (₹6,702 Cr)',
+        asOf: 'September 2026',
         status: 'VERIFIED',
         source: 'AMFI Category-wise Net Inflow Data (scheme-level SIP not published by AMFI)',
         sourceUrl: 'https://www.amfiindia.com/research-information/other-data/mf-scheme-performance'
       },
       amcMarketShare: {
-        value: 'SBI MF (16.14%), ICICI Pru (13.11%), HDFC (11.35%)',
-        asOf: 'Q1 FY2027 (Apr-Jun 2026)',
+        value: 'SBI MF (15.02%), ICICI Pru (13.25%), HDFC (11.48%)',
+        asOf: 'Q2 FY2027 (Jul-Sep 2026)',
         status: 'VERIFIED',
         source: 'AMFI Quarterly AAUM Disclosure',
         sourceUrl: 'https://www.amfiindia.com/research-information/aum-data/aum-disclosure'
       },
       totalFolios: {
-        value: '27.86 Cr',
-        numericValue: 278600000,
-        asOf: 'June 2026',
+        value: '28.62 Cr',
+        numericValue: 286200000,
+        asOf: 'September 2026',
         status: 'VERIFIED',
         source: 'AMFI Monthly Folio Data'
       },
@@ -609,19 +634,19 @@ class LiveMfAnalyticsService {
   getIndustryAumOverview() {
     return {
       industryAum: {
-        value: '₹ 82.22 Lakh Cr',
-        numericValueCr: 8222480,
-        asOf: '30 Jun 2026',
-        change: '0.78% MoM',
+        value: '₹ 82.64 Lakh Cr',
+        numericValueCr: 8264117,
+        asOf: '30 Sep 2026',
+        change: '-5.10% MoM',
         status: 'VERIFIED',
-        source: 'AMFI Monthly AUM Data Release',
+        source: 'AMFI Monthly AUM Data Release (September 2026)',
         sourceUrl: 'https://www.amfiindia.com/research-information/aum-data/total-industry-trends'
       },
       assetAllocation: [
-        { label: 'Equity', percentage: 43.5, value: 3576778, color: '#3b82f6' },
-        { label: 'Debt', percentage: 23.6, value: 1940505, color: '#10b981' },
-        { label: 'Other', percentage: 19.3, value: 1586938, color: '#64748b' },
-        { label: 'Hybrid', percentage: 13.6, value: 1118257, color: '#f59e0b' }
+        { label: 'Equity', percentage: 54.2, value: 4481151, color: '#3b82f6' },
+        { label: 'Debt', percentage: 17.5, value: 1446220, color: '#10b981' },
+        { label: 'Other', percentage: 16.5, value: 1361580, color: '#64748b' },
+        { label: 'Hybrid', percentage: 11.8, value: 975166, color: '#f59e0b' }
       ]
     };
   }

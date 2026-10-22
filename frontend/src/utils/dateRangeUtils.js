@@ -80,7 +80,7 @@ function listAvailableCalendarYears(earliestDateStr) {
 function resolveRangeToDates(range) {
   // Parse JSON string if needed (e.g. '{"type":"fy","label":"FY2024-25"}')
   if (typeof range === 'string' && range.startsWith('{')) {
-    try { range = JSON.parse(range); } catch(e) {}
+    try { range = JSON.parse(range); } catch(e) { /* ignored */ }
   }
   // Parse colon-delimited format (e.g. 'fy:FY2024-25', 'cy:2024')
   if (typeof range === 'string' && range.startsWith('fy:')) {

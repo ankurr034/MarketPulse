@@ -12,19 +12,19 @@ const getSchemeCodes = (req) => {
 };
 
 // GET /api/analytics/mf/sector-growth
-// Query params: sector (required), range (optional: 1y|3y|5y|max), schemes (optional: comma-separated)
+// Query params: sector (optional: defaults to 'Financial Services'), range (optional: 1y|3y|5y|max), schemes (optional: comma-separated)
 router.get('/mf/sector-growth', async (req, res) => {
   try {
-    const { sector, range } = req.query;
-    if (!sector) {
-      return res.status(400).json({ error: 'sector query parameter is required' });
+    let { sector, range } = req.query;
+    if (!sector || !sector.trim()) {
+      sector = 'Financial Services';
     }
     const schemes = getSchemeCodes(req);
-    const data = await mfAnalyticsService.getSectorGrowth(sector, range || '1y', schemes);
+    const data = await mfAnalyticsService.getSectorGrowth(sector.trim(), range || '1y', schemes);
     res.json(data);
   } catch (error) {
     console.error('Error fetching sector growth:', error);
-    res.status(500).json({ error: 'Failed to fetch sector growth analytics' });
+    res.status(500).json({ error: 'Failed to fetch sector growth analytics', details: error.message });
   }
 });
 
@@ -51,7 +51,7 @@ router.get('/mf/fund-houses', async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Error fetching fund house leaderboard:', error);
-    res.status(500).json({ error: 'Failed to fetch fund house leaderboard' });
+    res.status(500).json({ error: 'Failed to fetch fund house leaderboard', details: error.message });
   }
 });
 

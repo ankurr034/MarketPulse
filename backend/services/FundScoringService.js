@@ -10,13 +10,13 @@ class FundScoringService {
 
     if (!navHistory || navHistory.length < 2) {
       return {
-        performanceScore: 50,
-        riskScore: 50,
-        growthScore: 50,
-        aiScore: 50,
-        sipScore: 50,
-        overallScore: 50,
-        suitability: 'Moderate growth index benchmark asset.'
+        performanceScore: null,
+        riskScore: null,
+        growthScore: null,
+        aiScore: null,
+        sipScore: null,
+        overallScore: null,
+        suitability: 'Insufficient historical data to calculate scores.'
       };
     }
 
@@ -31,51 +31,70 @@ class FundScoringService {
     const years = navHistory.length / 252;
     const startVal = prices[0];
     const endVal = prices[prices.length - 1];
-    let cagr = 0.12;
+    let cagr = null;
     if (startVal > 0 && endVal > 0 && years > 0) {
       cagr = Math.pow(endVal / startVal, 1 / Math.max(0.1, years)) - 1;
     }
 
     // 1. Performance Score (0-100)
     // Map CAGR from -10% to +30% into a 0-100 range
-    let performanceScore = Math.round(((cagr + 0.1) / 0.4) * 100);
-    performanceScore = Math.max(0, Math.min(100, performanceScore));
+    let performanceScore = null;
+    if (cagr !== null) {
+      performanceScore = Math.round(((cagr + 0.1) / 0.4) * 100);
+      performanceScore = Math.max(0, Math.min(100, performanceScore));
+    }
 
     // 2. Risk Score (0-100) (lower volatility & lower drawdown = higher score)
-    const volMetric = Math.max(0, 1 - volatility / 0.4); // Max 40% standard dev
-    const ddMetric = Math.max(0, 1 - maxDrawdown / 0.5); // Max 50% drawdown
-    let riskScore = Math.round(((volMetric + ddMetric) / 2) * 100);
-    riskScore = Math.max(0, Math.min(100, riskScore));
+    let riskScore = null;
+    if (volatility !== null && maxDrawdown !== null) {
+      const volMetric = Math.max(0, 1 - volatility / 0.4); // Max 40% standard dev
+      const ddMetric = Math.max(0, 1 - maxDrawdown / 0.5); // Max 50% drawdown
+      riskScore = Math.round(((volMetric + ddMetric) / 2) * 100);
+      riskScore = Math.max(0, Math.min(100, riskScore));
+    }
 
     // 3. Growth Score (recent momentum)
     // Calculate last 3 months performance
     const last3MIndex = Math.max(0, navHistory.length - 63);
     const last3MVal = navHistory[last3MIndex]?.value || startVal;
-    const m3Return = (endVal - last3MVal) / last3MVal;
-    let growthScore = Math.round(((m3Return + 0.05) / 0.2) * 100);
-    growthScore = Math.max(0, Math.min(100, growthScore));
+    let growthScore = null;
+    if (last3MVal > 0 && endVal !== undefined) {
+      const m3Return = (endVal - last3MVal) / last3MVal;
+      growthScore = Math.round(((m3Return + 0.05) / 0.2) * 100);
+      growthScore = Math.max(0, Math.min(100, growthScore));
+    }
 
     // 4. SIP Score (Consistency, lower drawdown)
-    let sipScore = Math.round((performanceScore * 0.4) + (riskScore * 0.6));
+    let sipScore = null;
+    if (performanceScore !== null && riskScore !== null) {
+      sipScore = Math.round((performanceScore * 0.4) + (riskScore * 0.6));
+    } else if (riskScore !== null) {
+      sipScore = riskScore;
+    }
 
-    // 5. AI Score (via Gemini API fallback)
+    // 5. AI Score (via Gemini API)
     const aiData = await geminiAIService.scoreFund({
       schemeCode,
-      cagr: (cagr * 100).toFixed(2) + '%',
-      volatility: (volatility * 100).toFixed(2) + '%',
-      maxDrawdown: (maxDrawdown * 100).toFixed(2) + '%'
+      cagr: cagr !== null ? (cagr * 100).toFixed(2) + '%' : 'N/A',
+      volatility: volatility !== null ? (volatility * 100).toFixed(2) + '%' : 'N/A',
+      maxDrawdown: maxDrawdown !== null ? (maxDrawdown * 100).toFixed(2) + '%' : 'N/A'
     });
 
-    const aiScore = aiData?.aiScore || 75;
-    const suitability = aiData?.suitability || 'Excellent for disciplined systematic investment plans.';
+    const aiScore = (typeof aiData?.aiScore === 'number') ? aiData.aiScore : null;
+    const suitability = aiData?.suitability || (performanceScore !== null ? 'Suitable for disciplined systematic investment plans.' : 'Moderate growth index benchmark asset.');
 
-    // 6. Overall Composite Score
-    const overallScore = Math.round(
-      (performanceScore * 0.3) +
-      (riskScore * 0.3) +
-      (growthScore * 0.2) +
-      (aiScore * 0.2)
-    );
+    // 6. Overall Composite Score (weighted across verified available components)
+    const scoreComponents = [
+      { score: performanceScore, weight: 0.3 },
+      { score: riskScore, weight: 0.3 },
+      { score: growthScore, weight: 0.2 },
+      { score: aiScore, weight: 0.2 }
+    ].filter(c => typeof c.score === 'number' && !isNaN(c.score));
+
+    const totalWeight = scoreComponents.reduce((acc, c) => acc + c.weight, 0);
+    const overallScore = totalWeight > 0
+      ? Math.round(scoreComponents.reduce((acc, c) => acc + c.score * c.weight, 0) / totalWeight)
+      : null;
 
     const result = {
       performanceScore,

@@ -78,85 +78,62 @@ export default function StockWeightageTable({
               </th>
 
               {/* Sector Column */}
-              <th className="py-3 px-3 min-w-[100px] font-semibold">Sector</th>
+              <th 
+                onClick={() => onSort('sector')}
+                className="py-3 px-3 min-w-[120px] cursor-pointer group font-semibold"
+              >
+                <div className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span>Sector</span>
+                  {renderSortIcon('sector')}
+                </div>
+              </th>
 
-              {/* Funds Holding Column (Highlighted as primary ranking column) */}
+              {/* Number of Funds Holdings Column */}
               <th 
                 onClick={() => onSort('fundCount')}
-                className="py-3 px-3 text-center cursor-pointer group min-w-[115px]"
+                className="py-3 px-3 text-center cursor-pointer group min-w-[145px]"
               >
                 <div className="flex items-center justify-center gap-1 text-[#0D6B58] dark:text-emerald-400 font-extrabold hover:opacity-80 transition-opacity">
-                  <span>Funds Holding</span>
+                  <span>Number of Funds Holdings</span>
                   {renderSortIcon('fundCount')}
                 </div>
               </th>
 
-              {/* Avg. Weightage Column */}
+              {/* MF Universe Weightage Column */}
               <th 
-                onClick={() => onSort('avgWeightage')}
-                className="py-3 px-3 text-right cursor-pointer group min-w-[95px]"
+                onClick={() => onSort('universeWeightPct')}
+                className="py-3 px-3 text-right cursor-pointer group min-w-[145px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <span>Avg. Weightage</span>
-                  {renderSortIcon('avgWeightage')}
+                  <span>MF Universe Weightage</span>
+                  {renderSortIcon('universeWeightPct')}
                 </div>
               </th>
 
-              {/* Max. Weightage Column */}
-              <th 
-                onClick={() => onSort('maxWeightage')}
-                className="py-3 px-3 text-right cursor-pointer group min-w-[95px]"
-              >
-                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <span>Max. Weightage</span>
-                  {renderSortIcon('maxWeightage')}
-                </div>
-              </th>
-
-              {/* Fund AUM Exposure Column */}
-              <th 
-                onClick={() => onSort('fundAum')}
-                className="py-3 px-3 text-right cursor-pointer group min-w-[130px]"
-              >
-                <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <span>Fund AUM Exposure</span>
-                  {renderSortIcon('fundAum')}
-                </div>
-              </th>
-
-              {/* Total Holding Value Column */}
+              {/* Total AUM Exposure Column */}
               <th 
                 onClick={() => onSort('holdingValue')}
-                className="py-3 px-3 text-right cursor-pointer group min-w-[130px]"
+                className="py-3 px-3 text-right cursor-pointer group min-w-[140px]"
               >
                 <div className="flex items-center justify-end gap-1 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <span>Total Holding Value</span>
+                  <span>Total AUM Exposure</span>
                   {renderSortIcon('holdingValue')}
                 </div>
               </th>
-
-              {/* Price Column */}
-              <th className="py-3 px-3 text-right min-w-[85px]">Price (₹)</th>
-
-              {/* Market Cap Column */}
-              <th className="py-3 px-3 text-right min-w-[125px]">Market Cap</th>
-
-              {/* 1Y Trend Column */}
-              <th className="py-3 px-3 text-center min-w-[110px]">1Y Trend</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td colSpan={11} className="py-3.5 px-3">
+                  <td colSpan={6} className="py-3.5 px-3">
                     <div className="h-5 bg-slate-200/70 dark:bg-slate-800/70 rounded-md w-full" />
                   </td>
                 </tr>
               ))
             ) : stocks.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-16 text-center text-slate-500 dark:text-slate-400 text-xs">
+                <td colSpan={6} className="py-16 text-center text-slate-500 dark:text-slate-400 text-xs">
                   <div className="flex flex-col items-center justify-center gap-1.5">
                     <span className="font-semibold text-slate-700 dark:text-slate-300">No stocks found</span>
                     <span className="text-[11px] text-slate-400">Try adjusting your filters or search criteria.</span>
@@ -168,10 +145,9 @@ export default function StockWeightageTable({
                 const isSelected = selectedStockSymbol && 
                   String(selectedStockSymbol).toUpperCase() === String(stock.symbol).toUpperCase();
 
-                const isTrendUp = (stock.change1Y ?? 0) >= 0;
-                const trendVal = stock.change1Y != null 
-                  ? `${isTrendUp ? '+' : ''}${stock.change1Y.toFixed(1)}%` 
-                  : '+12.4%';
+                const universeWeight = stock.universeWeightPct != null 
+                  ? Number(stock.universeWeightPct) 
+                  : (stock.mfUniverseWeightage != null ? Number(stock.mfUniverseWeightage) : null);
 
                 return (
                   <tr
@@ -204,57 +180,44 @@ export default function StockWeightageTable({
                     </td>
 
                     {/* Sector */}
-                    <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 text-xs font-medium">
-                      {stock.sector || 'General'}
-                    </td>
-
-                    {/* Funds Holding (bold green/teal count matching reference) */}
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="font-extrabold text-[13.5px] text-[#059669] dark:text-emerald-400">
-                        {stock.mutualFundsHolding?.toLocaleString('en-IN') || 0}
+                    <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/60 max-w-[150px] truncate" title={stock.sector}>
+                        {stock.sector || 'Diversified'}
                       </span>
                     </td>
 
-                    {/* Avg. Weightage */}
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100 text-xs">
-                      {stock.avgWeightage != null ? `${stock.avgWeightage.toFixed(2)}%` : '—'}
-                    </td>
-
-                    {/* Max. Weightage */}
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100 text-xs">
-                      {stock.maxWeightage != null ? `${stock.maxWeightage.toFixed(2)}%` : '—'}
-                    </td>
-
-                    {/* Fund AUM Exposure */}
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11.5px]">
-                      {formatCurrencyCr(stock.fundAumExposureCr || stock.totalAumOfHoldingFundsCr)}
-                    </td>
-
-                    {/* Total Holding Value */}
-                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white text-[11.5px]">
-                      {formatCurrencyCr(stock.totalHoldingValueCr)}
-                    </td>
-
-                    {/* Price (₹) */}
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200 text-xs">
-                      {formatPrice(stock.price)}
-                    </td>
-
-                    {/* Market Cap */}
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 text-[11.5px]">
-                      {formatCurrencyCr(stock.marketCapCr)}
-                    </td>
-
-                    {/* 1Y Trend */}
+                    {/* Number of Funds Holdings */}
                     <td className="py-2.5 px-3 text-center">
-                      <div className="inline-flex items-center gap-1.5 justify-center">
-                        <TrendSparkline trend={isTrendUp ? 'up' : 'down'} width={44} height={16} />
-                        <span className={`text-[11px] font-bold ${
-                          isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
-                        }`}>
-                          {trendVal}
+                      <div className="inline-flex flex-col items-center">
+                        <span className="font-extrabold text-[13.5px] text-[#059669] dark:text-emerald-400 leading-tight">
+                          {stock.mutualFundsHolding?.toLocaleString('en-IN') || 0}
                         </span>
+                        {stock.totalUniverseFunds ? (
+                          <span className="text-[9.5px] font-medium text-slate-400 dark:text-slate-500 leading-tight">
+                            of {stock.totalUniverseFunds} funds
+                          </span>
+                        ) : null}
                       </div>
+                    </td>
+
+                    {/* MF Universe Weightage */}
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex flex-col items-end justify-center">
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-[12px] leading-tight">
+                          {universeWeight != null ? `${universeWeight.toFixed(2)}%` : '—'}
+                        </span>
+                        <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
+                          <div 
+                            className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all" 
+                            style={{ width: `${Math.min(100, Math.max(4, (universeWeight || 0) * 20))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Total AUM Exposure */}
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white text-[12px]">
+                      {formatCurrencyCr(stock.totalAumExposureCr ?? stock.totalHoldingValueCr)}
                     </td>
                   </tr>
                 );

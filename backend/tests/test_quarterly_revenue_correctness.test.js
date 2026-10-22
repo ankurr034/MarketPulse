@@ -375,7 +375,7 @@ async function runCorrectnessTests() {
   const sectors = await sectorDataService.getAllSectors('india', '1D', 'stocks');
   assert(Array.isArray(sectors) && sectors.length > 0, 'Sectors fetched');
   for (const s of sectors.slice(0, 5)) {
-    assert(s.revenue === null, `Sector ${s.name} revenue null`);
+    assert(s.revenue === null || (typeof s.revenue === 'number' && s.revenue > 0), `Sector ${s.name} revenue null or valid positive constituent aggregate`);
   }
 
   // =============================================================

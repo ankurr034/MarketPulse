@@ -5,6 +5,11 @@ frontend/node_modules/
 dist/
 build/
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -28,5 +33,3 @@ yarn-error.log*
 !/backend/data/amfi_active_schemes.json
 .vite/
 *.vite
-
-

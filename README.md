@@ -1,8 +1,8 @@
-# MarketPulse — Financial Market & Sector Performance Platform
+# TheLalStreetScreener — Financial Market & Sector Performance Platform
 
 > **For informational and analytical purposes only — not investment advice.**
 
-MarketPulse is a modern, full-stack financial market analytics platform providing comprehensive performance insights across **Indian (NSE)** and **Global (US/GICS)** equities, sector indices, and Indian Mutual Funds.
+TheLalStreetScreener is a modern, full-stack financial market analytics platform providing comprehensive performance insights across **Indian (NSE)** and **Global (US/GICS)** equities, sector indices, and Indian Mutual Funds.
 
 ![Tech Stack](https://img.shields.io/badge/React-18-blue) ![Vite](https://img.shields.io/badge/Vite-5-purple) ![Tailwind](https://img.shields.io/badge/TailwindCSS-3-cyan) ![Node](https://img.shields.io/badge/Node.js-Express-green) ![Yahoo Finance](https://img.shields.io/badge/Data-Yahoo%20Finance-red) ![AMFI](https://img.shields.io/badge/Mutual%20Funds-AMFI%20Official-orange)
 
@@ -102,7 +102,7 @@ MarketPulse is a modern, full-stack financial market analytics platform providin
 ```bash
 # Clone the repository
 git clone https://github.com/ankurr034/MarketPulse.git
-cd MarketPulse
+cd TheLalStreetScreener
 
 # Install all dependencies cleanly across root, backend, and frontend
 npm run install-all

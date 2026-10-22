@@ -1,26 +1,45 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveSector, setActiveSymbol, setRegion, setAssetClass, setTimeframe, setTheme, setActiveView, setSearchQuery, setSearchResults, setUpstoxConnected } from '../store/slices/marketSlice';
-import { Search, Sun, Moon, BarChart3, AlertTriangle, X, TrendingUp, Grid3X3 } from 'lucide-react';
+import { 
+  setActiveSector, 
+  setActiveSymbol, 
+  setRegion, 
+  setAssetClass, 
+  setTheme, 
+  setActiveView, 
+  setHowToUseOpen 
+} from '../store/slices/marketSlice';
+import { setAuthModalOpen, logout } from '../store/slices/authSlice';
+import { Search, Sun, Moon, AlertTriangle, X, TrendingUp, Grid3X3, User, Menu, LogOut, Layers, PieChart } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default function Header() {
   const dispatch = useDispatch();
-  const { region, timeframe, theme, searchQuery, assetClass, upstoxConnected } = useSelector(state => state.market);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { region, theme, activeView } = useSelector(state => state.market);
+  const { isAuthenticated, user } = useSelector(state => state.auth);
   const [localQuery, setLocalQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [results, setResults] = useState({ sectors: [], stocks: [] });
+  const [results, setResults] = useState({ sectors: [], stocks: [], funds: [], subcategories: [] });
   const [searching, setSearching] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const searchRef = useRef(null);
+  const userMenuRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // Close search on outside click
+  // Close search & user dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setSearchOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -31,7 +50,7 @@ export default function Header() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!localQuery || localQuery.trim().length < 2) {
-      setResults({ sectors: [], stocks: [] });
+      setResults({ sectors: [], stocks: [], funds: [], subcategories: [] });
       setSearching(false);
       return;
     }
@@ -48,16 +67,49 @@ export default function Header() {
     return () => clearTimeout(debounceRef.current);
   }, [localQuery]);
 
+  const handleSubcategoryClick = (sub) => {
+    dispatch(setAssetClass('indian-mf'));
+    setSearchOpen(false);
+    setLocalQuery('');
+    navigate(`/mutual-funds?market=${encodeURIComponent(sub.marketFilter || 'all')}&sub=${encodeURIComponent(sub.id)}`, {
+      state: { selectedSubcategory: sub.id, marketFilter: sub.marketFilter, focusSearch: false }
+    });
+  };
+
+  const handleFundClick = (fund) => {
+    dispatch(setAssetClass('indian-mf'));
+    setSearchOpen(false);
+    setLocalQuery('');
+    navigate(`/mutual-funds?q=${encodeURIComponent(fund.name)}&schemeCode=${encodeURIComponent(fund.schemeCode || '')}`, {
+      state: { searchQuery: fund.name, selectedSchemeCode: fund.schemeCode }
+    });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_BASE}/auth/logout`, {}, { withCredentials: true });
+    } catch {
+      // Non-blocking fallback
+    } finally {
+      delete axios.defaults.headers.common['Authorization'];
+      dispatch(logout());
+      setUserMenuOpen(false);
+      setMobileMenuOpen(false);
+    }
+  };
+
   const handleSectorClick = (sectorId) => {
     dispatch(setActiveSector(sectorId));
     setSearchOpen(false);
     setLocalQuery('');
+    navigate('/stocks');
   };
 
   const handleStockClick = (symbol) => {
     dispatch(setActiveSymbol(symbol));
     setSearchOpen(false);
     setLocalQuery('');
+    navigate('/stocks');
   };
 
   const toggleTheme = () => {
@@ -83,52 +135,166 @@ export default function Header() {
     }
   }, [theme]);
 
-  const regions = [
-    { value: 'all', label: 'All' },
-    { value: 'india', label: '🇮🇳 India' },
-    { value: 'global', label: '🌍 Global' }
-  ];
+  // Navigation handlers
+  const handleNavLanding = () => {
+    dispatch(setActiveSector(null));
+    dispatch(setActiveSymbol(null));
+    dispatch(setActiveView('landing'));
+    dispatch(setHowToUseOpen(false));
+    navigate('/');
+    setMobileMenuOpen(false);
+  };
 
-  const assetClasses = [
-    { value: 'stocks', label: 'Stocks' },
-    { value: 'sector-explorer', label: 'Sector Explorer' },
-    { value: 'sector-trends', label: 'Sector Trends' },
-    { value: 'mf-explore', label: 'Explore Funds' },
-    { value: 'analytics', label: 'Analytics' },
-    { value: 'indian-mf', label: 'Indian MFs' }
-  ];
+  const handleNavStocks = () => {
+    dispatch(setRegion('india'));
+    dispatch(setAssetClass('stocks'));
+    dispatch(setActiveSector(null));
+    dispatch(setActiveSymbol(null));
+    dispatch(setActiveView('heatmap'));
+    dispatch(setHowToUseOpen(false));
+    navigate('/stocks');
+    setMobileMenuOpen(false);
+  };
 
-  const hasResults = results.sectors.length > 0 || results.stocks.length > 0;
+  const handleNavMutualFunds = () => {
+    dispatch(setAssetClass('indian-mf'));
+    dispatch(setActiveSector(null));
+    dispatch(setActiveSymbol(null));
+    dispatch(setActiveView('indian-mf'));
+    dispatch(setHowToUseOpen(false));
+    navigate('/mutual-funds');
+    setMobileMenuOpen(false);
+  };
+
+  const handleNavAnalytics = () => {
+    dispatch(setAssetClass('analytics'));
+    dispatch(setActiveSector(null));
+    dispatch(setActiveSymbol(null));
+    dispatch(setActiveView('mf-analytics'));
+    dispatch(setHowToUseOpen(false));
+    navigate('/analytics');
+    setMobileMenuOpen(false);
+  };
+
+  const handleNavGlobalStocks = () => {
+    dispatch(setRegion('global'));
+    dispatch(setAssetClass('stocks'));
+    dispatch(setActiveSector(null));
+    dispatch(setActiveSymbol(null));
+    dispatch(setActiveView('heatmap'));
+    dispatch(setHowToUseOpen(false));
+    navigate('/global-stocks');
+    setMobileMenuOpen(false);
+  };
+
+  const handleNavHowToUse = () => {
+    dispatch(setHowToUseOpen(true));
+    navigate('/how-to-use');
+    setMobileMenuOpen(false);
+  };
+
+  const isStocksActive = location.pathname === '/stocks';
+  const isMfActive = location.pathname === '/mutual-funds';
+  const isAnalyticsActive = location.pathname === '/analytics';
+  const isGlobalActive = location.pathname === '/global-stocks';
+  const isHowToUseActive = location.pathname === '/how-to-use';
+
+  const hasResults = (results.subcategories && results.subcategories.length > 0) ||
+    (results.funds && results.funds.length > 0) ||
+    (results.stocks && results.stocks.length > 0) ||
+    (results.sectors && results.sectors.length > 0);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-primary)', backdropFilter: 'blur(12px)' }}>
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6">
         {/* Main header row */}
-        <div className="flex items-center justify-between h-14 gap-4">
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-6">
           {/* Logo */}
           <button 
-            onClick={() => { dispatch(setActiveView('heatmap')); dispatch(setActiveSector(null)); dispatch(setActiveSymbol(null)); }}
-            className="flex items-center gap-2 shrink-0 group"
+            onClick={handleNavLanding}
+            className="flex items-center gap-2 shrink-0 group focus:outline-none"
+            title="The lal Street - Home"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-              <BarChart3 size={18} className="text-white" />
-            </div>
-            <span className="font-display font-bold text-lg hidden sm:block" style={{ color: 'var(--text-primary)' }}>
-              MarketPulse
-            </span>
+            <img 
+              src={theme === 'dark' ? '/branding/logo-dark-trimmed.png' : '/branding/logo-light-trimmed.png'} 
+              alt="The lal Street"
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+              onError={(e) => {
+                // Fallback to original if trimmed not loaded
+                e.target.src = theme === 'dark' ? '/branding/logo-dark.png' : '/branding/logo-light.png';
+              }}
+            />
           </button>
 
+          {/* Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 shrink-0 text-sm font-medium">
+            <button
+              onClick={handleNavStocks}
+              className={`transition-colors py-1.5 border-b-2 text-xs xl:text-sm font-semibold ${
+                isStocksActive 
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400' 
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Stocks
+            </button>
+
+            <button
+              onClick={handleNavMutualFunds}
+              className={`transition-colors py-1.5 border-b-2 text-xs xl:text-sm font-semibold ${
+                isMfActive 
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400' 
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Mutual Funds
+            </button>
+
+            <button
+              onClick={handleNavAnalytics}
+              className={`transition-colors py-1.5 border-b-2 text-xs xl:text-sm font-semibold ${
+                isAnalyticsActive 
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400' 
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Analytics
+            </button>
+
+            <button
+              onClick={handleNavGlobalStocks}
+              className={`transition-colors py-1.5 border-b-2 text-xs xl:text-sm font-semibold ${
+                isGlobalActive 
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400' 
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Global Stocks
+            </button>
+
+            <button
+              onClick={handleNavHowToUse}
+              className={`transition-colors py-1.5 border-b-2 text-xs xl:text-sm font-semibold ${
+                isHowToUseActive 
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400' 
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              How to Use
+            </button>
+          </nav>
+
           {/* Search Bar */}
-          <div ref={searchRef} className="relative flex-1 max-w-md">
+          <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-sm md:max-w-md">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Search stocks, sectors..."
+                placeholder="Search stocks, mutual funds, ETFs..."
                 value={localQuery}
                 onChange={(e) => { setLocalQuery(e.target.value); setSearchOpen(true); }}
                 onFocus={() => setSearchOpen(true)}
-                className="w-full pl-9 pr-8 py-2 rounded-lg text-sm transition-colors focus:outline-none focus:ring-1"
+                className="w-full pl-9 pr-8 py-2 rounded-lg text-xs sm:text-sm transition-colors focus:outline-none focus:ring-1"
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-color)',
@@ -150,28 +316,60 @@ export default function Header() {
                   <div className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>Searching...</div>
                 )}
                 {!searching && !hasResults && (
-                  <div className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>No results found</div>
+                  <div className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>No matching funds, stocks, subcategories, or sectors found</div>
                 )}
-                {results.sectors.length > 0 && (
+                {results.subcategories && results.subcategories.length > 0 && (
                   <div>
-                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
-                      Sectors
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                      <span>Mutual Fund Subcategories</span>
+                      <span className="text-[9px] opacity-75">{results.subcategories.length}</span>
                     </div>
-                    {results.sectors.map(s => (
+                    {results.subcategories.slice(0, 5).map(sub => (
                       <button
-                        key={s.id}
-                        onClick={() => handleSectorClick(s.id)}
+                        key={`sub-${sub.id}`}
+                        onClick={() => handleSubcategoryClick(sub)}
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors hover:bg-[var(--bg-card-hover)]"
                         style={{ color: 'var(--text-primary)' }}
                       >
-                        <Grid3X3 size={14} style={{ color: 'var(--accent)' }} />
-                        {s.name}
-                        <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>{s.region === 'india' ? '🇮🇳' : '🌍'}</span>
+                        <Layers size={14} className="text-indigo-500 shrink-0" />
+                        <span className="font-medium truncate">{sub.name}</span>
+                        <span className="text-[10px] ml-auto px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-medium whitespace-nowrap">
+                          {sub.parentCategory || 'Category'}
+                        </span>
                       </button>
                     ))}
                   </div>
                 )}
-                {results.stocks.length > 0 && (
+                {results.funds && results.funds.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                      <span>Mutual Funds & Schemes</span>
+                      <span className="text-[9px] opacity-75">{results.funds.length}</span>
+                    </div>
+                    {results.funds.slice(0, 6).map(f => (
+                      <button
+                        key={`fund-${f.schemeCode || f.name}`}
+                        onClick={() => handleFundClick(f)}
+                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors hover:bg-[var(--bg-card-hover)]"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <PieChart size={14} className="text-emerald-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate text-xs sm:text-sm">{f.name}</div>
+                          <div className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+                            {f.amc ? `${f.amc} • ` : ''}{f.subLabel || f.category || 'Direct Scheme'}
+                          </div>
+                        </div>
+                        {f.nav && (
+                          <span className="text-xs font-mono font-semibold ml-auto shrink-0 text-emerald-600 dark:text-emerald-400">
+                            ₹{f.nav}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {results.stocks && results.stocks.length > 0 && (
                   <div>
                     <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
                       Stocks
@@ -190,68 +388,33 @@ export default function Header() {
                     ))}
                   </div>
                 )}
+                {results.sectors && results.sectors.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                      Sectors
+                    </div>
+                    {results.sectors.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => handleSectorClick(s.id)}
+                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors hover:bg-[var(--bg-card-hover)]"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <Grid3X3 size={14} style={{ color: 'var(--accent)' }} />
+                        {s.name}
+                        <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>{s.region === 'india' ? '🇮🇳' : '🌍'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Right controls */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center gap-1 p-0.5 rounded-full" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-              {regions.map(r => (
-                <button
-                  key={r.value}
-                  onClick={() => dispatch(setRegion(r.value))}
-                  className={`toggle-pill text-xs ${region === r.value ? 'active' : ''}`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Asset Class toggle - hidden on mobile */}
-            <div className="hidden md:flex items-center gap-1 p-0.5 rounded-full" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-              {assetClasses.map(a => (
-                <button
-                  key={a.value}
-                  onClick={() => {
-                    dispatch(setAssetClass(a.value));
-                    if (a.value === 'mf-explore') {
-                      dispatch(setActiveView('mf-explore'));
-                    } else if (a.value === 'analytics') {
-                      dispatch(setActiveView('mf-analytics'));
-                    } else if (a.value === 'sector-explorer') {
-                      dispatch(setActiveView('sector-explorer'));
-                    } else if (a.value === 'sector-trends') {
-                      dispatch(setActiveView('sector-trends'));
-                    } else if (a.value === 'indian-mf') {
-                      dispatch(setActiveView('indian-mf'));
-                    } else {
-                      dispatch(setActiveView('heatmap'));
-                    }
-                  }}
-                  className={`toggle-pill text-xs ${assetClass === a.value ? 'active' : ''}`}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Upstox Connect Button */}
-            <a 
-              href={`${API_BASE}/upstox/login`}
-              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:-translate-y-0.5"
-              style={{
-                background: upstoxConnected ? 'rgba(34, 197, 94, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                color: upstoxConnected ? '#22c55e' : '#818cf8',
-                border: `1px solid ${upstoxConnected ? 'rgba(34, 197, 94, 0.2)' : 'rgba(99, 102, 241, 0.2)'}`
-              }}
-            >
-              <div className={`w-2 h-2 rounded-full ${upstoxConnected ? 'bg-green-500' : 'bg-indigo-500 animate-pulse'}`}></div>
-              {upstoxConnected ? 'Upstox Active' : 'Connect Upstox'}
-            </a>
-
-            {/* Disclaimer badge */}
-            <div className="hidden xl:flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+            {/* Disclaimer badge on extra large screens */}
+            <div className="hidden 2xl:flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
               <AlertTriangle size={11} />
               Delayed ~15 min
             </div>
@@ -263,25 +426,161 @@ export default function Header() {
               style={{ color: 'var(--text-secondary)' }}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+
+            {/* User profile avatar matching mockup */}
+            <div ref={userMenuRef} className="relative">
+              <button 
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    dispatch(setAuthModalOpen(true));
+                  } else {
+                    setUserMenuOpen(!userMenuOpen);
+                  }
+                }}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  isAuthenticated 
+                    ? 'bg-blue-600 text-white font-bold text-xs shadow-xs hover:bg-blue-700' 
+                    : 'bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600/20'
+                }`}
+                title={isAuthenticated ? (user?.name || user?.email || 'The lal Street Account') : 'Sign In / Register'}
+              >
+                {isAuthenticated && (user?.name || user?.email) ? (
+                  <span>{(user.name || user.email)[0].toUpperCase()}</span>
+                ) : (
+                  <User size={16} />
+                )}
+              </button>
+
+              {/* User Dropdown Menu */}
+              {userMenuOpen && isAuthenticated && (
+                <div 
+                  className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-2xl border p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  style={{ 
+                    background: 'var(--bg-card)', 
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-primary)' 
+                  }}
+                >
+                  <div className="px-3 py-2 border-b mb-1" style={{ borderColor: 'var(--border-color)' }}>
+                    <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {user?.name || 'Investor'}
+                    </p>
+                    <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+                      {user?.email}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center gap-2 text-rose-500 hover:bg-rose-500/10 transition-colors"
+                  >
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile menu hamburger toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--bg-card-hover)]"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Open menu"
+            >
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile toggles row */}
-        <div className="flex md:hidden items-center gap-2 pb-2 overflow-x-auto">
-          <div className="flex items-center gap-1 p-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-            {regions.map(r => (
-              <button
-                key={r.value}
-                onClick={() => dispatch(setRegion(r.value))}
-                className={`toggle-pill text-xs ${region === r.value ? 'active' : ''}`}
-              >
-                {r.label}
-              </button>
-            ))}
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden py-3 border-t flex flex-col gap-2" style={{ borderColor: 'var(--border-color)' }}>
+            <button
+              onClick={handleNavStocks}
+              className={`px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between ${
+                isStocksActive ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              <span>Stocks</span>
+              <span className="text-xs opacity-75">NSE/BSE Performance</span>
+            </button>
+
+            <button
+              onClick={handleNavMutualFunds}
+              className={`px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between ${
+                isMfActive ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              <span>Mutual Funds</span>
+              <span className="text-xs opacity-75">AMFI Analytics</span>
+            </button>
+
+            <button
+              onClick={handleNavAnalytics}
+              className={`px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between ${
+                isAnalyticsActive ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              <span>Analytics</span>
+              <span className="text-xs opacity-75">Stock Weightage Screener</span>
+            </button>
+
+            <button
+              onClick={handleNavGlobalStocks}
+              className={`px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between ${
+                isGlobalActive ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              <span>Global Stocks</span>
+              <span className="text-xs opacity-75">GICS Sectors</span>
+            </button>
+
+            <button
+              onClick={handleNavHowToUse}
+              className={`px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between ${
+                isHowToUseActive ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              <span>How to Use</span>
+              <span className="text-xs opacity-75">Platform Guide</span>
+            </button>
+
+            {/* Account row in mobile drawer */}
+            <div className="pt-2 border-t mt-1" style={{ borderColor: 'var(--border-color)' }}>
+              {!isAuthenticated ? (
+                <button
+                  onClick={() => {
+                    dispatch(setAuthModalOpen(true));
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-left text-sm font-semibold flex items-center justify-between text-blue-600 dark:text-blue-400 hover:bg-blue-600/10 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <User size={16} />
+                    <span>Sign In / Register</span>
+                  </span>
+                  <span className="text-xs opacity-75">Account</span>
+                </button>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="px-3 py-1.5 text-xs">
+                    <span className="text-[var(--text-muted)]">Signed in as </span>
+                    <span className="font-semibold text-[var(--text-primary)]">{user?.email}</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center gap-2 text-rose-500 hover:bg-rose-500/10 transition-colors"
+                  >
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </header>
   );

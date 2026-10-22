@@ -21,7 +21,7 @@ export default function MobileStockWeightageView({
   const [mobileSearch, setMobileSearch] = useState('');
 
   const formatAum = (aum) => {
-    if (aum === null || aum === undefined || isNaN(aum) || Number(aum) <= 0) return '₹ 67,231 Cr';
+    if (aum === null || aum === undefined || isNaN(aum) || Number(aum) <= 0) return '—';
     const num = Number(aum);
     return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
   };
@@ -68,7 +68,7 @@ export default function MobileStockWeightageView({
           <div className="w-6 h-6 rounded-md bg-emerald-600 flex items-center justify-center text-white text-xs">
             <BarChart2 size={15} />
           </div>
-          <span>MarketPulse</span>
+          <span>TheLalStreetScreener</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -242,7 +242,7 @@ export default function MobileStockWeightageView({
                   const valCr = pos.marketValueCr ?? pos.valueCr ?? null;
                   const valFormatted = valCr !== null && !isNaN(valCr)
                     ? Math.round(valCr).toLocaleString('en-IN')
-                    : '5,540';
+                    : '—';
 
                   return (
                     <tr 

@@ -18,21 +18,23 @@ export const MF_CATEGORIES = {
   ],
   equity: [
     { id: 'all', label: 'All Equity' },
-    { id: 'large_cap', label: 'Large Cap' },
-    { id: 'large_mid_cap', label: 'Large & Mid Cap' },
+    { id: 'flexi_cap', label: 'Flexi Cap' },
     { id: 'mid_cap', label: 'Mid Cap' },
     { id: 'small_cap', label: 'Small Cap' },
-    { id: 'flexi_cap', label: 'Flexi Cap' },
+    { id: 'large_cap', label: 'Large Cap' },
+    { id: 'large_mid_cap', label: 'Large & Mid Cap' },
     { id: 'multi_cap', label: 'Multi Cap' },
-    { id: 'dividend_yield', label: 'Dividend Yield' },
     { id: 'value', label: 'Value' },
-    { id: 'focused', label: 'Focused' },
     { id: 'contra', label: 'Contra' },
+    { id: 'focused', label: 'Focused' },
+    { id: 'dividend_yield', label: 'Dividend Yield' },
     { id: 'other_equity', label: 'Other Equity' }
   ],
   elss: [
     { id: 'all', label: 'All TAX SAVER' },
     { id: 'elss_funds', label: 'ELSS Funds' },
+    { id: 'large_elss', label: 'Large Cap ELSS' },
+    { id: 'mid_small_elss', label: 'Mid/Small Cap ELSS' },
     { id: 'other_tax_saver', label: 'Other Tax Saver' }
   ],
   debt: [
@@ -57,13 +59,15 @@ export const MF_CATEGORIES = {
   ],
   hybrid: [
     { id: 'all', label: 'All Hybrid' },
-    { id: 'conservative', label: 'Conservative Hybrid' },
-    { id: 'balanced', label: 'Balanced Hybrid' },
+    { id: 'balanced_adv', label: 'Balanced Advantage Funds' },
+    { id: 'dynamic_asset', label: 'Dynamic Asset Allocation Funds' },
+    { id: 'active_momentum', label: 'Active Momentum Funds' },
     { id: 'aggressive', label: 'Aggressive Hybrid' },
-    { id: 'balanced_adv', label: 'Balanced Advantage / Dynamic Asset Allocation' },
+    { id: 'conservative', label: 'Conservative Hybrid' },
     { id: 'multi_asset', label: 'Multi Asset Allocation' },
     { id: 'arbitrage', label: 'Arbitrage' },
     { id: 'equity_savings', label: 'Equity Savings' },
+    { id: 'balanced', label: 'Balanced Hybrid' },
     { id: 'other_hybrid', label: 'Other Hybrid' }
   ],
   index: [
@@ -106,6 +110,15 @@ export const MF_CATEGORIES = {
     { id: 'fmcg', label: 'FMCG & Consumption' },
     { id: 'psu', label: 'PSU' },
     { id: 'auto', label: 'Auto' },
+    { id: 'defence', label: 'Defence Funds' },
+    { id: 'energy', label: 'Energy Funds' },
+    { id: 'bluechip', label: 'BlueChip Funds' },
+    { id: 'innovation', label: 'Innovation Funds' },
+    { id: 'manufacturing', label: 'Manufacturing Funds' },
+    { id: 'quant', label: 'Quant Funds' },
+    { id: 'business_cycle', label: 'Business Cycle Funds' },
+    { id: 'mnc', label: 'MNC Funds' },
+    { id: 'esg', label: 'ESG Funds' },
     { id: 'other_sectoral', label: 'Other Sector/Thematic' }
   ]
 };

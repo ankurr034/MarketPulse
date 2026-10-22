@@ -44,15 +44,41 @@ class SmartMoneyService {
     const bullishSectors = rotation.filter(r => r.rotationSignal === 'Inflow').map(r => r.name);
     const bearishSectors = rotation.filter(r => r.rotationSignal === 'Outflow').map(r => r.name);
 
-    const signals = [
-      { type: 'FII Buy Surge', sector: bullishSectors[0] || 'Technology', description: 'Strong foreign institutional buying recorded in large-cap entities.', confidence: 'High' },
-      { type: 'DII Profit Booking', sector: bearishSectors[0] || 'Energy', description: 'Domestic institutions locking in profits after recent peak rally.', confidence: 'Medium' }
-    ];
+    const signals = [];
+    if (bullishSectors.length > 0) {
+      signals.push({
+        type: 'Sector Momentum Inflow',
+        sector: bullishSectors[0],
+        description: `Positive relative return trend observed across ${bullishSectors[0]} constituents over the 1-month period.`,
+        confidence: 'High',
+        source: 'PRICE_VOLUME_MOMENTUM_DERIVED'
+      });
+    }
+    if (bearishSectors.length > 0) {
+      signals.push({
+        type: 'Sector Consolidation Outflow',
+        sector: bearishSectors[0],
+        description: `Short-term profit taking and consolidation recorded across ${bearishSectors[0]} sector constituents.`,
+        confidence: 'Medium',
+        source: 'PRICE_VOLUME_MOMENTUM_DERIVED'
+      });
+    }
+
+    if (signals.length === 0) {
+      signals.push({
+        type: 'Balanced Sector Allocation',
+        sector: 'Broad Market',
+        description: 'Sector returns remain range-bound across major Indian equity benchmarks.',
+        confidence: 'Neutral',
+        source: 'PRICE_VOLUME_MOMENTUM_DERIVED'
+      });
+    }
 
     const result = {
       bullishSectors,
       bearishSectors,
-      signals
+      signals,
+      source: 'PRICE_VOLUME_MOMENTUM_DERIVED'
     };
 
     cacheService.set(cacheKey, result, 'STANDARD');

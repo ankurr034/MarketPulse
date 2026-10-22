@@ -1,35 +1,24 @@
 import React, { useState } from 'react';
 import { PieChart, SlidersHorizontal } from 'lucide-react';
 import SectorAnalyticsPanel from '../components/SectorAnalyticsPanel';
-import TimeframeSelector from '../components/TimeframeSelector';
 import MutualFundStockWeightageScreener from '../components/stockWeightage/MutualFundStockWeightageScreener';
 
 export default function MfAnalyticsDashboard() {
-  const [activeTab, setActiveTab] = useState('sector-growth');
-  const [activeRange, setActiveRange] = useState('1y');
+  const [activeTab, setActiveTab] = useState('stock-weightage');
 
   const tabs = [
-    { id: 'sector-growth', label: 'Sector Growth & Flow', icon: PieChart },
     { id: 'stock-weightage', label: 'Stock Weightage Screener', icon: SlidersHorizontal },
   ];
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-[var(--text-primary)]">Mutual Fund Analytics</h1>
-          <p className="text-[var(--text-muted)] mt-1 max-w-2xl">
-            Analyze aggregate performance trends across popular mutual funds, sector allocations, and stock weightage.
-          </p>
-        </div>
-
-        <TimeframeSelector
-          activeRange={activeRange}
-          onChange={setActiveRange}
-          earliestDate={null}
-        />
+      {/* Header */}
+      <div>
+        <h1 className="font-display font-bold text-2xl text-[var(--text-primary)]">Mutual Fund Analytics</h1>
+        <p className="text-[var(--text-muted)] mt-1 max-w-2xl">
+          Analyze aggregate performance trends across popular mutual funds, sector allocations, and stock weightage.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -55,7 +44,7 @@ export default function MfAnalyticsDashboard() {
 
       {/* Content area */}
       <div className="pt-2">
-        {activeTab === 'sector-growth' && <SectorAnalyticsPanel activeRange={activeRange} />}
+        {/* {activeTab === 'sector-growth' && <SectorAnalyticsPanel />} */}
         {activeTab === 'stock-weightage' && <MutualFundStockWeightageScreener />}
       </div>
 

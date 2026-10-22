@@ -66,7 +66,7 @@ export default function TimeframeSelector({
   let parsedActiveRange = activeRange;
   if (typeof activeRange === 'string') {
     if (activeRange.startsWith('{')) {
-      try { parsedActiveRange = JSON.parse(activeRange); } catch(e) {}
+      try { parsedActiveRange = JSON.parse(activeRange); } catch(e) { /* ignored */ }
     } else if (activeRange.startsWith('fy:')) {
       parsedActiveRange = { type: 'fy', label: activeRange.slice(3) };
     } else if (activeRange.startsWith('cy:')) {

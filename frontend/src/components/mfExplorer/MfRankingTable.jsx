@@ -118,6 +118,7 @@ function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortin
 export default function MfRankingTable({
   funds = [],
   groupedCategories = null,
+  activeMarketFilter = 'all',
   isAllFundsMode = false,
   activeTimeframe = '1Y',
   rankMode = 'aum', // 'aum' | 'performance'
@@ -162,13 +163,13 @@ export default function MfRankingTable({
     const key = name.toLowerCase();
     if (isParent) {
       if (key === 'equity') return <Network size={16} className="text-blue-600 dark:text-blue-400" />;
-      if (key === 'elss') return <FileText size={16} className="text-blue-600 dark:text-blue-400" />;
+      if (key === 'elss' || key === 'tax saver') return <FileText size={16} className="text-blue-600 dark:text-blue-400" />;
       if (key === 'debt') return <Banknote size={16} className="text-blue-600 dark:text-blue-400" />;
       if (key === 'index') return <LineChart size={16} className="text-blue-600 dark:text-blue-400" />;
       if (key === 'hybrid') return <GitMerge size={16} className="text-blue-600 dark:text-blue-400" />;
       if (key === 'global') return <Globe size={16} className="text-blue-600 dark:text-blue-400" />;
       if (key === 'commodities') return <Coins size={16} className="text-blue-600 dark:text-blue-400" />;
-      if (key === 'sectors') return <LayoutGrid size={16} className="text-blue-600 dark:text-blue-400" />;
+      if (key.includes('sector') || key.includes('thematic')) return <LayoutGrid size={16} className="text-blue-600 dark:text-blue-400" />;
     }
 
     if (key.includes('large')) return <Layers size={14} className="text-blue-500" />;
@@ -179,6 +180,24 @@ export default function MfRankingTable({
     if (key.includes('value')) return <TrendingUp size={14} className="text-blue-500" />;
     if (key.includes('focused')) return <Award size={14} className="text-blue-500" />;
     if (key.includes('contra')) return <Shield size={14} className="text-blue-500" />;
+    if (key.includes('defence') || key.includes('defense')) return <Shield size={14} className="text-blue-500" />;
+    if (key.includes('energy') || key.includes('power')) return <Activity size={14} className="text-blue-500" />;
+    if (key.includes('innovation')) return <Sparkles size={14} className="text-blue-500" />;
+    if (key.includes('manufacturing')) return <Target size={14} className="text-blue-500" />;
+    if (key.includes('quant')) return <LineChart size={14} className="text-blue-500" />;
+    if (key.includes('business cycle')) return <TrendingUp size={14} className="text-blue-500" />;
+    if (key.includes('mnc')) return <Globe size={14} className="text-blue-500" />;
+    if (key.includes('esg')) return <Target size={14} className="text-blue-500" />;
+    if (key.includes('bluechip')) return <Award size={14} className="text-blue-500" />;
+    if (key.includes('bank') || key.includes('finan')) return <Banknote size={14} className="text-blue-500" />;
+    if (key.includes('tech')) return <Network size={14} className="text-blue-500" />;
+    if (key.includes('pharma') || key.includes('health')) return <Activity size={14} className="text-blue-500" />;
+    if (key.includes('infra')) return <LayoutGrid size={14} className="text-blue-500" />;
+    if (key.includes('fmcg') || key.includes('consum')) return <Coins size={14} className="text-blue-500" />;
+    if (key.includes('momentum')) return <TrendingUp size={14} className="text-blue-500" />;
+    if (key.includes('dynamic')) return <Activity size={14} className="text-blue-500" />;
+    if (key.includes('balanced')) return <GitMerge size={14} className="text-blue-500" />;
+    if (key.includes('arbitrage')) return <Coins size={14} className="text-blue-500" />;
 
     return <Layers size={14} className="text-blue-500 opacity-80" />;
   };
@@ -705,140 +724,227 @@ export default function MfRankingTable({
           </thead>
           <tbody>
             {!isAllFundsMode && groupedCategories ? (
-              // 2-LEVEL CATEGORY MODE: Parent Category -> Subcategories -> Funds
-              Object.keys(groupedCategories).map(parentKey => {
-                const parentData = groupedCategories[parentKey];
-                const subcats = parentData.subcategories || {};
-                const parentCount = parentData.count || 0;
-                const parentAum = parentData.aum;
-                const parentReturns = parentData.returns || {};
-                const parentSharpe = parentData.sharpeRatio;
-                const parentSortino = parentData.sortinoRatio;
+              activeMarketFilter !== 'all' ? (
+                // 1-LEVEL SUBCATEGORY MODE: When a specific market filter is active (e.g. Equity, Sectoral, Debt, etc.)
+                // Directly render only the subcategories of that filter, without the parent category header row
+                Object.keys(groupedCategories).map(parentKey => {
+                  const parentData = groupedCategories[parentKey];
+                  const subcats = parentData.subcategories || {};
 
-                const isParentCollapsed = collapsedParentCats[parentKey];
+                  return Object.keys(subcats).map(subKey => {
+                    const subData = subcats[subKey];
+                    const subFunds = subData.funds || [];
+                    const subCount = subData.count || subFunds.length;
+                    const subAum = subData.aum;
+                    const subReturns = subData.returns || {};
+                    const subSharpe = subData.sharpeRatio;
+                    const subSortino = subData.sortinoRatio;
 
-                return (
-                  <React.Fragment key={parentKey}>
-                    {/* LEVEL 1: Parent Category Row */}
-                    <tr 
-                      onClick={() => toggleParentCollapse(parentKey)}
-                      className="bg-slate-50 dark:bg-slate-900/90 hover:bg-slate-100 dark:hover:bg-slate-900 border-y border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none font-bold"
-                    >
-                      <td colSpan={2} className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {isParentCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                          </span>
-                          <span className="p-1 bg-blue-50 dark:bg-blue-950/60 rounded-md">
-                            {getCategoryIcon(parentKey, true)}
-                          </span>
-                          <span className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-                            {parentKey.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-[11px] font-mono font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2.5 py-0.5 rounded-full">
-                            {parentCount.toLocaleString('en-IN')} Funds
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-2 text-center font-mono text-xs text-slate-600 dark:text-slate-400 font-bold">{parentCount}</td>
-                      <td className="py-3 px-2 text-right font-mono text-xs text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">{formatAUM(parentAum)}</td>
-                      <td className="py-3 px-2 text-right font-mono text-xs text-slate-400">—</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['1W'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['1M'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['3M'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['6M'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['1Y'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['3Y'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['5Y'])}</td>
-                      <td className="py-3 px-2 text-right">{formatPct(parentReturns['All'])}</td>
-                      <td className="py-3 px-2 text-right">{formatRatio(parentSharpe)}</td>
-                      <td className="py-3 px-2 text-right">{formatRatio(parentSortino)}</td>
-                      <td className="py-3 px-2 text-center w-24">
-                        <SparklineChart data={[100, 102, 101, 105, 108]} width={65} height={18} color={(parentReturns['1Y'] || 0) >= 0 ? '#10b981' : '#ef4444'} />
-                      </td>
-                    </tr>
+                    const fullSubKey = `${parentKey}_${subKey}`;
+                    const isSubCollapsed = collapsedSubCats[fullSubKey] !== false; // collapsed by default until clicked
+                    const viewMode = categoryViewModes[fullSubKey] || 'top5';
+                    const { display5, fullList, sharpeRange, sortinoRange } = rankCategoryTop5(subFunds);
+                    const baseFunds = viewMode === 'top5' ? display5 : fullList;
+                    const displayFunds = sortFundsList(baseFunds);
 
-                    {/* LEVEL 2: Subcategory Rows (rendered when Parent Category is expanded) */}
-                    {!isParentCollapsed && Object.keys(subcats).map(subKey => {
-                      const subData = subcats[subKey];
-                      const subFunds = subData.funds || [];
-                      const subCount = subData.count || subFunds.length;
-                      const subAum = subData.aum;
-                      const subReturns = subData.returns || {};
-                      const subSharpe = subData.sharpeRatio;
-                      const subSortino = subData.sortinoRatio;
+                    return (
+                      <React.Fragment key={fullSubKey}>
+                        {/* Subcategory Accordion Header Row (Direct top-level row when parent filter selected) */}
+                        <tr 
+                          onClick={() => toggleSubCollapse(fullSubKey)}
+                          className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none"
+                        >
+                          <td colSpan={2} className="py-2.5 px-3 pl-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-400">
+                                {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                              </span>
+                              {getCategoryIcon(subKey, false)}
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {subKey}
+                              </span>
+                              <span className="text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-2 py-0.5 rounded-full">
+                                {subCount} Funds
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 text-center font-mono text-xs text-slate-500 font-medium">{subCount}</td>
+                          <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
+                          <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-400">—</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1W'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1M'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3M'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['6M'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1Y'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3Y'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['5Y'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatPct(subReturns['All'])}</td>
+                          <td className="py-2.5 px-2 text-right">{formatRatio(subSharpe)}</td>
+                          <td className="py-2.5 px-2 text-right">{formatRatio(subSortino)}</td>
+                          <td className="py-2.5 px-2 text-center w-24">
+                            <SparklineChart data={[100, 101, 103, 102, 106]} width={60} height={16} color={(subReturns['1Y'] || 0) >= 0 ? '#10b981' : '#ef4444'} />
+                          </td>
+                        </tr>
 
-                      const fullSubKey = `${parentKey}_${subKey}`;
-                      const isSubCollapsed = collapsedSubCats[fullSubKey] !== false; // collapsed by default until clicked
-                      const viewMode = categoryViewModes[fullSubKey] || 'top5';
-                      const { display5, fullList, sharpeRange, sortinoRange } = rankCategoryTop5(subFunds);
-                      const baseFunds = viewMode === 'top5' ? display5 : fullList;
-                      const displayFunds = sortFundsList(baseFunds);
+                        {/* Individual Fund Rows (rendered when Subcategory is expanded) */}
+                        {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfSubcategoryRank ?? fund.indiaMfRank ?? (idx + 1), sharpeRange, sortinoRange, 'subcategory'))}
 
-                      return (
-                        <React.Fragment key={fullSubKey}>
-                          {/* Subcategory Accordion Header Row (Indented matching user screenshot) */}
-                          <tr 
-                            onClick={() => toggleSubCollapse(fullSubKey)}
-                            className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none"
-                          >
-                            <td colSpan={2} className="py-2.5 px-3 pl-8">
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-400">
-                                  {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                                </span>
-                                {getCategoryIcon(subKey, false)}
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                  {subKey}
-                                </span>
-                                <span className="text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-2 py-0.5 rounded-full">
-                                  {subCount} Funds
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-2 text-center font-mono text-xs text-slate-500 font-medium">{subCount}</td>
-                            <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
-                            <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-400">—</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1W'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1M'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3M'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['6M'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1Y'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3Y'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['5Y'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatPct(subReturns['All'])}</td>
-                            <td className="py-2.5 px-2 text-right">{formatRatio(subSharpe)}</td>
-                            <td className="py-2.5 px-2 text-right">{formatRatio(subSortino)}</td>
-                            <td className="py-2.5 px-2 text-center w-24">
-                              <SparklineChart data={[100, 101, 103, 102, 106]} width={60} height={16} color={(subReturns['1Y'] || 0) >= 0 ? '#10b981' : '#ef4444'} />
+                        {/* View All / Show Top 5 Inline Button */}
+                        {!isSubCollapsed && subFunds.length > 5 && (
+                          <tr className="bg-slate-50/50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+                            <td colSpan={16} className="py-2 px-8 text-left">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleCategoryViewMode(fullSubKey);
+                                }}
+                                className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors inline-flex items-center gap-1"
+                              >
+                                {viewMode === 'top5' ? `View All ${subFunds.length} ${subKey} Funds →` : '← Show Top 5'}
+                              </button>
                             </td>
                           </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })
+              ) : (
+                // 2-LEVEL CATEGORY MODE: Parent Category -> Subcategories -> Funds (for 'all' / multi-category view)
+                Object.keys(groupedCategories).map(parentKey => {
+                  const parentData = groupedCategories[parentKey];
+                  const subcats = parentData.subcategories || {};
+                  const parentCount = parentData.count || 0;
+                  const parentAum = parentData.aum;
+                  const parentReturns = parentData.returns || {};
+                  const parentSharpe = parentData.sharpeRatio;
+                  const parentSortino = parentData.sortinoRatio;
 
-                          {/* LEVEL 3: Individual Fund Rows (rendered when Subcategory is expanded) */}
-                          {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfSubcategoryRank ?? fund.indiaMfRank ?? (idx + 1), sharpeRange, sortinoRange, 'subcategory'))}
+                  const isParentCollapsed = collapsedParentCats[parentKey];
 
-                          {/* View All / Show Top 5 Inline Button */}
-                          {!isSubCollapsed && subFunds.length > 5 && (
-                            <tr className="bg-slate-50/50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
-                              <td colSpan={16} className="py-2 px-8 text-left">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleCategoryViewMode(fullSubKey);
-                                  }}
-                                  className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors inline-flex items-center gap-1"
-                                >
-                                  {viewMode === 'top5' ? `View All ${subFunds.length} ${subKey} Funds →` : '← Show Top 5'}
-                                </button>
+                  return (
+                    <React.Fragment key={parentKey}>
+                      {/* LEVEL 1: Parent Category Row */}
+                      <tr 
+                        onClick={() => toggleParentCollapse(parentKey)}
+                        className="bg-slate-50 dark:bg-slate-900/90 hover:bg-slate-100 dark:hover:bg-slate-900 border-y border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none font-bold"
+                      >
+                        <td colSpan={2} className="py-3 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 dark:text-slate-400">
+                              {isParentCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                            </span>
+                            <span className="p-1 bg-blue-50 dark:bg-blue-950/60 rounded-md">
+                              {getCategoryIcon(parentKey, true)}
+                            </span>
+                            <span className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                              {parentKey.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-[11px] font-mono font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2.5 py-0.5 rounded-full">
+                              {parentCount.toLocaleString('en-IN')} Funds
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-center font-mono text-xs text-slate-600 dark:text-slate-400 font-bold">{parentCount}</td>
+                        <td className="py-3 px-2 text-right font-mono text-xs text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">{formatAUM(parentAum)}</td>
+                        <td className="py-3 px-2 text-right font-mono text-xs text-slate-400">—</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['1W'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['1M'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['3M'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['6M'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['1Y'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['3Y'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['5Y'])}</td>
+                        <td className="py-3 px-2 text-right">{formatPct(parentReturns['All'])}</td>
+                        <td className="py-3 px-2 text-right">{formatRatio(parentSharpe)}</td>
+                        <td className="py-3 px-2 text-right">{formatRatio(parentSortino)}</td>
+                        <td className="py-3 px-2 text-center w-24">
+                          <SparklineChart data={[100, 102, 101, 105, 108]} width={65} height={18} color={(parentReturns['1Y'] || 0) >= 0 ? '#10b981' : '#ef4444'} />
+                        </td>
+                      </tr>
+
+                      {/* LEVEL 2: Subcategory Rows (rendered when Parent Category is expanded) */}
+                      {!isParentCollapsed && Object.keys(subcats).map(subKey => {
+                        const subData = subcats[subKey];
+                        const subFunds = subData.funds || [];
+                        const subCount = subData.count || subFunds.length;
+                        const subAum = subData.aum;
+                        const subReturns = subData.returns || {};
+                        const subSharpe = subData.sharpeRatio;
+                        const subSortino = subData.sortinoRatio;
+
+                        const fullSubKey = `${parentKey}_${subKey}`;
+                        const isSubCollapsed = collapsedSubCats[fullSubKey] !== false; // collapsed by default until clicked
+                        const viewMode = categoryViewModes[fullSubKey] || 'top5';
+                        const { display5, fullList, sharpeRange, sortinoRange } = rankCategoryTop5(subFunds);
+                        const baseFunds = viewMode === 'top5' ? display5 : fullList;
+                        const displayFunds = sortFundsList(baseFunds);
+
+                        return (
+                          <React.Fragment key={fullSubKey}>
+                            {/* Subcategory Accordion Header Row (Indented matching user screenshot) */}
+                            <tr 
+                              onClick={() => toggleSubCollapse(fullSubKey)}
+                              className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none"
+                            >
+                              <td colSpan={2} className="py-2.5 px-3 pl-8">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-400">
+                                    {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                                  </span>
+                                  {getCategoryIcon(subKey, false)}
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    {subKey}
+                                  </span>
+                                  <span className="text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-2 py-0.5 rounded-full">
+                                    {subCount} Funds
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-mono text-xs text-slate-500 font-medium">{subCount}</td>
+                              <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
+                              <td className="py-2.5 px-2 text-right font-mono text-xs text-slate-400">—</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1W'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1M'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3M'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['6M'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['1Y'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['3Y'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['5Y'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatPct(subReturns['All'])}</td>
+                              <td className="py-2.5 px-2 text-right">{formatRatio(subSharpe)}</td>
+                              <td className="py-2.5 px-2 text-right">{formatRatio(subSortino)}</td>
+                              <td className="py-2.5 px-2 text-center w-24">
+                                <SparklineChart data={[100, 101, 103, 102, 106]} width={60} height={16} color={(subReturns['1Y'] || 0) >= 0 ? '#10b981' : '#ef4444'} />
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })
+
+                            {/* LEVEL 3: Individual Fund Rows (rendered when Subcategory is expanded) */}
+                            {!isSubCollapsed && displayFunds.map((fund, idx) => renderFundRow(fund, idx, fund.indiaMfSubcategoryRank ?? fund.indiaMfRank ?? (idx + 1), sharpeRange, sortinoRange, 'subcategory'))}
+
+                            {/* View All / Show Top 5 Inline Button */}
+                            {!isSubCollapsed && subFunds.length > 5 && (
+                              <tr className="bg-slate-50/50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+                                <td colSpan={16} className="py-2 px-8 text-left">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleCategoryViewMode(fullSubKey);
+                                    }}
+                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    {viewMode === 'top5' ? `View All ${subFunds.length} ${subKey} Funds →` : '← Show Top 5'}
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })
+              )
             ) : isAllFundsMode && paginatedAllFunds.length > 0 ? (
               // ALL FUNDS MODE: Flat list ranked by AUM DESC with numerical rank #
               paginatedAllFunds.map((fund, idx) => renderFundRow(fund, idx, null, allFundsSharpeRange, allFundsSortinoRange, 'all'))

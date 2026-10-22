@@ -147,8 +147,8 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
             {liveSummary?.industryAum?.change ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                ▲ {liveSummary.industryAum.change}
+              <span className={String(liveSummary.industryAum.change).startsWith('-') ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
+                {String(liveSummary.industryAum.change).startsWith('-') ? '▼ ' : '▲ '}{String(liveSummary.industryAum.change).replace(/^[+-]\s*/, '')}
               </span>
             ) : (
               <span>Source: SEBI / AMFI</span>
@@ -259,7 +259,7 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
             <span>Source: SEBI / AMFI</span>
-            <span>As of {liveSummary?.registeredAmcs?.asOf || asOfDate || 'July 2026'}</span>
+            <span>As of {liveSummary?.registeredAmcs?.asOf || asOfDate || 'September 2026'}</span>
           </div>
         </div>
 
@@ -301,13 +301,13 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
           </div>
           <div className="mt-3">
             <div className="text-xs text-slate-900 dark:text-slate-100 font-bold leading-snug">
-              {liveSummary?.topSipFunds?.value || 'Mid-cap (₹6,090 Cr), Small-cap (₹5,602 Cr), Flexi-cap (₹5,231 Cr)'}
+              {liveSummary?.topSipFunds?.value || 'Small-cap (₹9,039 Cr), Mid-cap (₹7,835 Cr), Flexi-cap (₹6,702 Cr)'}
             </div>
-            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">Top Categories by Net Inflow (Jun 2026)</div>
+            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">Top Categories by Net Inflow ({liveSummary?.topSipFunds?.asOf || 'September 2026'})</div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
             <span>Source: AMFI Category Inflow Data</span>
-            <span>As of {liveSummary?.topSipFunds?.asOf || asOfDate || 'July 2026'}</span>
+            <span>As of {liveSummary?.topSipFunds?.asOf || asOfDate || 'September 2026'}</span>
           </div>
         </div>
 
@@ -323,13 +323,13 @@ export default function MfMarketOverview({ enrichedFunds = [], liveSummary = nul
           </div>
           <div className="mt-3">
             <div className="text-xs text-slate-900 dark:text-slate-100 font-bold leading-snug">
-              {liveSummary?.amcMarketShare?.value || 'SBI MF (16.14%), ICICI Pru (13.11%), HDFC (11.35%)'}
+              {liveSummary?.amcMarketShare?.value || 'SBI MF (15.02%), ICICI Pru (13.25%), HDFC (11.48%)'}
             </div>
-            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">Top AMCs by AAUM Share (Q1 FY2027)</div>
+            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">Top AMCs by AAUM Share ({liveSummary?.amcMarketShare?.asOf || 'Q2 FY2027'})</div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
             <span>Source: AMFI Quarterly AAUM Disclosure</span>
-            <span>As of {liveSummary?.amcMarketShare?.asOf || asOfDate || 'July 2026'}</span>
+            <span>As of {liveSummary?.amcMarketShare?.asOf || asOfDate || 'Q2 FY2027'}</span>
           </div>
         </div>
 

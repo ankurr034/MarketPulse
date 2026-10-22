@@ -43,7 +43,19 @@ class SectorIndexService {
 
         const res = await yahooFinance.chart(ticker, chartOpts);
 
-        const quotes = res?.quotes || [];
+        let quotes = res?.quotes || [];
+        if (quotes.length <= 2) {
+          try {
+            const monthlyOpts = { ...chartOpts, interval: '1mo' };
+            const mRes = await yahooFinance.chart(ticker, monthlyOpts);
+            if (mRes?.quotes && mRes.quotes.length > quotes.length) {
+              quotes = mRes.quotes;
+            }
+          } catch (e) {
+            // Keep daily quotes if monthly fallback fails
+          }
+        }
+
         indexHistory = quotes.map(item => ({
           time: new Date(item.date).getTime(),
           date: new Date(item.date).toISOString().split('T')[0],

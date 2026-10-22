@@ -12,29 +12,38 @@ export const AMC_LIST = [
 ];
 
 export const CATEGORY_GROUPS = {
+  Equity: [
+    "Flexi Cap", "Mid Cap", "Small Cap", "Large Cap", "Large & MidCap",
+    "Multi Cap", "Value", "Contra", "Focused", "Dividend Yield"
+  ],
+  "Tax Saver (ELSS)": [
+    "ELSS Funds"
+  ],
+  "Sectoral & Thematic": [
+    "Banking & Financial Services", "Technology", "Healthcare & Pharma",
+    "Infrastructure", "FMCG & Consumption", "PSU", "Auto",
+    "Defence Funds", "Energy Funds", "BlueChip Funds", "Innovation Funds",
+    "Manufacturing Funds", "Quant Funds", "Business Cycle Funds", "MNC Funds", "ESG Funds",
+    "Other Sectoral"
+  ],
+  Hybrid: [
+    "Arbitrage", "Balanced Advantage Funds", "Dynamic Asset Allocation Funds", "Active Momentum Funds", "Aggressive Hybrid",
+    "Conservative Hybrid", "Multi Asset", "Equity Savings", "Balanced Hybrid"
+  ],
   Debt: [
-    "Banking and PSU", "Floater", "Gilt with 10Y Constant Duration", "Long Duration", 
-    "Medium to Long Duration", "Money Market", "Overnight", "Short Duration", 
-    "Target Maturity", "Corporate Bond", "Low Duration", "Medium Duration",
-    "Dynamic Bond", "Gilt", "Credit Risk", "Liquid", "Ultra Short Duration"
+    "Overnight", "Liquid", "Ultra Short Duration", "Low Duration", "Money Market",
+    "Short Duration", "Medium Duration", "Medium to Long Duration", "Long Duration",
+    "Dynamic Bond", "Corporate Bond", "Credit Risk", "Banking and PSU", "Gilt",
+    "Gilt with 10Y Constant Duration", "Floater"
+  ],
+  "Index Funds & ETFs": [
+    "Index Funds", "ETFs & Index Funds", "Gold ETF", "Silver ETF"
   ],
   Commodities: [
     "Gold", "Silver", "Commodities & Gold", "Precious Metals"
   ],
-  ETFs: [
-    "Gold ETF", "Silver ETF", "ETFs & Index Funds", "Sectoral / Thematic ETF", "International ETF", "Exchange Traded Funds"
-  ],
-  Hybrid: [
-    "Balanced Hybrid", "Dynamic Asset Allocation", "Equity Savings",
-    "Multi Asset", "Aggressive Hybrid", "Conservative Hybrid", "Arbitrage"
-  ],
-  Equity: [
-    "Multi Cap", "Flexi Cap", "International", "Large & MidCap", "Thematic", 
-    "Large Cap", "Mid Cap", "Small Cap", "ELSS", "Dividend Yield", "Sectoral",
-    "Contra", "Value Oriented"
-  ],
   Others: [
-    "Infrastructure", "PSU", "Energy (Renewable)", "Consumption (FMCG)", "Banking", "Technology (IT)"
+    "Children", "Retirement", "Fund of Funds", "Other"
   ]
 };
 

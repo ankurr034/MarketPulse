@@ -74,18 +74,6 @@
       "portfolioDate": "August 31, 2026",
       "verified": true
     },
-    "118989": {
-      "schemeCode": "118989",
-      "isin": "INF179K01XQ0",
-      "schemeName": "HDFC Mid Cap Fund - Direct Plan - Growth Option",
-      "amc": "HDFC Mutual Fund",
-      "category": "Open Ended Schemes(Equity Scheme - Mid Cap Fund)",
-      "sourceUrl": "https://files.hdfcfund.com/s3fs-public/2026-09/Monthly_HDFC_Mid_Cap_Fund_-_31_August_2026.xlsx",
-      "fileName": "hdfc/Monthly_HDFC_Mid_Cap_Fund_-_31_August_2026.xlsx",
-      "fileSizeBytes": 156050,
-      "portfolioDate": "August 31, 2026",
-      "verified": true
-    },
     "119018": {
       "schemeCode": "119018",
       "isin": "INF179K01YV8",

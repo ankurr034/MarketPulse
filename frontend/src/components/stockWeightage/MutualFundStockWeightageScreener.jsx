@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { 
-  Search, SlidersHorizontal, ChevronRight, PieChart as PieChartIcon, 
-  Calendar, Info, Building2, Landmark, TrendingUp, Flag, Disc, Star, 
+  Search, ChevronRight, PieChart as PieChartIcon, 
+  Building2, Landmark, TrendingUp, Flag, Disc, Star, 
   HelpCircle, X, Check, Award, Layers, BarChart3,
-  ExternalLink, Briefcase, FileSpreadsheet
+  ExternalLink, Briefcase
 } from 'lucide-react';
 import StockWeightageTable from './StockWeightageTable';
 import StockDetailPanel from './StockDetailPanel';
@@ -18,23 +18,15 @@ import BrandLogo from './BrandLogo';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default function MutualFundStockWeightageScreener() {
-  // Navigation tabs matching reference: 'most_held', 'highest_weightage', 'sector_view', 'market_trends', 'top10_per_fund'
+  // Navigation tabs: 'most_held', 'sector_view'
   const [activeTab, setActiveTab] = useState('most_held');
 
   // Category filter matching reference pills: 'All Funds', 'Large Cap', 'Mid Cap', 'Small Cap', 'Contra', 'Value'
   const [selectedCategory, setSelectedCategory] = useState('All Funds');
 
-  // Filter bar dropdowns
+  // Filter bar controls
   const [sortBy, setSortBy] = useState('fundCount');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [minAvgWeight, setMinAvgWeight] = useState('any');
-  const [maxAvgWeight, setMaxAvgWeight] = useState('any');
-  const [stockPriceFilter, setStockPriceFilter] = useState('any');
-  const [marketCapFilter, setMarketCapFilter] = useState('any');
-  const [selectedSector, setSelectedSector] = useState('all');
-  const [selectedAmc, setSelectedAmc] = useState('all');
-  const [fundAumExposureFilter, setFundAumExposureFilter] = useState('any');
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [stockSearchQuery, setStockSearchQuery] = useState('');
 
   // Master screener state
@@ -73,23 +65,10 @@ export default function MutualFundStockWeightageScreener() {
     { label: 'Value', icon: Star }
   ];
 
-  // 5 Sub-navigation view tabs matching reference design
+  // Sub-navigation view tabs matching reference design
   const navTabs = [
     { id: 'most_held', label: 'Most Held Stocks', icon: Building2 },
-    { id: 'highest_weightage', label: 'Highest Weightage', icon: TrendingUp },
-    { id: 'sector_view', label: 'Sector View', icon: PieChartIcon },
-    { id: 'market_trends', label: 'Market Trends', icon: BarChart3 },
-    { id: 'top10_per_fund', label: 'Top 10 Stocks Per Fund', icon: Briefcase }
-  ];
-
-  // Available AMCs list
-  const amcList = [
-    'HDFC Mutual Fund', 'ICICI Prudential Mutual Fund', 'SBI Mutual Fund',
-    'Nippon India Mutual Fund', 'Axis Mutual Fund', 'Kotak Mahindra Mutual Fund',
-    'UTI Mutual Fund', 'Aditya Birla Sun Life Mutual Fund', 'DSP Mutual Fund',
-    'Mirae Asset Mutual Fund', 'Parag Parikh Financial Advisory Services',
-    'Tata Mutual Fund', 'Bandhan Mutual Fund', 'Baroda BNP Paribas Mutual Fund',
-    'Motilal Oswal Mutual Fund', 'Quant Mutual Fund'
+    { id: 'sector_view', label: 'Sector View', icon: PieChartIcon }
   ];
 
   // 1. Fetch stock screener results
@@ -104,16 +83,7 @@ export default function MutualFundStockWeightageScreener() {
     try {
       const params = new URLSearchParams();
       if (stockSearchQuery.trim()) params.set('search', stockSearchQuery.trim());
-      if (selectedSector !== 'all') params.set('sector', selectedSector);
-      if (marketCapFilter !== 'any') params.set('marketCap', marketCapFilter);
       if (category && category !== 'All Funds') params.set('category', category);
-      if (selectedAmc !== 'all') params.set('amc', selectedAmc);
-
-      // Handle min / max weight filters
-      if (minAvgWeight !== 'any') {
-        const val = parseFloat(minAvgWeight.replace('>', '').replace('%', '').trim());
-        if (!isNaN(val)) params.set('minWeight', val);
-      }
 
       params.set('sortBy', currentSortBy);
       params.set('sortOrder', currentSortOrder);
@@ -124,7 +94,7 @@ export default function MutualFundStockWeightageScreener() {
       setStockScreenerData(res.data);
       setStockPage(page);
 
-      // Fix problem #8: Default select first stock if none selected so right side is NEVER blank!
+      // Default select first stock if none selected so right side is NEVER blank!
       if (res.data?.stocks?.length > 0) {
         if (!selectedStockSymbol || !res.data.stocks.some(s => s.symbol === selectedStockSymbol)) {
           setSelectedStockSymbol(res.data.stocks[0].symbol);
@@ -135,7 +105,7 @@ export default function MutualFundStockWeightageScreener() {
     } finally {
       setStockScreenerLoading(false);
     }
-  }, [stockSearchQuery, selectedSector, marketCapFilter, selectedCategory, selectedAmc, minAvgWeight, sortBy, sortOrder, pageSize, selectedStockSymbol]);
+  }, [stockSearchQuery, selectedCategory, sortBy, sortOrder, pageSize, selectedStockSymbol]);
 
   // 2. Fetch sectors breakdown
   const fetchSectors = useCallback(async () => {
@@ -211,15 +181,8 @@ export default function MutualFundStockWeightageScreener() {
       setSortBy('fundCount');
       setSortOrder('desc');
       fetchStockScreener(1, 'fundCount', 'desc');
-    } else if (tabId === 'highest_weightage') {
-      setSortBy('avgWeightage');
-      setSortOrder('desc');
-      fetchStockScreener(1, 'avgWeightage', 'desc');
     } else if (tabId === 'sector_view') {
       fetchSectors();
-    } else if (tabId === 'top10_per_fund') {
-      fetchFundsList(selectedCategory, fundSearch);
-      if (selectedSchemeCode) fetchFundPortfolio(selectedSchemeCode);
     }
   };
 
@@ -243,9 +206,6 @@ export default function MutualFundStockWeightageScreener() {
     }
   };
 
-  // As of date string matching reference
-  const asOfDate = '31-Aug-2024';
-
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
       
@@ -256,7 +216,7 @@ export default function MutualFundStockWeightageScreener() {
         <span className="text-slate-900 dark:text-white font-bold">Stock Weightage Screener</span>
       </nav>
 
-      {/* ── 1. HEADER ROW WITH TITLE, DATA AS-OF BADGE & HOW TO USE BUTTON ── */}
+      {/* ── 1. HEADER ROW WITH TITLE, DATA DISCLAIMER BADGE & HOW TO USE BUTTON ── */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -267,30 +227,18 @@ export default function MutualFundStockWeightageScreener() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
-              {/* As of Date Badge matching reference green container */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-slate-200">
-                <FileSpreadsheet size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <div className="flex flex-col leading-tight">
-                  <div className="text-xs font-bold text-slate-900 dark:text-white">
-                    Data as of {asOfDate}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                    <span>Based on latest available holdings of Direct-Growth schemes</span>
-                    <span 
-                      className="cursor-pointer text-slate-400 hover:text-slate-600"
-                      title="Disclosed statutory portfolio disclosures across verified Direct-Growth schemes"
-                    >
-                      <Info size={11} />
-                    </span>
-                  </div>
-                </div>
+            <div className="flex items-center gap-3 self-start sm:self-center max-w-2xl">
+              {/* Data Disclaimer Badge matching reference green container */}
+              <div className="px-3 py-1.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-slate-200">
+                <p className="text-[10px] leading-tight text-slate-600 dark:text-slate-300">
+                  <span className="font-bold text-slate-900 dark:text-white">Data Disclaimer:</span> Mutual fund holdings and AUM data shown in this screener could be  based on the old and previous data available in our verified data sources. Some holdings may be from an earlier reporting period and may not reflect the funds' current portfolio positions. Data is provided for informational and analytical purposes only and should not be considered real-time or investment advice.
+                </p>
               </div>
 
               {/* How to use? Button */}
               <button
                 onClick={() => setShowHowToUseModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-colors cursor-pointer shrink-0"
               >
                 <HelpCircle size={14} className="text-blue-500" />
                 <span>How to use?</span>
@@ -321,178 +269,32 @@ export default function MutualFundStockWeightageScreener() {
             })}
           </div>
 
-          {/* ── 3. FILTER BAR (DROPDOWNS, MORE FILTERS, SEARCH INPUT) ── */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-2xl border bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Sort By */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Sort By</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => {
-                    const newSort = e.target.value;
-                    setSortBy(newSort);
-                    fetchStockScreener(1, newSort, sortOrder);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="fundCount">Funds Holding</option>
-                  <option value="avgWeightage">Avg. Weightage</option>
-                  <option value="maxWeightage">Max. Weightage</option>
-                  <option value="holdingValue">Total Holding Value</option>
-                  <option value="fundAum">Fund AUM Exposure</option>
-                  <option value="name">Stock Name</option>
-                </select>
-              </div>
-
-              {/* Min Avg Weightage */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Min Avg Weightage</span>
-                <select
-                  value={minAvgWeight}
-                  onChange={(e) => {
-                    setMinAvgWeight(e.target.value);
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="any">Any</option>
-                  <option value="> 1%"> &gt; 1% </option>
-                  <option value="> 2%"> &gt; 2% </option>
-                  <option value="> 3%"> &gt; 3% </option>
-                  <option value="> 5%"> &gt; 5% </option>
-                </select>
-              </div>
-
-              {/* Max Avg Weightage */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Max Avg Weightage</span>
-                <select
-                  value={maxAvgWeight}
-                  onChange={(e) => setMaxAvgWeight(e.target.value)}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="any">Any</option>
-                  <option value="< 2%"> &lt; 2% </option>
-                  <option value="< 5%"> &lt; 5% </option>
-                  <option value="< 8%"> &lt; 8% </option>
-                  <option value="< 10%"> &lt; 10% </option>
-                </select>
-              </div>
-
-              {/* Stock Price */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Stock Price</span>
-                <select
-                  value={stockPriceFilter}
-                  onChange={(e) => setStockPriceFilter(e.target.value)}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="any">Any</option>
-                  <option value="< 500">&lt; ₹500</option>
-                  <option value="500-1500">₹500 – ₹1,500</option>
-                  <option value="1500-3000">₹1,500 – ₹3,000</option>
-                  <option value="> 3000">&gt; ₹3,000</option>
-                </select>
-              </div>
-
-              {/* Market Cap */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Market Cap</span>
-                <select
-                  value={marketCapFilter}
-                  onChange={(e) => {
-                    setMarketCapFilter(e.target.value);
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="any">Any</option>
-                  <option value="Large Cap">Large Cap</option>
-                  <option value="Mid Cap">Mid Cap</option>
-                  <option value="Small Cap">Small Cap</option>
-                </select>
-              </div>
-
-              {/* Sector */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Sector</span>
-                <select
-                  value={selectedSector}
-                  onChange={(e) => {
-                    setSelectedSector(e.target.value);
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All Sectors</option>
-                  {sectorsData?.sectors?.map(s => (
-                    <option key={s.sector} value={s.sector}>{s.sector}</option>
-                  )) || (
-                    <>
-                      <option value="Banks">Banks</option>
-                      <option value="IT">IT</option>
-                      <option value="Oil & Gas">Oil & Gas</option>
-                      <option value="FMCG">FMCG</option>
-                      <option value="Construction">Construction</option>
-                      <option value="Telecom">Telecom</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* AMC */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">AMC</span>
-                <select
-                  value={selectedAmc}
-                  onChange={(e) => {
-                    setSelectedAmc(e.target.value);
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[140px] truncate"
-                >
-                  <option value="all">All AMCs</option>
-                  {amcList.map(a => (
-                    <option key={a} value={a}>{a.replace(' Mutual Fund', '')}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Fund AUM Exposure */}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-400 leading-none mb-1">Fund AUM Exposure</span>
-                <select
-                  value={fundAumExposureFilter}
-                  onChange={(e) => setFundAumExposureFilter(e.target.value)}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="any">Any</option>
-                  <option value="> 10000">&gt; ₹10,000 Cr</option>
-                  <option value="> 50000">&gt; ₹50,000 Cr</option>
-                  <option value="> 100000">&gt; ₹1,00,000 Cr</option>
-                </select>
-              </div>
-
-              {/* More Filters button */}
-              <div className="flex flex-col justify-end">
-                <button
-                  onClick={() => setShowMoreFilters(!showMoreFilters)}
-                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer h-7 ${
-                    showMoreFilters
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  <SlidersHorizontal size={12} />
-                  <span>More Filters</span>
-                </button>
-              </div>
+          {/* ── 3. FILTER BAR (SORT BY & SEARCH BAR) ── */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-slate-800 shadow-xs">
+            {/* Sort By */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">Sort By</span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  const newSort = e.target.value;
+                  setSortBy(newSort);
+                  fetchStockScreener(1, newSort, sortOrder);
+                }}
+                className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+              >
+                <option value="fundCount">Number of Funds Holdings</option>
+                <option value="universeWeightPct">MF Universe Weightage (%)</option>
+                <option value="holdingValue">Total AUM Exposure</option>
+                <option value="sector">Sector</option>
+                <option value="name">Stock Name</option>
+                <option value="avgWeightage">Avg. Weightage</option>
+              </select>
             </div>
 
-            {/* Right Search Input */}
-            <div className="relative min-w-[240px] flex-1 sm:flex-initial">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Search Input */}
+            <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search stock (e.g. HDFC Bank, Reliance...)"
@@ -518,75 +320,6 @@ export default function MutualFundStockWeightageScreener() {
             </div>
           </div>
 
-          {/* ── COLLAPSIBLE ADVANCED FILTERS DRAWER ── */}
-          {showMoreFilters && (
-            <div className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal size={14} className="text-[#0D6B58] dark:text-emerald-400" />
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">Advanced Screener Filters</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setMinAvgWeight('any');
-                    setMaxAvgWeight('any');
-                    setStockPriceFilter('any');
-                    setMarketCapFilter('any');
-                    setSelectedSector('all');
-                    setSelectedAmc('all');
-                    setFundAumExposureFilter('any');
-                    setStockSearchQuery('');
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
-                >
-                  Reset All Filters
-                </button>
-              </div>
-
-              {/* Quick Filter Tags */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span className="text-slate-400 font-medium text-[11px]">Quick Presets:</span>
-                <button
-                  onClick={() => {
-                    setMinAvgWeight('> 3%');
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
-                >
-                  High Conviction (&gt; 3% Avg)
-                </button>
-                <button
-                  onClick={() => {
-                    setMarketCapFilter('Large Cap');
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
-                >
-                  Bluechips Only
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedSector('Banks');
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
-                >
-                  Banking Sector
-                </button>
-                <button
-                  onClick={() => {
-                    setFundAumExposureFilter('> 50000');
-                    fetchStockScreener(1, sortBy, sortOrder);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer text-[11px] font-semibold"
-                >
-                  Giant Fund Exposure (&gt; ₹50k Cr)
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* ── 4. SUB-NAVIGATION TABS (ROW 3 MATCHING REFERENCE DESIGN) ── */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {navTabs.map(tab => {
@@ -611,8 +344,8 @@ export default function MutualFundStockWeightageScreener() {
 
           {/* ── 5. TAB VIEWS ── */}
 
-          {/* VIEW A: MASTER STOCK SCREENER SPLIT VIEW (Most Held Stocks / Highest Weightage) */}
-          {(activeTab === 'most_held' || activeTab === 'highest_weightage') && (
+          {/* VIEW A: MASTER STOCK SCREENER SPLIT VIEW (Most Held Stocks) */}
+          {activeTab === 'most_held' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
               {/* Left Panel: Master Stock Screener Table (7 cols on lg, 7 on xl) */}
               <div className={`${selectedStockSymbol ? 'lg:col-span-6 xl:col-span-7' : 'lg:col-span-12'}`}>

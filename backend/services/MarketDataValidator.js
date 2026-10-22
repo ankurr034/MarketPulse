@@ -25,6 +25,21 @@ const NSE_HOLIDAYS_2026 = new Set([
   '2026-12-25'  // Christmas
 ]);
 
+export const KNOWN_GLOBAL_SYMBOLS = new Set([
+  'AAPL', 'MSFT', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ORCL', 'CSCO', 'INTU', 'IBM', 'QCOM', 'TXN', 'NOW', 'AMAT',
+  'UNH', 'JNJ', 'LLY', 'ABBV', 'MRK', 'TMO', 'PFE', 'ABT', 'DHR', 'SYK', 'AMGN', 'ISRG', 'MDT', 'VRTX',
+  'BRK-B', 'BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'SPGI', 'AXP', 'BLK', 'C', 'SCHW', 'PGR',
+  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'PSX', 'VLO', 'PXD', 'OXY', 'WMB', 'HES', 'KMI', 'HAL', 'BKR',
+  'AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'LOW', 'SBUX', 'TJX', 'BKNG', 'TGT', 'LULU', 'MAR', 'F', 'GM', 'CMG', 'HLT', 'ORLY',
+  'PG', 'COST', 'PEP', 'KO', 'WMT', 'PM', 'MDLZ', 'MO', 'CL', 'EL', 'KMB', 'GIS', 'SYY', 'ADM', 'KHC', 'HSY', 'STZ',
+  'GE', 'CAT', 'UNP', 'HON', 'UPS', 'RTX', 'BA', 'DE', 'LMT', 'ETN', 'WM', 'GD', 'ITW', 'FDX', 'EMR',
+  'LIN', 'APD', 'SHW', 'ECL', 'FCX', 'NEM', 'CTVA', 'DOW', 'DD', 'ALB', 'PPG', 'VMC', 'MLM', 'NUE',
+  'NEE', 'SO', 'DUK', 'CEG', 'SRE', 'AEP', 'D', 'PEG', 'ED', 'EXC', 'XEL', 'PCG', 'WEC',
+  'PLD', 'AMT', 'EQIX', 'CCI', 'PSA', 'O', 'SPG', 'VICI', 'WELL', 'DLR', 'AVB', 'EQR', 'SBAC', 'CSGP',
+  'GOOGL', 'GOOG', 'META', 'NFLX', 'DIS', 'CMCSA', 'TMUS', 'VZ', 'T', 'CHTR', 'EA', 'WBD', 'TTWO',
+  'XLK', 'XLV', 'XLF', 'XLE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC', 'SPY', 'QQQ', 'DIA', 'IWM', 'VGHCX', 'FSPHX'
+]);
+
 /**
  * Determine the current market session status for Indian exchanges (NSE/BSE).
  * Returns: { isOpen: boolean, session: 'OPEN'|'PRE_OPEN'|'CLOSED'|'HOLIDAY'|'WEEKEND', istTimeStr: string }
@@ -174,6 +189,7 @@ export function validateAndSanitizeQuote(rawQuote) {
       dataStatus: 'UNAVAILABLE',
       isLive: false,
       priceAsOf: null,
+      currency: rawQuote.currency || (isIndian ? 'INR' : 'USD'),
       lastUpdatedAt: new Date().toISOString()
     };
   }
@@ -271,6 +287,7 @@ export function validateAndSanitizeQuote(rawQuote) {
     dataStatus,
     isLive,
     priceAsOf,
+    currency: rawQuote.currency || (isIndian ? 'INR' : 'USD'),
     fetchedAt,
     lastUpdatedAt: fetchedAt
   };

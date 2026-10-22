@@ -6,7 +6,7 @@ const initialState = {
   sectors: [],
   activeSymbol: null,
   activeSector: null,
-  activeView: 'heatmap', // 'heatmap' | 'sector-detail' | 'stock-detail' | 'mf-portfolio' | 'mf-holdings'
+  activeView: 'landing', // 'landing' | 'heatmap' | 'sector-detail' | 'stock-detail' | 'mf-portfolio' | 'mf-holdings'
   activeMfScheme: null,
   region: 'all', // 'india' | 'global' | 'all'
   assetClass: 'stocks', // 'stocks' | 'mutual-funds'
@@ -19,7 +19,9 @@ const initialState = {
   lastUpdated: null,
   marketStatus: { status: 'Closed', countdown: 0 },
   loading: false,
-  upstoxConnected: false
+  upstoxConnected: false,
+  howToUseOpen: false,
+  howToUseTab: 'overview'
 };
 
 const marketSlice = createSlice({
@@ -114,6 +116,12 @@ const marketSlice = createSlice({
     setUpstoxConnected: (state, action) => {
       state.upstoxConnected = action.payload;
     },
+    setHowToUseOpen: (state, action) => {
+      state.howToUseOpen = action.payload;
+    },
+    setHowToUseTab: (state, action) => {
+      state.howToUseTab = action.payload || 'overview';
+    },
     navigateBack: (state) => {
       if (state.activeView === 'stock-detail') {
         if (state.activeSector) {
@@ -150,6 +158,8 @@ export const {
   setMarketStatus,
   setLoading,
   setUpstoxConnected,
+  setHowToUseOpen,
+  setHowToUseTab,
   navigateBack
 } = marketSlice.actions;
 

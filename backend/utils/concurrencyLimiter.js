@@ -33,3 +33,18 @@ export async function runWithConcurrencyLimit(taskFns, limit = 3) {
   await Promise.all(workers);
   return results;
 }
+
+/**
+ * Promise timeout wrapper with optional fallback value.
+ * @param {Promise<any>} promise
+ * @param {number} ms
+ * @param {any} fallbackValue
+ * @returns {Promise<any>}
+ */
+export function withTimeout(promise, ms = 3000, fallbackValue = null) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallbackValue), ms))
+  ]);
+}
+

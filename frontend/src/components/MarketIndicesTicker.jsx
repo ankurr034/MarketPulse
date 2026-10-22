@@ -8,10 +8,11 @@ const INDEX_KEYS = [
   { key: 'NIFTY 500', label: 'NIFTY 500' },
   { key: 'SENSEX', label: 'SENSEX' },
   { key: 'BANK NIFTY', label: 'BANK NIFTY' },
-  { key: 'S&P 500', label: 'S&P 500' },
-  { key: 'NASDAQ', label: 'NASDAQ' },
-  { key: 'FTSE 100', label: 'FTSE 100' },
-  { key: 'NIKKEI 225', label: 'NIKKEI 225' }
+  { key: 'BSE-150 Midcap', label: 'BSE-150 Midcap' },
+  { key: 'BSE-250 SMALLCAP', label: 'BSE-250 SMALLCAP' },
+  { key: 'BSE-250 MICROCAP', label: 'BSE-250 MICROCAP' },
+  { key: 'NIFTY 150-MIDCAP', label: 'NIFTY 150-MIDCAP' },
+  { key: 'NIFTY 250-SMALLCAP', label: 'NIFTY 250-SMALLCAP' }
 ];
 
 export default function MarketIndicesTicker() {

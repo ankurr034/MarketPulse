@@ -144,12 +144,12 @@ async function validateFullUniverse() {
   // AMFI's independently verified numbers within a 5% tolerance.
   // If either figure drifts more than 5%, the validation fails.
   //
-  // KNOWN-GOOD BASELINES (Source: AMFI Monthly Data Release, June 2026):
-  //   Industry AUM: ₹82,22,480 Cr (₹82.22 Lakh Cr)
-  //   Monthly SIP:  ₹31,781 Cr
+  // KNOWN-GOOD BASELINES (Source: AMFI Monthly Data Release, September 2026):
+  //   Industry AUM: ₹82,64,117 Cr (₹82.64 Lakh Cr)
+  //   Monthly SIP:  ₹32,490 Cr
   console.log("\n📏 Running Industry AUM & SIP Drift Check...");
-  const KNOWN_INDUSTRY_AUM_CR = 8222480;   // ₹82,22,480 Cr as of 30 Jun 2026
-  const KNOWN_MONTHLY_SIP_CR = 31781;      // ₹31,781 Cr for June 2026
+  const KNOWN_INDUSTRY_AUM_CR = 8264117;   // ₹82,64,117 Cr as of 30 Sep 2026
+  const KNOWN_MONTHLY_SIP_CR = 32490;      // ₹32,490 Cr for September 2026
   const DRIFT_THRESHOLD_PCT = 5;
 
   let driftWarnings = 0;

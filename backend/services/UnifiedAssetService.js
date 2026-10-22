@@ -176,11 +176,11 @@ class UnifiedAssetService {
         navDate: calcMetrics.navDate || (hasNavHistory ? navHistory[navHistory.length - 1].time : null),
         asOfDate: calcMetrics.navDate || (hasNavHistory ? navHistory[navHistory.length - 1].time : null),
         navAsOfDate: calcMetrics.navDate || (hasNavHistory ? navHistory[navHistory.length - 1].time : null),
-        aumAsOfDate: aumProvenance?.asOf || (aum ? '30 Jun 2026' : null),
+        aumAsOfDate: aumProvenance?.asOf || null,
         performanceAsOfDate: calcMetrics.navDate || (hasNavHistory ? navHistory[navHistory.length - 1].time : null),
         aum,
         aumCr: aum,
-        aumAsOf: aumProvenance?.asOf || (aum ? '30 Jun 2026' : null),
+        aumAsOf: aumProvenance?.asOf || null,
         aumSource: aumProvenance?.source || (aum ? 'Upvaly FinAPI Disclosure' : null),
         aumStatus: aumProvenance?.status || (aum ? 'PROVIDER_REPORTED' : 'UNAVAILABLE'),
         aumProvenance: aumProvenance || {

@@ -45,6 +45,7 @@ class HoldingsFallbackService {
                 item.aumCr = aumVal;
                 item.aaumCr = aaumVal;
                 item.aumMetric = isAum ? 'AUM' : (isAaum ? 'AAUM' : (aumVal !== null ? 'AUM' : 'AAUM'));
+                item.status = aumVal !== null ? 'PROVIDER_REPORTED' : (isAaum ? 'AAUM_AVAILABLE' : 'UNAVAILABLE');
                 if (!this.cache.has(`aum_details_${code}`)) {
                   // Permanent cache marker so verified AUM survives server lifetime
                   this.cache.set(`aum_details_${code}`, { data: item, timestamp: 0, isPermanent: true });
@@ -62,6 +63,15 @@ class HoldingsFallbackService {
       }
     }
     console.log(`⚡ Pre-loaded ${totalLoaded} verified scheme AUM records from disk cache (Permanent TTL)`);
+  }
+
+  reloadDiskCache() {
+    for (const key of Array.from(this.cache.keys())) {
+      if (key.startsWith('aum_details_')) {
+        this.cache.delete(key);
+      }
+    }
+    this._loadDiskCache();
   }
 
   _saveDiskCache(code, item) {
@@ -319,6 +329,33 @@ class HoldingsFallbackService {
       const launchYearMatch = rawInceptionDate ? String(rawInceptionDate).match(/\b(19|20)\d{2}\b/) : null;
       const resolvedLaunchYear = launchYearMatch ? parseInt(launchYearMatch[0], 10) : null;
 
+      // Guard: if FinAPI returned successfully but with zero holdings, treat as unavailable
+      if (formattedHoldings.length === 0) {
+        const unavailableResult = {
+          available: false,
+          holdingsAvailable: false,
+          dataStatus: 'DATA_UNAVAILABLE',
+          schemeCode: cleanCode,
+          isin: isin,
+          holdings: [],
+          positions: [],
+          sector_weightings: {},
+          sectorBreakdown: {},
+          aum: resolvedAum,
+          aumCr: resolvedAum,
+          aumAsOf: finapiData.latestNavDate || null,
+          aumSource: resolvedAum !== null ? 'Upvaly FinAPI Disclosure' : null,
+          expenseRatio: finapiData.expenseRatio ? parseFloat(finapiData.expenseRatio) : null,
+          high52: finapiData['52WeekHighNav'] || null,
+          low52: finapiData['52WeekLowNav'] || null,
+          pe: finapiData.pe || null,
+          pb: finapiData.pb || null,
+          reason: `FinAPI returned zero holdings for scheme ${finapiCode}`
+        };
+        this._setCache(cacheKey, unavailableResult);
+        return unavailableResult;
+      }
+
       const result = {
         available: true,
         holdingsAvailable: true,
@@ -353,6 +390,12 @@ class HoldingsFallbackService {
       return result;
     } catch (e) {
       this.failedHoldings.set(cleanCode, Date.now());
+      const isNetworkOrTimeout = e.code === 'ECONNABORTED' || e.code === 'ENOTFOUND' ||
+                                e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT' ||
+                                (e.message && e.message.toLowerCase().includes('timeout'));
+      if (isNetworkOrTimeout) {
+        this.finapiOfflineUntil = Date.now() + 5 * 60 * 1000;
+      }
     }
     return null;
   }
@@ -389,6 +432,39 @@ class HoldingsFallbackService {
         }
       } catch (amcErr) {
         console.warn(`Official AMC holdings lookup failed for ${cleanTicker}:`, amcErr.message);
+      }
+
+      // 3. Verified Mutual Fund Portfolio Disclosures Pipeline (StockWeightageService fallback)
+      try {
+        const { default: stockWeightageService } = await import('./StockWeightageService.js');
+        const swPortfolio = await stockWeightageService.getFundCompletePortfolio(cleanTicker);
+        if (swPortfolio && swPortfolio.available && swPortfolio.holdingsAvailable && Array.isArray(swPortfolio.holdings) && swPortfolio.holdings.length > 0) {
+          const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
+          const resolvedAum = (cachedAum && typeof cachedAum.value === 'number' && cachedAum.value > 0)
+            ? Number(cachedAum.value)
+            : (swPortfolio.fundAumCr || null);
+          return {
+            available: true,
+            holdingsAvailable: true,
+            dataStatus: 'DATA_AVAILABLE',
+            schemeCode: cleanTicker,
+            schemeName: swPortfolio.schemeName,
+            amc: swPortfolio.amc,
+            category: swPortfolio.category,
+            targetCategory: swPortfolio.targetCategory,
+            holdings: swPortfolio.holdings,
+            positions: swPortfolio.holdings,
+            sectorBreakdown: swPortfolio.sectorAllocationTop10 || {},
+            sector_weightings: swPortfolio.sectorAllocationTop10 || {},
+            aum: resolvedAum,
+            aumCr: resolvedAum,
+            aumAsOf: swPortfolio.asOfDate || cachedAum?.asOf || null,
+            aumSource: cachedAum?.source || 'Verified Mutual Fund Holdings Disclosures',
+            source: 'Verified Mutual Fund Holdings Pipeline'
+          };
+        }
+      } catch (swErr) {
+        console.warn(`StockWeightageService holdings fallback error for ${cleanTicker}:`, swErr.message);
       }
 
       const cachedAum = this._getCached(`aum_details_${cleanTicker}`);
@@ -497,7 +573,7 @@ class HoldingsFallbackService {
     // Source 2: mfdata.in (secondary provider)
     if (Date.now() >= this.mfdataOfflineUntil) {
       try {
-        const res = await axios.get(`https://mfdata.in/api/v1/schemes/${code}`, { timeout: 3000 });
+        const res = await axios.get(`https://mfdata.in/api/v1/schemes/${code}`, { timeout: 2000 });
         if (res.data && res.data.aum && !isNaN(res.data.aum) && Number(res.data.aum) > 0) {
           const val = Number(res.data.aum);
           const result = {
@@ -507,14 +583,17 @@ class HoldingsFallbackService {
             aumMetric: 'AUM',
             source: 'mfdata.in',
             status: 'PROVIDER_REPORTED',
-            asOf: '30 Jun 2026'
+            asOf: res.data.asOf || res.data.date || res.data.aumDate || null
           };
           this._setCache(aumCacheKey, result);
           return result;
         }
       } catch (e) {
-        if (e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT') {
-          this.mfdataOfflineUntil = Date.now() + 10 * 60 * 1000;
+        const isNetworkOrTimeout = e.code === 'ECONNABORTED' || e.code === 'ENOTFOUND' ||
+                                  e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT' ||
+                                  (e.message && e.message.toLowerCase().includes('timeout'));
+        if (isNetworkOrTimeout) {
+          this.mfdataOfflineUntil = Date.now() + 15 * 60 * 1000;
         }
       }
     }

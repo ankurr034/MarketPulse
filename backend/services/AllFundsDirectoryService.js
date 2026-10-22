@@ -3,20 +3,54 @@ import amfiImportService from './AmfiImportService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
 import aiRankingEngineService from './AiRankingEngineService.js';
 import indianMfRankingService from './IndianMfRankingService.js';
-import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity } from '../utils/schemeFilterUtil.js';
+import { isStrictDirectGrowth, resolveAmcName, resolvePlanAndOption, buildCanonicalIdentity, resolveSchemeClassification, matchesCategoryFilter } from '../utils/schemeFilterUtil.js';
 
 class AllFundsDirectoryService {
   constructor() {
     this.CACHE_TTL = 30 * 60 * 1000; // 30 mins
+    this.cachedSchemes = null;
+    this.cacheTimestamp = 0;
+    this.inFlightLoad = null;
+  }
+
+  async _fetchAndRankSchemes() {
+    let activeList = await amfiImportService.getActiveSchemes();
+    if (!activeList || activeList.length === 0) {
+      await amfiImportService.runAtomicImport();
+      activeList = await amfiImportService.getActiveSchemes();
+    }
+    const ranked = indianMfRankingService.rankMutualFundsByAUM(activeList);
+    if (ranked && ranked.length > 0) {
+      this.cachedSchemes = ranked;
+      this.cacheTimestamp = Date.now();
+    }
+    return ranked;
   }
 
   async _loadActiveSchemes() {
-    let activeList = await amfiImportService.getActiveSchemes();
-    if (!activeList || activeList.length === 0) {
-      const result = await amfiImportService.runAtomicImport();
-      activeList = await amfiImportService.getActiveSchemes();
+    const now = Date.now();
+    if (this.cachedSchemes && (now - this.cacheTimestamp < this.CACHE_TTL)) {
+      return this.cachedSchemes;
     }
-    return indianMfRankingService.rankMutualFundsByAUM(activeList);
+
+    if (this.cachedSchemes) {
+      // Stale-While-Revalidate: return existing snapshot immediately, revalidate in background
+      if (!this.inFlightLoad) {
+        this.inFlightLoad = this._fetchAndRankSchemes()
+          .catch(e => console.warn('[AllFundsDirectoryService] Background revalidation failed:', e.message))
+          .finally(() => { this.inFlightLoad = null; });
+      }
+      return this.cachedSchemes;
+    }
+
+    if (this.inFlightLoad) {
+      return this.inFlightLoad;
+    }
+
+    this.inFlightLoad = this._fetchAndRankSchemes();
+    const ranked = await this.inFlightLoad;
+    this.inFlightLoad = null;
+    return ranked;
   }
 
   async getAllSchemes(page = 1, pageSize = 20, filters = {}) {
@@ -46,10 +80,9 @@ class AllFundsDirectoryService {
       );
     }
     
-    // Filter by Category
+    // Filter by Category using authoritative SEBI/AMFI taxonomy
     if (filters.category) {
-      const cat = filters.category.toLowerCase().trim();
-      filtered = filtered.filter(s => s.category && s.category.toLowerCase().includes(cat));
+      filtered = filtered.filter(s => matchesCategoryFilter(s.schemeName, s.category, filters.category));
     }
 
     const totalCount = filtered.length;
@@ -69,6 +102,7 @@ class AllFundsDirectoryService {
       const { plan, option } = resolvePlanAndOption(s.schemeName);
       const isin = s.isinGrowth || s.isin || null;
       const canonicalKey = `${s.schemeCode}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
+      const classification = resolveSchemeClassification(s.schemeName, s.category);
 
       return {
         id: String(s.schemeCode),
@@ -85,7 +119,15 @@ class AllFundsDirectoryService {
         isinGrowth: isin,
         canonicalKey,
         category: s.category || 'Other',
-        type: 'mf',
+        ...(classification ? {
+          specifiedType: classification.specifiedType || classification.type,
+          specifiedSub: classification.specifiedSub || classification.subType,
+          type: classification.type,
+          subType: classification.subType,
+          subLabel: classification.subLabel,
+          parentCategory: classification.parentCategory,
+          parentCategoryLabel: classification.parentCategoryLabel
+        } : { type: 'mf' }),
         currency: 'INR',
         region: 'india',
         indiaMfRank: s.indiaMfRank ?? null,
@@ -100,7 +142,7 @@ class AllFundsDirectoryService {
         navDate: s.navDate || s.date || 'Data Unavailable',
         asOfDate: s.navDate || s.date || null,
         navAsOfDate: s.navDate || s.date || null,
-        aumAsOfDate: s.aumProvenance?.asOf || s.aumAsOf || s.aumAsOfDate || (cleanAum ? '30 Jun 2026' : null),
+        aumAsOfDate: s.aumProvenance?.asOf || s.aumAsOf || s.aumAsOfDate || null,
         performanceAsOfDate: s.navDate || s.date || null,
         oneWeekChangePct: s.oneWeekChangePct ?? returns['1W'] ?? null,
         oneMonthChangePct: s.oneMonthChangePct ?? returns['1M'] ?? null,

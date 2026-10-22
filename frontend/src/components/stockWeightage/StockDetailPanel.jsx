@@ -72,7 +72,7 @@ export default function StockDetailPanel({
   };
 
   const formatPrice = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '1,634';
+    if (val === null || val === undefined || isNaN(val)) return '—';
     return Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 });
   };
 
@@ -127,16 +127,20 @@ export default function StockDetailPanel({
   }
 
   const { ownershipSummary = {}, distribution = [], categoryComparison = [], weightageTrend = [], quote } = detail;
-  const totalFundsCount = ownershipSummary.mutualFundsHolding || processedFunds.length || 1842;
-  const avgWeight = ownershipSummary.avgWeightage != null ? ownershipSummary.avgWeightage : 5.82;
-  const maxWeight = ownershipSummary.maxWeightage != null ? ownershipSummary.maxWeightage : 8.31;
-  const minWeight = ownershipSummary.minWeightage != null ? ownershipSummary.minWeightage : 0.12;
-  const totalHoldingValueCr = ownershipSummary.totalHoldingValueCr || 128450;
-  const fundAumExposureCr = ownershipSummary.fundAumExposureCr || ownershipSummary.totalAumOfHoldingFundsCr || 1845230;
+  const totalFundsCount = ownershipSummary.mutualFundsHolding ?? processedFunds.length ?? 0;
+  const avgWeight = ownershipSummary.avgWeightage != null ? ownershipSummary.avgWeightage : 0;
+  const maxWeight = ownershipSummary.maxWeightage != null ? ownershipSummary.maxWeightage : 0;
+  const minWeight = ownershipSummary.minWeightage != null ? ownershipSummary.minWeightage : 0;
+  const totalHoldingValueCr = ownershipSummary.totalHoldingValueCr ?? 0;
+  const fundAumExposureCr = ownershipSummary.fundAumExposureCr ?? ownershipSummary.totalAumOfHoldingFundsCr ?? 0;
 
-  const stockPrice = quote?.price || 1634;
-  const isTrendUp = (quote?.returns1Y ?? quote?.changePercent ?? 12.4) >= 0;
-  const trendPct = quote?.returns1Y != null ? quote.returns1Y.toFixed(1) : '12.4';
+  const stockPrice = quote?.price ?? null;
+  const hasPrice = stockPrice !== null && !isNaN(stockPrice) && Number(stockPrice) > 0;
+  const returnVal = quote?.returns1Y ?? quote?.changePercent ?? null;
+  const hasReturn = returnVal !== null && !isNaN(returnVal);
+  const isTrendUp = hasReturn ? Number(returnVal) >= 0 : true;
+  const trendPct = hasReturn ? Math.abs(Number(returnVal)).toFixed(1) : null;
+  const trendSign = hasReturn ? (Number(returnVal) >= 0 ? '+' : '-') : '';
 
   // Sub-tabs list matching reference
   const subTabs = [
@@ -223,13 +227,15 @@ export default function StockDetailPanel({
 
           <div className="flex items-baseline gap-1.5 mt-0.5">
             <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-              ₹ {formatPrice(stockPrice)}
+              {hasPrice ? `₹ ${formatPrice(stockPrice)}` : '—'}
             </span>
-            <span className={`text-xs font-bold ${
-              isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
-            }`}>
-              {isTrendUp ? '+' : ''}{trendPct}% (1Y)
-            </span>
+            {hasReturn && (
+              <span className={`text-xs font-bold ${
+                isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
+              }`}>
+                {trendSign}{trendPct}% (1Y)
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -237,45 +243,52 @@ export default function StockDetailPanel({
       {/* ── 2. 6 KEY METRIC BOXES ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
         <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white">
-            {totalFundsCount.toLocaleString('en-IN')}
+          <div className="flex items-baseline gap-1 justify-center sm:justify-start">
+            <span className="text-base font-black font-mono text-[#059669] dark:text-emerald-400">
+              {totalFundsCount.toLocaleString('en-IN')}
+            </span>
+            {ownershipSummary.totalUniverseFunds ? (
+              <span className="text-[10px] text-slate-400 font-medium">
+                / {ownershipSummary.totalUniverseFunds}
+              </span>
+            ) : null}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Funds Holding</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Number of Funds Holdings</div>
+        </div>
+
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+          <div className="text-base font-black font-mono text-slate-900 dark:text-white">
+            {ownershipSummary.universeWeightPct != null ? `${Number(ownershipSummary.universeWeightPct).toFixed(2)}%` : `${avgWeight.toFixed(2)}%`}
+          </div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">MF Universe Weightage</div>
+        </div>
+
+        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
+          <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
+            {formatCr(ownershipSummary.totalAumExposureCr ?? totalHoldingValueCr)}
+          </div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Total AUM Exposure</div>
         </div>
 
         <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
             {avgWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Avg. Weightage</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Avg. Scheme Weight</div>
         </div>
 
         <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white">
             {maxWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Max. Weightage</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Max. Scheme Weight</div>
         </div>
 
         <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="text-base font-black font-mono text-slate-900 dark:text-white">
             {minWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Min. Weightage</div>
-        </div>
-
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
-            {formatCr(totalHoldingValueCr)}
-          </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Total Holding Value</div>
-        </div>
-
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
-            {formatCr(fundAumExposureCr)}
-          </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Fund AUM Exposure</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Min. Scheme Weight</div>
         </div>
       </div>
 
@@ -612,16 +625,18 @@ export default function StockDetailPanel({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-              ₹ {formatPrice(stockPrice)}
+              {hasPrice ? `₹ ${formatPrice(stockPrice)}` : '—'}
             </span>
-            <span className={`text-xs font-bold ${
-              isTrendUp ? 'text-emerald-600' : 'text-rose-500'
-            }`}>
-              {isTrendUp ? '+' : ''}{trendPct}% (1-Year Return)
-            </span>
+            {hasReturn && (
+              <span className={`text-xs font-bold ${
+                isTrendUp ? 'text-emerald-600' : 'text-rose-500'
+              }`}>
+                {trendSign}{trendPct}% (1-Year Return)
+              </span>
+            )}
           </div>
           <div className="text-xs text-slate-500">
-            Market Cap: <strong>{formatCr(ownershipSummary.totalAumOfHoldingFundsCr || 1243567)}</strong>
+            Market Cap: <strong>{quote?.marketCapCr ? formatCr(quote.marketCapCr) : (ownershipSummary.totalAumOfHoldingFundsCr ? formatCr(ownershipSummary.totalAumOfHoldingFundsCr) : '—')}</strong>
           </div>
         </div>
       )}

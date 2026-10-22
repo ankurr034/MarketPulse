@@ -2,6 +2,7 @@ import amfiImportService from './AmfiImportService.js';
 import mfDataAggregatorService from './MfDataAggregatorService.js';
 import globalMfService from './GlobalMfService.js';
 import sectorBasket from '../config/sectorBasket.js';
+import { matchesCategoryFilter, resolveSchemeClassification } from '../utils/schemeFilterUtil.js';
 
 class UnifiedMfService {
   /**
@@ -216,18 +217,7 @@ class UnifiedMfService {
     }
 
     if (category) {
-      const c = category.toLowerCase().trim();
-      if (!['equity', 'debt', 'hybrid', 'commodities', 'etfs', 'others'].includes(c)) {
-        filtered = filtered.filter(s => 
-          (s.category && s.category.toLowerCase().includes(c)) ||
-          (s.schemeName && s.schemeName.toLowerCase().includes(c))
-        );
-      } else {
-        filtered = filtered.filter(s => 
-          (s.category && s.category.toLowerCase().includes(c)) ||
-          (s.specifiedType && s.specifiedType.toLowerCase().includes(c))
-        );
-      }
+      filtered = filtered.filter(s => matchesCategoryFilter(s.schemeName, s.category, category));
     }
 
     if (duration) {

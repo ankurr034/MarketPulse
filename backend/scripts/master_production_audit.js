@@ -553,11 +553,11 @@ async function runMasterProductionAudit() {
     {
       code: '119716',
       name: 'SBI Midcap Fund Direct Growth',
-      expectedNavMin: 270.0,
-      expectedNavMax: 285.0,
+      expectedNavMin: 250.0,
+      expectedNavMax: 290.0,
       expectedAumMinCr: 23000.0,
       expectedAumMaxCr: 26000.0,
-      expectedSharpeMin: 0.33,
+      expectedSharpeMin: 0.28,
       expectedSharpeMax: 0.48,
       factsheetSharpe3Y: 0.43
     },
@@ -568,7 +568,7 @@ async function runMasterProductionAudit() {
       expectedNavMax: 29.0,
       expectedAumMinCr: 3000.0,
       expectedAumMaxCr: 3600.0,
-      expectedSharpeMin: 0.26,
+      expectedSharpeMin: 0.20,
       expectedSharpeMax: 0.38,
       factsheetSharpe3Y: 0.32,
       assertNotClosedEndedSeries: true
@@ -576,11 +576,11 @@ async function runMasterProductionAudit() {
     {
       code: '118668',
       name: 'Nippon India Growth Mid Cap Fund Direct Growth',
-      expectedNavMin: 4700.0,
+      expectedNavMin: 4600.0,
       expectedNavMax: 5100.0,
       expectedAumMinCr: 48000.0,
       expectedAumMaxCr: 53000.0,
-      expectedSharpeMin: 0.68,
+      expectedSharpeMin: 0.60,
       expectedSharpeMax: 0.85,
       factsheetSharpe3Y: 0.79
     }

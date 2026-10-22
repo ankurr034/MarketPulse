@@ -163,6 +163,7 @@ export class AthBaseService {
     }
 
     // 5. Compute 52-Week Low across preceding ~252 daily trading sessions
+    const oneYearAgoTime = Date.now() - (365 * 24 * 60 * 60 * 1000);
     const windowCandles = cleanDaily.length >= ATH_BASE_CONFIG.WINDOW_52W_SESSIONS 
       ? cleanDaily.slice(-ATH_BASE_CONFIG.WINDOW_52W_SESSIONS) 
       : cleanDaily;
@@ -175,6 +176,20 @@ export class AthBaseService {
       if (l < week52Low && l > 0) {
         week52Low = l;
         week52LowDate = q.date;
+      }
+    }
+
+    // If daily candles are sparse (<252), also scan past-year monthly/all candle lows
+    if (cleanDaily.length < ATH_BASE_CONFIG.WINDOW_52W_SESSIONS && allQuotes && allQuotes.length > 0) {
+      for (const q of allQuotes) {
+        const qTime = new Date(q.date).getTime();
+        if (qTime >= oneYearAgoTime) {
+          const l = q.low || q.close;
+          if (l < week52Low && l > 0) {
+            week52Low = l;
+            week52LowDate = q.date;
+          }
+        }
       }
     }
 

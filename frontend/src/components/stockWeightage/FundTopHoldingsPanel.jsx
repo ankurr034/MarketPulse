@@ -38,7 +38,7 @@ export default function FundTopHoldingsPanel({
   }
 
   const formatAum = (aum) => {
-    if (aum === null || aum === undefined || isNaN(aum) || Number(aum) <= 0) return '₹ 67,231 Cr';
+    if (aum === null || aum === undefined || isNaN(aum) || Number(aum) <= 0) return '—';
     const num = Number(aum);
     return `₹ ${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr`;
   };
@@ -59,20 +59,28 @@ export default function FundTopHoldingsPanel({
   // Stock Market Cap map
   const getMarketCap = (symbol, idx) => {
     const caps = {
-      HDFCBANK: '₹ 12,34,567 Cr',
-      RELIANCE: '₹ 18,45,789 Cr',
-      ICICIBANK: '₹ 9,87,654 Cr',
-      INFY: '₹ 6,78,901 Cr',
-      TCS: '₹ 12,11,345 Cr',
-      BHARTIARTL: '₹ 8,45,231 Cr',
-      LT: '₹ 5,67,890 Cr',
+      HDFCBANK: '₹ 10,95,637 Cr',
+      RELIANCE: '₹ 17,50,000 Cr',
+      ICICIBANK: '₹ 8,92,000 Cr',
+      INFY: '₹ 4,59,916 Cr',
+      TCS: '₹ 8,88,964 Cr',
+      BHARTIARTL: '₹ 9,78,000 Cr',
+      LT: '₹ 5,06,000 Cr',
       ITC: '₹ 5,21,456 Cr',
-      AXISBANK: '₹ 4,87,321 Cr',
-      HINDUNILVR: '₹ 6,34,890 Cr'
+      AXISBANK: '₹ 3,86,356 Cr',
+      HINDUNILVR: '₹ 5,80,000 Cr',
+      SBIN: '₹ 7,25,000 Cr',
+      KOTAKBANK: '₹ 3,55,000 Cr',
+      MARUTI: '₹ 3,63,292 Cr',
+      TRENT: '₹ 1,54,104 Cr',
+      ABB: '₹ 1,46,015 Cr',
+      LICI: '₹ 4,96,259 Cr',
+      AMBUJACEM: '₹ 90,248 Cr',
+      RECLTD: '₹ 80,853 Cr',
+      MCX: '₹ 80,953 Cr'
     };
     if (caps[symbol]) return caps[symbol];
-    const defaultVals = ['₹ 12,34,567 Cr', '₹ 18,45,789 Cr', '₹ 9,87,654 Cr', '₹ 6,78,901 Cr', '₹ 12,11,345 Cr', '₹ 8,45,231 Cr', '₹ 5,67,890 Cr', '₹ 5,21,456 Cr', '₹ 4,87,321 Cr', '₹ 6,34,890 Cr'];
-    return defaultVals[idx % defaultVals.length];
+    return '—';
   };
 
   // Sparkline trend map matching reference image:
@@ -209,7 +217,7 @@ export default function FundTopHoldingsPanel({
                   const valCr = pos.marketValueCr ?? pos.valueCr ?? null;
                   const valFormatted = valCr !== null && !isNaN(valCr)
                     ? `₹ ${Math.round(valCr).toLocaleString('en-IN')} Cr`
-                    : `₹ 5,540 Cr`;
+                    : '—';
 
                   return (
                     <tr 

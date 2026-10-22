@@ -68,7 +68,7 @@ class AmfiImportService {
             const canonicalKey = `${code}_${isin || 'NOISIN'}_${resolvedAmc.replace(/\s+/g, '')}_${plan}_${option}`;
             const cleanNav = (typeof s.nav === 'number' && !isNaN(s.nav) && s.nav > 0) ? s.nav : null;
             const resolvedNavDate = s.navDate || s.date || 'Data Unavailable';
-            const aumAsOfVal = cachedAum?.asOf || s.aumProvenance?.asOf || s.aumDate || (aumVal ? '2026-08-20' : null);
+            const aumAsOfVal = cachedAum?.asOf || s.aumProvenance?.asOf || s.aumAsOfDate || s.aumDate || null;
             const launchYearVal = s.launchYear ?? s.inceptionYear ?? null;
             return {
               ...s,
@@ -88,10 +88,9 @@ class AmfiImportService {
               isinGrowth: isin,
               canonicalKey,
               aum: aumVal,
-              aumCr: aumVal,
-              aaumCr: s.aaumCr ?? (s.aumMetric === 'AAUM' ? s.aumCr : null),
-              aumMetric: s.aumMetric ?? (aumVal !== null ? 'AUM' : null),
-              aumType: s.aumType ?? s.aumMetric ?? (aumVal !== null ? 'AUM' : null),
+              aaumCr: s.aaumCr ?? ((cachedAum?.aumMetric === 'AAUM' || s.aumMetric === 'AAUM') ? aumVal : null),
+              aumMetric: cachedAum?.aumMetric || s.aumProvenance?.aumMetric || s.aumMetric || (aumVal !== null ? 'AUM' : null),
+              aumType: cachedAum?.aumMetric || s.aumProvenance?.aumMetric || s.aumType || s.aumMetric || (aumVal !== null ? 'AUM' : null),
               launchDate: s.launchDate ?? null,
               launchYear: launchYearVal,
               inceptionYear: launchYearVal,
@@ -202,17 +201,44 @@ class AmfiImportService {
     }
   }
 
+  _getMsUntilNextPublication() {
+    const now = new Date();
+    // Convert to IST (UTC + 5:30)
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffsetMs);
+    
+    // AMFI publication window: 23:15 IST
+    const istTarget = new Date(istNow);
+    istTarget.setUTCHours(23, 15, 0, 0);
+
+    // If past 23:15 IST today, schedule for 23:15 IST tomorrow
+    if (istNow.getTime() >= istTarget.getTime()) {
+      istTarget.setUTCDate(istTarget.getUTCDate() + 1);
+    }
+    
+    return Math.max(10000, istTarget.getTime() - istNow.getTime());
+  }
+
   /**
-   * Start recurring background refresh scheduler (Daily)
+   * Start recurring background refresh scheduler aligned with AMFI daily publication schedule (~23:15 IST)
    */
   startScheduledRefresh() {
-    if (this.schedulerTimer) clearInterval(this.schedulerTimer);
-    this.schedulerTimer = setInterval(() => {
-      console.log('⏰ Executing scheduled daily AMFI NAV master background refresh...');
-      this.runAtomicImport().catch(err => {
+    if (this.schedulerTimer) clearTimeout(this.schedulerTimer);
+    const delay = this._getMsUntilNextPublication();
+    const hours = (delay / (3600 * 1000)).toFixed(1);
+    console.log(`⏰ Scheduled next AMFI NAV refresh in ${hours}h (~23:15 IST publication window)`);
+
+    this.schedulerTimer = setTimeout(async () => {
+      console.log('⏰ Executing publication-schedule AMFI NAV master background refresh...');
+      try {
+        await this.runAtomicImport();
+      } catch (err) {
         console.error('❌ Scheduled AMFI refresh failed. Retaining previous valid active dataset:', err.message);
-      });
-    }, this.REFRESH_INTERVAL_MS);
+      } finally {
+        this.startScheduledRefresh();
+      }
+    }, delay);
+
     if (this.schedulerTimer.unref) {
       this.schedulerTimer.unref();
     }
@@ -236,7 +262,15 @@ class AmfiImportService {
             const name = meta.scheme_name || `Scheme ${schemeCode}`;
             const navData = content.data || [];
             const latestNav = navData.length > 0 ? parseFloat(navData[0].nav) : null;
-            const date = navData.length > 0 ? navData[0].date : '12-Aug-2026';
+            let date = navData.length > 0 ? navData[0].date : null;
+            if (!date) {
+              try {
+                const stat = fs.statSync(path.join(cacheDir, f));
+                date = new Date(stat.mtimeMs).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+              } catch (_) {
+                date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+              }
+            }
             const resolvedAmc = resolveAmcName(meta.fund_house || name);
 
             // Preload L1 memory cache
@@ -286,7 +320,7 @@ class AmfiImportService {
     try {
       let filteredSchemes = [];
       let auditReport = null;
-      let stagedDateStr = '12 Aug 2026';
+      let stagedDateStr = this.activeSchemesCache?.[0]?.date || null;
 
       try {
         const res = await axios.get(this.AMFI_NAV_URL, { timeout: 20000 });
@@ -362,7 +396,7 @@ class AmfiImportService {
         const filteredResult = filterAndDeduplicateSchemes(rawRecords);
         const liveSchemes = filteredResult.filteredSchemes;
         auditReport = filteredResult.auditReport;
-        stagedDateStr = liveSchemes[0]?.date || '24 Aug 2026';
+        stagedDateStr = liveSchemes.find(s => s.date)?.date || this.activeSchemesCache?.[0]?.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
         // If we have an existing canonical active universe snapshot (2,743 schemes),
         // update live NAVs and dates for matching schemes while preserving the full universe!
@@ -563,7 +597,7 @@ class AmfiImportService {
           s.asOfDate = resolvedNavDate;
           s.navAsOfDate = resolvedNavDate;
           s.performanceAsOfDate = resolvedNavDate;
-          s.aumAsOfDate = s.aumProvenance?.asOf || (s.aum ? '2026-08-20' : null);
+          s.aumAsOfDate = s.aumProvenance?.asOf || s.aumAsOfDate || s.aumDate || null;
         }));
       }
       const withAumCount = filteredSchemes.filter(s => typeof s.aum === 'number' && s.aum > 0).length;

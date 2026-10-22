@@ -52,9 +52,11 @@ class MfAnalyticsService {
   }
 
   _calculateGrowth(navData) {
-    if (!navData || navData.length < 2) return 0;
-    const startNav = navData[0].value;
-    const endNav = navData[navData.length - 1].value;
+    const list = Array.isArray(navData) ? navData : (navData?.data || []);
+    if (!list || list.length < 2) return 0;
+    const startNav = typeof list[0]?.value === 'number' ? list[0].value : parseFloat(list[0]?.value);
+    const endNav = typeof list[list.length - 1]?.value === 'number' ? list[list.length - 1].value : parseFloat(list[list.length - 1]?.value);
+    if (!startNav || isNaN(startNav) || isNaN(endNav)) return 0;
     return ((endNav - startNav) / startNav) * 100;
   }
 
@@ -146,33 +148,42 @@ class MfAnalyticsService {
     const houseMap = {};
 
     for (const scheme of schemes) {
-      // Derive Fund House from scheme name (since api.mfapi.in gives it, but we only have getSchemeHoldings here)
-      // Usually the first word is the AMC (e.g. "Parag Parikh ...", "HDFC ...", "SBI ...")
-      const firstWord = scheme.schemeName.split(' ')[0];
-      const houseName = firstWord === 'Parag' ? 'PPFAS' : firstWord;
+      try {
+        // Derive Fund House from scheme name (since api.mfapi.in gives it, but we only have getSchemeHoldings here)
+        // Usually the first word is the AMC (e.g. "Parag Parikh ...", "HDFC ...", "SBI ...")
+        const name = scheme.schemeName || scheme.name || scheme.amc || scheme.fundHouse || '';
+        const firstWord = name ? name.split(' ')[0] : 'Other';
+        const houseName = firstWord === 'Parag' ? 'PPFAS' : (firstWord || 'Other');
 
-      if (!houseMap[houseName]) {
-        houseMap[houseName] = {
-          houseName,
-          fundsCount: 0,
-          totalGrowth: 0,
-          sectorWeights: {}
-        };
-      }
-
-      const h = houseMap[houseName];
-      h.fundsCount += 1;
-
-      // Get growth
-      const navHistory = await mfDataAggregatorService.getSchemeNavHistory(scheme.schemeCode, range);
-      const growthPct = this._calculateGrowth(navHistory);
-      h.totalGrowth += growthPct;
-
-      // Aggregate sectors for this house
-      if (scheme.sectorBreakdown) {
-        for (const [sector, pct] of Object.entries(scheme.sectorBreakdown)) {
-          h.sectorWeights[sector] = (h.sectorWeights[sector] || 0) + pct;
+        if (!houseMap[houseName]) {
+          houseMap[houseName] = {
+            houseName,
+            fundsCount: 0,
+            totalGrowth: 0,
+            sectorWeights: {}
+          };
         }
+
+        const h = houseMap[houseName];
+        h.fundsCount += 1;
+
+        // Get growth
+        try {
+          const navHistory = await mfDataAggregatorService.getSchemeNavHistory(scheme.schemeCode, range);
+          const growthPct = this._calculateGrowth(navHistory);
+          h.totalGrowth += growthPct;
+        } catch (navErr) {
+          console.warn(`Nav history fetch failed for scheme ${scheme.schemeCode}:`, navErr.message);
+        }
+
+        // Aggregate sectors for this house
+        if (scheme.sectorBreakdown) {
+          for (const [sector, pct] of Object.entries(scheme.sectorBreakdown)) {
+            h.sectorWeights[sector] = (h.sectorWeights[sector] || 0) + (typeof pct === 'number' ? pct : parseFloat(pct) || 0);
+          }
+        }
+      } catch (schemeErr) {
+        console.warn(`Error processing scheme for leaderboard:`, schemeErr.message);
       }
     }
 

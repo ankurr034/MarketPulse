@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, Info, RefreshCcw, ChevronDown, ChevronRight, Activity, 
@@ -66,7 +67,7 @@ const RatioRangeGuideModal = ({ onClose }) => (
       <div className="mb-5 bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider">Sharpe Ratio (3Y Monthly)</span>
-          <span className="text-[9px] text-slate-500 font-mono">Calculated by MarketPulse from monthly NAV history</span>
+          <span className="text-[9px] text-slate-500 font-mono">Calculated by TheLalStreetScreener from monthly NAV history</span>
         </div>
 
         <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-semibold">
@@ -576,14 +577,14 @@ const FundDetailModal = ({ fund, onClose }) => {
     e.preventDefault();
     try {
       e.target.setPointerCapture(e.pointerId);
-    } catch (_) {}
+    } catch (_) { /* ignored */ }
     setActiveDragHandle(endpoint);
   };
 
   const handleHandlePointerUp = (e) => {
     try {
       e.target.releasePointerCapture(e.pointerId);
-    } catch (_) {}
+    } catch (_) { /* ignored */ }
     setActiveDragHandle(null);
   };
 
@@ -1650,9 +1651,40 @@ export const IndianMfSectorAnalysis = () => {
   const [extraCategorySchemes, setExtraCategorySchemes] = useState([]);
   const [allDirectSchemes, setAllDirectSchemes] = useState([]);
 
+  const location = useLocation();
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Listen to navigation state and URL search params from Landing Page or Header search
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qParam = params.get('q') || params.get('search') || location.state?.searchQuery;
+    const marketParam = params.get('market') || params.get('category') || location.state?.activeMarketFilter;
+    const subParam = params.get('sub') || params.get('subCategory') || location.state?.selectedSubCategory;
+
+    if (qParam) {
+      setSearchQuery(qParam);
+      setIsAllFundsMode(true);
+    }
+    if (marketParam && marketParam !== 'all') {
+      setActiveMarketFilter(marketParam);
+      setIsAllFundsMode(false);
+    }
+    if (subParam && subParam !== 'all') {
+      setSelectedSubCategory(subParam);
+    }
+    if (location.state?.activeModalFund) {
+      setActiveModalFund(location.state.activeModalFund);
+    }
+
+    if ((qParam || subParam || marketParam) && rankingTableRef.current) {
+      setTimeout(() => {
+        rankingTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
+    }
+  }, [location.search, location.state]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1769,112 +1801,274 @@ export const IndianMfSectorAnalysis = () => {
     const cat = (categoryStr || '').toLowerCase();
     const name = (nameStr || '').toLowerCase();
 
-    // Balanced Advantage / Dynamic Asset Allocation -> Hybrid Balanced Advantage
-    if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage') || cat.includes('dynamic asset')) {
-      return ['hybrid', 'balanced_adv'];
+    // 0. Close-ended FMP / Interval schemes -> DEBT
+    if (cat.includes('fixed term') || cat.includes('fmp') || cat.includes('interval') || name.includes('fixed maturity') || name.includes('fmp - series')) {
+      return ['debt', 'other_debt', 'DEBT', 'Other Debt'];
     }
 
-    if (cat.includes('equity scheme - large cap') || cat.includes('equity schemes - large cap')) return ['equity', 'large_cap'];
-    if (cat.includes('large & mid cap')) return ['equity', 'large_mid_cap'];
-    if (cat.includes('mid cap') && !cat.includes('large')) return ['equity', 'mid_cap'];
-    if (cat.includes('small cap')) return ['equity', 'small_cap'];
-    if (cat.includes('flexi cap')) return ['equity', 'flexi_cap'];
-    if (cat.includes('multi cap')) return ['equity', 'multi_cap'];
-    if (cat.includes('dividend yield')) return ['equity', 'dividend_yield'];
-    if (cat.includes('value')) return ['equity', 'value'];
-    if (cat.includes('focused')) return ['equity', 'focused'];
-    if (cat.includes('contra')) return ['equity', 'contra'];
-    if (cat.includes('elss') || cat.includes('tax saver')) return ['elss', 'elss_funds'];
-
-    if (cat.includes('sectoral') || cat.includes('thematic')) {
-      if (name.includes('tech') || name.includes('digital') || name.includes('it etf')) return ['sectoral_thematic', 'tech'];
-      if (name.includes('bank') || name.includes('financial')) return ['sectoral_thematic', 'banking'];
-      if (name.includes('pharma') || name.includes('health')) return ['sectoral_thematic', 'pharma'];
-      if (name.includes('infra')) return ['sectoral_thematic', 'infra'];
-      if (name.includes('fmcg') || name.includes('consumption')) return ['sectoral_thematic', 'fmcg'];
-      if (name.includes('auto')) return ['sectoral_thematic', 'auto'];
-      if (name.includes('psu') || name.includes('cpes')) return ['sectoral_thematic', 'psu'];
-      return ['sectoral_thematic', 'other_sectoral'];
+    // 0b. Solution Oriented (Retirement, Children, Life Cycle) -> OTHER
+    if (cat.includes('retirement') || cat.includes('children') || cat.includes('life cycle') || name.includes('retirement') || name.includes('children') || name.includes('life cycle')) {
+      return ['other', 'solution_oriented', 'OTHER', 'Solution Oriented'];
     }
 
-    if (cat.includes('debt scheme') || cat.includes('income/debt oriented') || cat === 'gilt' || cat === 'income') {
-      if (cat.includes('liquid')) return ['debt', 'liquid'];
-      if (cat.includes('corporate bond')) return ['debt', 'corporate_bond'];
-      if (cat.includes('banking and psu') || cat.includes('banking & psu')) return ['debt', 'banking_psu'];
-      if (cat.includes('gilt') && cat.includes('10 year')) return ['debt', 'gilt_10y'];
-      if (cat.includes('gilt')) return ['debt', 'gilt'];
-      if (cat.includes('short duration') || cat.includes('short term')) return ['debt', 'short_duration'];
-      if (cat.includes('overnight')) return ['debt', 'overnight'];
-      if (cat.includes('ultra short')) return ['debt', 'ultra_short'];
-      if (cat.includes('low duration')) return ['debt', 'low_duration'];
-      if (cat.includes('money market')) return ['debt', 'money_market'];
-      if (cat.includes('medium to long')) return ['debt', 'medium_long'];
-      if (cat.includes('medium duration')) return ['debt', 'medium_duration'];
-      if (cat.includes('long duration')) return ['debt', 'long_duration'];
-      if (cat.includes('dynamic bond') || cat.includes('dynamic term')) return ['debt', 'dynamic_bond'];
-      if (cat.includes('credit risk')) return ['debt', 'credit_risk'];
-      if (cat.includes('floater')) return ['debt', 'floater'];
-      return ['debt', 'other_debt'];
+    // 1. Tax Saver (ELSS) - Strictly isolated; NEVER leaked into Equity
+    if (cat.includes('elss') || cat.includes('tax saver') || name.includes('elss') || name.includes('tax saver') || name.includes('tax-saver')) {
+      let sub = 'elss_funds';
+      let subLabel = 'ELSS Funds';
+      if (name.includes('large') || name.includes('bluechip')) { sub = 'large_elss'; subLabel = 'Large Cap ELSS'; }
+      else if (name.includes('mid') || name.includes('small')) { sub = 'mid_small_elss'; subLabel = 'Mid/Small Cap ELSS'; }
+      return ['elss', sub, 'TAX SAVER', subLabel];
     }
 
-    if (cat.includes('hybrid scheme')) {
-      if (cat.includes('aggressive')) return ['hybrid', 'aggressive'];
-      if (cat.includes('balanced advantage') || cat.includes('dynamic asset')) return ['hybrid', 'balanced_adv'];
-      if (cat.includes('multi asset')) return ['hybrid', 'multi_asset'];
-      if (cat.includes('arbitrage')) return ['hybrid', 'arbitrage'];
-      if (cat.includes('conservative')) return ['hybrid', 'conservative'];
-      if (cat.includes('equity savings')) return ['hybrid', 'equity_savings'];
-      if (cat.includes('balanced hybrid')) return ['hybrid', 'balanced'];
-      return ['hybrid', 'other_hybrid'];
+    // 2. Commodities (Gold, Silver, Mining, Metals)
+    if (cat.includes('gold') || cat.includes('silver') || cat.includes('commodity') || name.includes('gold') || name.includes('silver') || name.includes('commodity') || name.includes('precious metal') || name.includes('goldmine') || name.includes('mining')) {
+      let sub = 'other_commodities';
+      let subLabel = 'Other Commodities';
+      if (name.includes('goldmine') || name.includes('mining') || name.includes('mine')) { sub = 'gold_mining'; subLabel = 'Gold Mining'; }
+      else if (name.includes('metal') || name.includes('copper')) { sub = 'other_metals'; subLabel = 'Other Metals'; }
+      else if (name.includes('silver')) { sub = 'silver'; subLabel = 'Silver'; }
+      else if (name.includes('gold')) { sub = 'gold'; subLabel = 'Gold'; }
+      return ['commodities', sub, 'COMMODITIES', subLabel];
     }
 
-    if (cat.includes('index') || cat.includes('etf')) {
-      if (name.includes('gold')) return ['commodities', 'gold'];
-      if (name.includes('silver')) return ['commodities', 'silver'];
-      if (name.includes('nasdaq')) return ['global', 'nasdaq'];
-      if (name.includes('s&p 500') || name.includes('sp 500')) return ['global', 'sp500'];
-      if (name.includes('fang') || name.includes('ai')) return ['global', 'global_tech'];
-      if (name.includes('global') || name.includes('world')) return ['global', 'global_equity'];
-      if (name.includes('russell')) return ['global', 'russell'];
-      if (name.includes('nifty 50') || name.includes('nifty50')) return ['index', 'nifty50'];
-      if (name.includes('nifty next 50')) return ['index', 'nifty_next50'];
-      if (name.includes('nifty 100')) return ['index', 'nifty100'];
-      if (name.includes('nifty 200 momentum 30')) return ['index', 'nifty200_momentum30'];
-      if (name.includes('nifty 200')) return ['index', 'nifty200'];
-      if (name.includes('nifty 500')) return ['index', 'nifty500'];
-      if (name.includes('nifty midcap 150')) return ['index', 'nifty_midcap150'];
-      if (name.includes('nifty smallcap 250')) return ['index', 'nifty_smallcap250'];
-      if (name.includes('nifty bank') || name.includes('bank bees')) return ['index', 'nifty_bank'];
-      if (name.includes('sensex')) return ['index', 'sensex'];
-      return ['index', 'other_index'];
+    // 3. Sectoral / Thematic - Strictly isolated from Equity
+    const isActiveMomentum = (name.includes('momentum') || name.includes('active momentum')) && !name.includes('index') && !name.includes('etf') && !cat.includes('index') && !cat.includes('etf');
+    const isHybridScheme = (
+      cat.includes('hybrid') || cat.includes('dynamic asset') || cat.includes('balanced advantage') || 
+      cat.includes('arbitrage') || cat.includes('equity savings') || cat.includes('multi asset') || 
+      name.includes('balanced advantage') || name.includes('baf') || name.includes('equity savings') || 
+      name.includes('multi asset') || name.includes('arbitrage') || isActiveMomentum
+    );
+    const isExplicitSectoral = cat.includes('sectoral') || cat.includes('thematic');
+    const isQuantThematic = (
+      name.includes('quant fund') || name.includes('quantamental') || name.includes('quantitative') ||
+      name.includes('multi-factor') || name.includes('multi factor') ||
+      name.includes('minimum variance') || (name.includes('quality') && !name.includes('large') && !name.includes('mid') && !name.includes('small') && !name.includes('flexi'))
+    );
+    const isSectorKeywordsInName = (
+      name.includes('technology') || name.includes('pharma') || name.includes('healthcare') || 
+      name.includes('banking') || name.includes('infrastructure') || name.includes('consumption') || 
+      name.includes('manufacturing') || name.includes('manufactur') || name.includes('energy') || 
+      name.includes('business cycle') || name.includes('defense') || name.includes('defence') || 
+      name.includes('auto') || name.includes('mobility') || name.includes('power') || 
+      name.includes('special opportunities') || name.includes('opportunities fund') ||
+      name.includes('gennext') || name.includes('services') || name.includes('esg') ||
+      name.includes('innovation') || name.includes('innovative') || name.includes('pioneer') || 
+      name.includes('mnc') || isQuantThematic
+    );
+    const isPureCapName = (
+      name.includes('large & mid') || name.includes('large and mid') || 
+      name.includes('flexi') || name.includes('multi cap') || 
+      name.includes('contra') || name.includes('value discovery')
+    );
+
+    if (!isHybridScheme && (isExplicitSectoral || (cat.includes('equity') && isSectorKeywordsInName && !isPureCapName))) {
+      let sub = 'other_sectoral';
+      let subLabel = 'Other Sector/Thematic';
+      if (name.includes('defence') || name.includes('defense') || name.includes('aerospace')) { sub = 'defence'; subLabel = 'Defence Funds'; }
+      else if (name.includes('energy') || name.includes('power') || name.includes('natural resource') || name.includes('comma') || name.includes('oil & gas') || name.includes('petro') || name.includes('commodit')) { sub = 'energy'; subLabel = 'Energy Funds'; }
+      else if (name.includes('innovation') || name.includes('innovator') || name.includes('innovative') || name.includes('pioneer') || name.includes('disruption') || name.includes('special opportunities') || name.includes('opportunities fund') || name.includes('special situation')) { sub = 'innovation'; subLabel = 'Innovation Funds'; }
+      else if (name.includes('manufactur') || name.includes('make in india')) { sub = 'manufacturing'; subLabel = 'Manufacturing Funds'; }
+      else if (name.includes('business cycle') || name.includes('business cycles') || name.includes('conglomerate')) { sub = 'business_cycle'; subLabel = 'Business Cycle Funds'; }
+      else if (name.includes('mnc') || name.includes('multinational')) { sub = 'mnc'; subLabel = 'MNC Funds'; }
+      else if (name.includes('esg') || name.includes('sustainability') || name.includes('sustainable') || name.includes('climate') || name.includes('ethical')) { sub = 'esg'; subLabel = 'ESG Funds'; }
+      else if (name.includes('bluechip') && (isExplicitSectoral || cat.includes('thematic') || name.includes('thematic'))) { sub = 'bluechip'; subLabel = 'BlueChip Funds'; }
+      else if (isQuantThematic) { sub = 'quant'; subLabel = 'Quant Funds'; }
+      else if (name.includes('bank') || name.includes('finan') || name.includes('bfsi')) { sub = 'banking'; subLabel = 'Banking & Financial Services'; }
+      else if (name.includes('tech') || name.includes('teck') || name.includes('digital') || name.includes('it ') || name.includes('technology')) { sub = 'tech'; subLabel = 'Technology'; }
+      else if (name.includes('pharma') || name.includes('health') || name.includes('healthcare')) { sub = 'pharma'; subLabel = 'Healthcare & Pharma'; }
+      else if (name.includes('infra') || name.includes('infrastructure') || name.includes('build india') || name.includes('tiger') || name.includes('t.i.g.e.r') || name.includes('housing')) { sub = 'infra'; subLabel = 'Infrastructure'; }
+      else if (name.includes('fmcg') || name.includes('consumption') || name.includes('consumer')) { sub = 'fmcg'; subLabel = 'FMCG & Consumption'; }
+      else if (name.includes('psu') || name.includes('cpse')) { sub = 'psu'; subLabel = 'PSU'; }
+      else if (name.includes('auto') || name.includes('mobility') || name.includes('transportation')) { sub = 'auto'; subLabel = 'Auto'; }
+      return ['sectoral_thematic', sub, 'SECTORAL & THEMATIC', subLabel];
     }
 
-    if (cat.includes('fof overseas') || name.includes('overseas') || name.includes('global') || name.includes('international')) {
-      return ['global', 'other_global'];
+    // 4. Hybrid Funds - Strictly isolated from Equity
+    if (
+      cat.includes('hybrid') || cat.includes('dynamic asset') || cat.includes('balanced advantage') || 
+      cat.includes('arbitrage') || cat.includes('equity savings') || cat.includes('multi asset') || 
+      name.includes('balanced advantage') || name.includes('baf') || name.includes('equity savings') || 
+      name.includes('multi asset') || name.includes('arbitrage') || isActiveMomentum
+    ) {
+      let sub = 'other_hybrid';
+      let subLabel = 'Other Hybrid';
+      if (isActiveMomentum) {
+        sub = 'active_momentum'; subLabel = 'Active Momentum Funds';
+      } else if ((name.includes('balanced advantage') || name.includes('baf')) && !name.includes('formerly known as sundaram balanced advantage')) {
+        sub = 'balanced_adv'; subLabel = 'Balanced Advantage Funds';
+      } else if (name.includes('dynamic asset') || cat.includes('dynamic asset')) {
+        sub = 'dynamic_asset'; subLabel = 'Dynamic Asset Allocation Funds';
+      } else if (cat.includes('aggressive') || name.includes('aggressive')) {
+        sub = 'aggressive'; subLabel = 'Aggressive Hybrid';
+      } else if (cat.includes('arbitrage') || name.includes('arbitrage')) {
+        sub = 'arbitrage'; subLabel = 'Arbitrage';
+      } else if (cat.includes('multi asset') || name.includes('multi asset')) {
+        sub = 'multi_asset'; subLabel = 'Multi Asset Allocation';
+      } else if (cat.includes('conservative') || name.includes('conservative')) {
+        sub = 'conservative'; subLabel = 'Conservative Hybrid';
+      } else if (cat.includes('equity savings') || name.includes('equity savings')) {
+        sub = 'equity_savings'; subLabel = 'Equity Savings';
+      } else if (cat.includes('balanced') || name.includes('balanced')) {
+        sub = 'balanced'; subLabel = 'Balanced Hybrid';
+      }
+      return ['hybrid', sub, 'HYBRID', subLabel];
     }
 
-    // Default catch-all
-    return ['all', 'all'];
+    // 5. Global / Overseas Funds - Strictly isolated
+    if (
+      cat.includes('fof overseas') || cat.includes('overseas') || name.includes('overseas') || 
+      name.includes('global') || name.includes('world') || name.includes('international') || 
+      name.includes('nasdaq') || name.includes('s&p 500') || name.includes('sp 500') || 
+      name.includes('us equity') || name.includes('greater china') || name.includes('taiwan') || 
+      name.includes('brazil') || name.includes('japan') || name.includes('asian') || 
+      name.includes('europe') || name.includes('emerging markets')
+    ) {
+      let sub = 'other_global';
+      let subLabel = 'Other Global';
+      if (name.includes('nasdaq')) { sub = 'nasdaq'; subLabel = 'Nasdaq'; }
+      else if (name.includes('s&p 500') || name.includes('sp 500')) { sub = 'sp500'; subLabel = 'S&P 500'; }
+      else if (name.includes('russell')) { sub = 'russell'; subLabel = 'Russell'; }
+      else if (name.includes('tech') || name.includes('ai') || name.includes('semiconductor')) { sub = 'global_tech'; subLabel = 'Global Tech / AI & Tech'; }
+      else { sub = 'global_equity'; subLabel = 'Global Equity'; }
+      return ['global', sub, 'GLOBAL', subLabel];
+    }
+
+    // 6. Index Funds & ETFs (excluding commodities & global already handled)
+    if (
+      cat.includes('index') || cat.includes('etf') || cat.includes('exchange traded') || 
+      name.includes('index fund') || name.includes('etf') || name.includes('bees') || 
+      name.includes('nifty') || name.includes('sensex')
+    ) {
+      let sub = 'other_index';
+      let subLabel = 'Other Index';
+      if (name.includes('nifty 200 momentum 30') || name.includes('momentum 30')) { sub = 'nifty200_momentum30'; subLabel = 'Nifty 200 Momentum 30'; }
+      else if (name.includes('nifty next 50') || name.includes('next 50') || name.includes('juniorbees')) { sub = 'nifty_next50'; subLabel = 'Nifty Next 50'; }
+      else if (name.includes('nifty 50') || name.includes('nifty50') || name.includes('nifty bees')) { sub = 'nifty50'; subLabel = 'Nifty 50'; }
+      else if (name.includes('nifty 100') || name.includes('nifty100')) { sub = 'nifty100'; subLabel = 'Nifty 100'; }
+      else if (name.includes('nifty 200') || name.includes('nifty200')) { sub = 'nifty200'; subLabel = 'Nifty 200'; }
+      else if (name.includes('nifty 500') || name.includes('nifty500')) { sub = 'nifty500'; subLabel = 'Nifty 500'; }
+      else if (name.includes('midcap 150') || name.includes('midcap150')) { sub = 'nifty_midcap150'; subLabel = 'Nifty Midcap 150'; }
+      else if (name.includes('smallcap 250') || name.includes('smallcap250')) { sub = 'nifty_smallcap250'; subLabel = 'Nifty Smallcap 250'; }
+      else if (name.includes('bank') || name.includes('bank bees') || name.includes('bankbees')) { sub = 'nifty_bank'; subLabel = 'Nifty Bank'; }
+      else if (name.includes('sensex') || name.includes('sensexbees')) { sub = 'sensex'; subLabel = 'Sensex'; }
+      return ['index', sub, 'INDEX', subLabel];
+    }
+
+    // 7. Debt Schemes
+    if (
+      cat.includes('debt') || cat.includes('income') || cat.includes('gilt') || 
+      cat.includes('bond') || cat.includes('liquid') || cat.includes('money market') || 
+      cat.includes('overnight') || cat.includes('floater') || cat.includes('floating') || 
+      cat.includes('treasury') || name.includes('liquid') || name.includes('gilt') || 
+      name.includes('overnight') || name.includes('money market') || name.includes('corporate bond') || 
+      name.includes('banking and psu') || name.includes('psu debt')
+    ) {
+      let sub = 'other_debt';
+      let subLabel = 'Other Debt';
+      if (cat.includes('overnight') || name.includes('overnight')) { sub = 'overnight'; subLabel = 'Overnight'; }
+      else if (cat.includes('liquid') || name.includes('liquid')) { sub = 'liquid'; subLabel = 'Liquid Fund'; }
+      else if (cat.includes('ultra short') || name.includes('ultra short')) { sub = 'ultra_short'; subLabel = 'Ultra Short Duration'; }
+      else if (cat.includes('low duration') || name.includes('low duration')) { sub = 'low_duration'; subLabel = 'Low Duration'; }
+      else if (cat.includes('money market') || name.includes('money market')) { sub = 'money_market'; subLabel = 'Money Market'; }
+      else if (cat.includes('short duration') || cat.includes('short term') || name.includes('short duration') || name.includes('short term')) { sub = 'short_duration'; subLabel = 'Short Duration'; }
+      else if (cat.includes('medium to long') || name.includes('medium to long')) { sub = 'medium_long'; subLabel = 'Medium to Long Duration'; }
+      else if (cat.includes('medium duration') || cat.includes('medium term') || name.includes('medium duration') || name.includes('medium term')) { sub = 'medium_duration'; subLabel = 'Medium Duration'; }
+      else if (cat.includes('long duration') || cat.includes('long term') || name.includes('long duration') || name.includes('long term')) { sub = 'long_duration'; subLabel = 'Long Duration'; }
+      else if (cat.includes('dynamic bond') || cat.includes('dynamic term') || name.includes('dynamic bond')) { sub = 'dynamic_bond'; subLabel = 'Dynamic Bond'; }
+      else if (cat.includes('corporate bond') || name.includes('corporate bond')) { sub = 'corporate_bond'; subLabel = 'Corporate Bond'; }
+      else if (cat.includes('credit risk') || name.includes('credit risk')) { sub = 'credit_risk'; subLabel = 'Credit Risk'; }
+      else if (cat.includes('banking and psu') || cat.includes('banking & psu') || name.includes('banking & psu') || name.includes('banking and psu') || name.includes('psu debt')) { sub = 'banking_psu'; subLabel = 'Banking & PSU'; }
+      else if (cat.includes('10-year') || cat.includes('10 year') || name.includes('10 year') || name.includes('10y')) { sub = 'gilt_10y'; subLabel = 'Gilt - 10Y Constant Duration'; }
+      else if (cat.includes('gilt') || name.includes('gilt')) { sub = 'gilt'; subLabel = 'Gilt'; }
+      else if (cat.includes('float') || name.includes('floater')) { sub = 'floater'; subLabel = 'Floater'; }
+      return ['debt', sub, 'DEBT', subLabel];
+    }
+
+    // 8. Equity Schemes (Pure Equity only)
+    // Strictly: Flexi Cap, Mid Cap, Small Cap, Large Cap, Large & Mid Cap, Multi Cap, Value, Contra, Focused, Dividend Yield
+    const isEquityMatch = cat.includes('equity') || 
+      name.includes('flexi cap') || name.includes('flexicap') ||
+      name.includes('mid cap') || name.includes('midcap') ||
+      name.includes('small cap') || name.includes('smallcap') ||
+      name.includes('large cap') || name.includes('largecap') || name.includes('bluechip') ||
+      name.includes('large & mid') || name.includes('large and mid') ||
+      name.includes('multi cap') || name.includes('multicap') ||
+      name.includes('value fund') || name.includes('value discovery') ||
+      name.includes('contra') || name.includes('focused');
+
+    if (isEquityMatch) {
+      let sub = null;
+      let subLabel = null;
+      if (cat.includes('large & mid') || cat.includes('large and mid') || name.includes('large & mid') || name.includes('large and mid') || name.includes('equity opportunities')) {
+        sub = 'large_mid_cap'; subLabel = 'Large & Mid Cap';
+      } else if (cat.includes('flexi cap') || name.includes('flexi cap') || name.includes('flexicap')) {
+        sub = 'flexi_cap'; subLabel = 'Flexi Cap';
+      } else if (cat.includes('mid cap') || name.includes('mid cap') || name.includes('midcap') || name.includes('emerging equity')) {
+        sub = 'mid_cap'; subLabel = 'Mid Cap';
+      } else if (cat.includes('small cap') || name.includes('small cap') || name.includes('smallcap')) {
+        sub = 'small_cap'; subLabel = 'Small Cap';
+      } else if (cat.includes('large cap') || name.includes('large cap') || name.includes('largecap') || name.includes('bluechip') || name.includes('top 100')) {
+        sub = 'large_cap'; subLabel = 'Large Cap';
+      } else if (cat.includes('multi cap') || name.includes('multi cap') || name.includes('multicap')) {
+        sub = 'multi_cap'; subLabel = 'Multi Cap';
+      } else if (cat.includes('value') || name.includes('value')) {
+        sub = 'value'; subLabel = 'Value';
+      } else if (cat.includes('contra') || name.includes('contra')) {
+        sub = 'contra'; subLabel = 'Contra';
+      } else if (cat.includes('focused') || name.includes('focused') || name.includes('focus')) {
+        sub = 'focused'; subLabel = 'Focused';
+      } else if (cat.includes('dividend yield') || name.includes('dividend yield')) {
+        sub = 'dividend_yield'; subLabel = 'Dividend Yield';
+      }
+
+      if (sub) {
+        return ['equity', sub, 'EQUITY', subLabel];
+      }
+    }
+
+    return ['other', 'other', 'OTHER', 'Other'];
   };
 
-  const getFundType = (name, categoryStr = '', specifiedType = '') => {
-    const nameLower = (name || '').toLowerCase();
-    const catLower = (categoryStr || '').toLowerCase();
-    if (nameLower.includes('balanced advantage') || nameLower.includes('baf') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset')) {
-      return 'hybrid';
+  const getFundType = (name, categoryStr = '', specifiedType = '', fundRecord = null) => {
+    if (fundRecord?.parentCategory) {
+      const pc = String(fundRecord.parentCategory).toLowerCase();
+      if (pc === 'tax saver' || pc === 'elss') return 'elss';
+      if (pc === 'commodities') return 'commodities';
+      if (pc === 'sectoral_thematic' || pc === 'sectors' || pc === 'sectoral & thematic') return 'sectoral_thematic';
+      if (pc === 'hybrid') return 'hybrid';
+      if (pc === 'debt') return 'debt';
+      if (pc === 'index') return 'index';
+      if (pc === 'global') return 'global';
+      if (pc === 'equity') return 'equity';
     }
-    if (specifiedType) return specifiedType;
+    if (fundRecord?.type && fundRecord.type !== 'mf' && fundRecord.type !== 'all') {
+      return fundRecord.type;
+    }
+    if (specifiedType && specifiedType !== 'mf' && specifiedType !== 'all') return specifiedType;
     return getClassification(categoryStr, name)[0];
   };
 
-  const getFundSubType = (name, categoryStr = '', specifiedSub = '') => {
-    const nameLower = (name || '').toLowerCase();
-    const catLower = (categoryStr || '').toLowerCase();
-    if (nameLower.includes('balanced advantage') || nameLower.includes('baf') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset')) {
-      return 'balanced_adv';
-    }
+  const getFundSubType = (name, categoryStr = '', specifiedSub = '', fundRecord = null) => {
+    if (fundRecord?.subType) return fundRecord.subType;
     if (specifiedSub) return specifiedSub;
     return getClassification(categoryStr, name)[1];
+  };
+
+  const getFundSubLabel = (name, categoryStr = '', fundRecord = null) => {
+    if (fundRecord?.subLabel) return fundRecord.subLabel;
+    if (fundRecord?.subCategoryLabel) return fundRecord.subCategoryLabel;
+    return getClassification(categoryStr, name)[3];
+  };
+
+  const getFundParentCategory = (name, categoryStr = '', fundRecord = null) => {
+    if (fundRecord?.parentCategory) {
+      const pc = String(fundRecord.parentCategory).toUpperCase();
+      if (pc === 'TAX SAVER' || pc === 'ELSS') return 'TAX SAVER';
+      if (pc === 'SECTORAL_THEMATIC' || pc === 'SECTORS' || pc === 'SECTORAL & THEMATIC') return 'SECTORAL & THEMATIC';
+      return pc;
+    }
+    return getClassification(categoryStr, name)[2];
   };
 
   const EXTRA_CATEGORY_SCHEMES = [];
@@ -1932,9 +2126,11 @@ export const IndianMfSectorAnalysis = () => {
 
     return combined.map(fund => {
       const name = fund.name || fund.schemeName || 'Mutual Fund';
-      const fundType = getFundType(name, fund.category, fund.specifiedType || '');
+      const fundType = getFundType(name, fund.category, fund.specifiedType || '', fund);
       const type = fundType;
-      const subType = getFundSubType(name, fund.category, fund.specifiedSub || '');
+      const subType = getFundSubType(name, fund.category, fund.specifiedSub || '', fund);
+      const subLabel = getFundSubLabel(name, fund.category, fund);
+      const parentCategory = getFundParentCategory(name, fund.category, fund);
       
       // Real NAV (strictly null if unavailable)
       const nav = fund.currentPrice_or_nav !== null && fund.currentPrice_or_nav !== undefined && fund.currentPrice_or_nav > 0 
@@ -1995,12 +2191,16 @@ export const IndianMfSectorAnalysis = () => {
       else if (type === 'etf') category = 'ETF';
       else if (type === 'debt') category = 'Debt Fund';
       else if (type === 'hybrid') category = 'Hybrid Fund';
+      else if (type === 'elss') category = 'Tax Saver (ELSS)';
+      else if (type === 'sectoral_thematic') category = 'Sectoral & Thematic';
 
       return {
         ...fund,
         name,
         type,
         subType,
+        subLabel,
+        parentCategory,
         nav: (nav !== null && nav !== undefined) ? parseFloat(nav.toFixed(2)) : null,
         aum,
         aumCr: aum,
@@ -2056,55 +2256,40 @@ export const IndianMfSectorAnalysis = () => {
 
     if (activeMarketFilter !== 'all') {
       funds = funds.filter(f => {
-        const nameLower = (f.name || '').toLowerCase();
-        const catLower = (f.category || '').toLowerCase();
-        if (activeMarketFilter === 'elss') return f.subType === 'elss' || nameLower.includes('elss') || nameLower.includes('tax saver');
-        if (activeMarketFilter === 'sectors' || activeMarketFilter === 'sectoral_thematic') return f.type === 'sectoral' || f.type === 'sectoral_thematic' || f.subType === 'sectoral' || catLower.includes('sector');
-        if (activeMarketFilter === 'hybrid') return f.type === 'hybrid' || nameLower.includes('hybrid') || nameLower.includes('balanced advantage') || nameLower.includes('baf') || nameLower.includes('dynamic asset') || nameLower.includes('arbitrage') || catLower.includes('hybrid') || catLower.includes('balanced advantage');
-        if (activeMarketFilter === 'debt') return f.type === 'debt' || catLower.includes('debt') || catLower.includes('income') || catLower.includes('gilt') || catLower.includes('liquid');
-        if (activeMarketFilter === 'equity') return f.type === 'equity' && !nameLower.includes('balanced advantage') && !nameLower.includes('baf') && !catLower.includes('balanced advantage') && !catLower.includes('dynamic asset');
-        if (activeMarketFilter === 'index') return f.type === 'index' || f.type === 'etf' || catLower.includes('index') || catLower.includes('etf');
-        if (activeMarketFilter === 'commodities') return f.type === 'commodities' || catLower.includes('gold') || catLower.includes('silver');
-        if (activeMarketFilter === 'global') return f.type === 'global' || catLower.includes('global') || catLower.includes('international') || catLower.includes('overseas');
+        if (activeMarketFilter === 'elss') return f.type === 'elss';
+        if (activeMarketFilter === 'sectors' || activeMarketFilter === 'sectoral_thematic') return f.type === 'sectoral_thematic' || f.type === 'sectoral';
+        if (activeMarketFilter === 'hybrid') return f.type === 'hybrid';
+        if (activeMarketFilter === 'debt') return f.type === 'debt';
+        if (activeMarketFilter === 'equity') return f.type === 'equity';
+        if (activeMarketFilter === 'index') return f.type === 'index' || f.type === 'etf';
+        if (activeMarketFilter === 'commodities') return f.type === 'commodities';
+        if (activeMarketFilter === 'global') return f.type === 'global';
         return f.type === activeMarketFilter;
       });
     }
 
     if (selectedSubCategory && selectedSubCategory !== 'all') {
       funds = funds.filter(f => {
-        const nameLower = (f.name || '').toLowerCase();
-        const catLower = (f.category || '').toLowerCase();
         const sub = selectedSubCategory;
         if (f.subType === sub) return true;
-        if (sub === 'balanced' || sub === 'balanced_adv') return f.subType === 'balanced_adv' || f.subType === 'balanced' || nameLower.includes('balanced advantage') || nameLower.includes('baf') || nameLower.includes('dynamic asset') || catLower.includes('balanced advantage') || catLower.includes('dynamic asset');
-        if (sub === 'aggressive') return f.subType === 'aggressive' || nameLower.includes('aggressive') || catLower.includes('aggressive');
-        if (sub === 'arbitrage') return f.subType === 'arbitrage' || nameLower.includes('arbitrage') || catLower.includes('arbitrage');
-        if (sub === 'multiasset' || sub === 'multi_asset') return f.subType === 'multi_asset' || f.subType === 'multiasset' || nameLower.includes('multi asset') || catLower.includes('multi asset');
-        if (sub === 'cpse_etf') return nameLower.includes('cpse');
-        if (sub === 'nifty_it_etf') return nameLower.includes('nifty it') || nameLower.includes('it etf');
-        if (sub === 'small_cap' || sub === 'smallcap') return nameLower.includes('small cap') || nameLower.includes('smallcap');
-        if (sub === 'mid_cap' || sub === 'midcap') return nameLower.includes('mid cap') || nameLower.includes('midcap');
-        if (sub === 'large_cap' || sub === 'largecap') return nameLower.includes('large cap') || nameLower.includes('largecap');
-        if (sub === 'large_mid_cap' || sub === 'largemidcap') return nameLower.includes('large & mid') || nameLower.includes('large and mid');
-        if (sub === 'flexi_cap' || sub === 'flexicap') return f.subType === 'flexi_cap' || f.subType === 'flexicap' || nameLower.includes('flexi cap') || nameLower.includes('flexicap') || catLower.includes('flexi cap') || catLower.includes('flexicap');
-        if (sub === 'multi_cap' || sub === 'multicap') return nameLower.includes('multi cap') || nameLower.includes('multicap');
-        if (sub === 'elss' || sub === 'large_elss' || sub === 'flexi_elss') return nameLower.includes('elss') || nameLower.includes('tax saver');
-        if (sub === 'corporate') return f.subType === 'corporate_bond' || nameLower.includes('corporate bond') || catLower.includes('corporate bond');
-        if (sub === 'banking') return f.subType === 'banking_psu' || nameLower.includes('banking & psu') || nameLower.includes('psu debt');
-        if (sub === 'gilt') return f.subType === 'gilt' || f.subType === 'gilt_10y' || nameLower.includes('gilt');
-        if (sub === 'short') return f.subType === 'short_duration' || nameLower.includes('short duration') || nameLower.includes('short term');
-        if (sub === 'sp500') return nameLower.includes('s&p 500') || nameLower.includes('sp 500');
-        if (sub === 'nasdaq') return nameLower.includes('nasdaq');
-        if (sub === 'russell') return nameLower.includes('russell');
-        if (sub === 'ai_tech') return nameLower.includes('tech') || nameLower.includes('ai') || nameLower.includes('semiconductor') || nameLower.includes('innovation');
-        if (sub === 'liquid') return nameLower.includes('liquid');
-        if (sub === 'gold' || sub === 'gold_etf') return nameLower.includes('gold');
-        if (sub === 'silver' || sub === 'silver_etf') return nameLower.includes('silver');
-        if (sub === 'us_tech') return nameLower.includes('us ') || nameLower.includes('nasdaq') || nameLower.includes('tech');
-        if (sub === 'global_etf') return nameLower.includes('global') || nameLower.includes('world') || nameLower.includes('nasdaq');
-        if (sub === 'nifty50') return nameLower.includes('nifty 50') || nameLower.includes('nifty50');
-        if (sub === 'niftybank') return nameLower.includes('nifty bank') || nameLower.includes('bank index') || nameLower.includes('bank bees');
-        if (sub === 'sensex') return nameLower.includes('sensex');
+        if ((sub === 'flexi_cap' || sub === 'flexicap') && (f.subType === 'flexi_cap' || f.subType === 'flexicap')) return true;
+        if ((sub === 'mid_cap' || sub === 'midcap') && (f.subType === 'mid_cap' || f.subType === 'midcap')) return true;
+        if ((sub === 'small_cap' || sub === 'smallcap') && (f.subType === 'small_cap' || f.subType === 'smallcap')) return true;
+        if ((sub === 'large_cap' || sub === 'largecap') && (f.subType === 'large_cap' || f.subType === 'largecap')) return true;
+        if ((sub === 'large_mid_cap' || sub === 'largemidcap') && (f.subType === 'large_mid_cap' || f.subType === 'largemidcap')) return true;
+        if ((sub === 'multi_cap' || sub === 'multicap') && (f.subType === 'multi_cap' || f.subType === 'multicap')) return true;
+        if (sub === 'balanced_adv' && f.subType === 'balanced_adv') return true;
+        if ((sub === 'dynamic_asset' || sub === 'dynamic') && f.subType === 'dynamic_asset') return true;
+        if (sub === 'active_momentum' && f.subType === 'active_momentum') return true;
+        if ((sub === 'multi_asset' || sub === 'multiasset') && (f.subType === 'multi_asset' || f.subType === 'multiasset')) return true;
+        if ((sub === 'elss_funds' || sub === 'elss') && (f.subType === 'elss_funds' || f.subType === 'elss')) return true;
+        if ((sub === 'gilt' || sub === 'gilt_10y') && (f.subType === 'gilt' || f.subType === 'gilt_10y')) return true;
+        if ((sub === 'nifty200_momentum30' || sub === 'momentum30') && (f.subType === 'nifty200_momentum30' || f.subType === 'momentum30')) return true;
+        if ((sub === 'nifty_bank' || sub === 'niftybank') && (f.subType === 'nifty_bank' || f.subType === 'niftybank')) return true;
+        if ((sub === 'gold' || sub === 'gold_etf') && (f.subType === 'gold' || f.subType === 'gold_etf')) return true;
+        if ((sub === 'silver' || sub === 'silver_etf') && (f.subType === 'silver' || f.subType === 'silver_etf')) return true;
+        if (sub === 'corporate' && f.subType === 'corporate_bond') return true;
+        if (sub === 'banking' && (f.subType === 'banking_psu' || f.subType === 'banking')) return true;
         return false;
       });
     }
@@ -2115,54 +2300,68 @@ export const IndianMfSectorAnalysis = () => {
   const isGroupedView = selectedSubCategory === 'all';
   const groupedCategories = useMemo(() => {
     const getSubcategoryKey = (fund, marketFilter) => {
+      if (fund.subLabel) return fund.subLabel;
+      if (fund.subCategoryLabel) return fund.subCategoryLabel;
+
       const name = String(fund.name || fund.schemeName || '').toLowerCase();
       const cat = String(fund.category || '').toLowerCase();
 
       if (marketFilter === 'equity') {
         if (name.includes('large & mid') || name.includes('large and mid') || cat.includes('large & mid') || cat.includes('large and mid')) return 'Large & Mid Cap';
         if (name.includes('flexi cap') || name.includes('flexicap') || cat.includes('flexi cap') || cat.includes('flexicap')) return 'Flexi Cap';
-        if (name.includes('small cap') || cat.includes('small cap')) return 'Small Cap';
         if (name.includes('mid cap') || cat.includes('mid cap')) return 'Mid Cap';
+        if (name.includes('small cap') || cat.includes('small cap')) return 'Small Cap';
         if (name.includes('large cap') || name.includes('bluechip') || cat.includes('large cap')) return 'Large Cap';
         if (name.includes('multi cap') || cat.includes('multi cap')) return 'Multi Cap';
         if (name.includes('value') || cat.includes('value')) return 'Value';
         if (name.includes('focused') || cat.includes('focused')) return 'Focused';
         if (name.includes('contra') || cat.includes('contra')) return 'Contra';
+        if (name.includes('dividend yield') || cat.includes('dividend yield')) return 'Dividend Yield';
         return 'Other Equity';
       }
 
       if (marketFilter === 'elss' || marketFilter === 'tax saver') {
-        const code = String(fund.schemeCode || fund.id || '');
-        if (name.includes('large') || name.includes('bluechip') || code === '151165') return 'Large Cap ELSS';
-        if (name.includes('multi') || code === '153201') return 'Multi Cap ELSS';
-        if (name.includes('value') || name.includes('value saver')) return 'Value ELSS';
-        if (name.includes('focused') || name.includes('focus')) return 'Focused ELSS';
-        if (name.includes('contra')) return 'Contra ELSS';
-        if (name.includes('flexi') || name.includes('dynamic') || name.includes('tax saver') || name.includes('elss')) return 'Flexi Cap ELSS';
-        return 'Other Tax Saver';
+        if (name.includes('large') || name.includes('bluechip')) return 'Large Cap ELSS';
+        if (name.includes('mid') || name.includes('small')) return 'Mid/Small Cap ELSS';
+        return 'ELSS Funds';
       }
 
       if (marketFilter === 'debt') {
         if (name.includes('liquid') || cat.includes('liquid')) return 'Liquid Fund';
-        if (name.includes('corporate bond') || cat.includes('corporate bond')) return 'Corporate Bond Fund';
-        if (name.includes('banking & psu') || name.includes('psu') || cat.includes('banking and psu')) return 'Banking & PSU Fund';
-        if (name.includes('gilt') || cat.includes('gilt')) return 'Gilt Fund';
-        if (name.includes('short duration') || cat.includes('short duration') || name.includes('short term')) return 'Short Duration Fund';
+        if (name.includes('overnight') || cat.includes('overnight')) return 'Overnight';
+        if (name.includes('money market') || cat.includes('money market')) return 'Money Market';
+        if (name.includes('ultra short') || cat.includes('ultra short')) return 'Ultra Short Duration';
+        if (name.includes('corporate bond') || cat.includes('corporate bond')) return 'Corporate Bond';
+        if (name.includes('banking & psu') || name.includes('psu debt') || cat.includes('banking and psu')) return 'Banking & PSU';
+        if (name.includes('gilt') && (name.includes('10') || cat.includes('10'))) return 'Gilt - 10Y Constant Duration';
+        if (name.includes('gilt') || cat.includes('gilt')) return 'Gilt';
+        if (name.includes('short duration') || cat.includes('short duration') || name.includes('short term')) return 'Short Duration';
+        if (name.includes('dynamic bond') || cat.includes('dynamic')) return 'Dynamic Bond';
         return 'Other Debt';
       }
 
       if (marketFilter === 'hybrid') {
-        if (name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage') || cat.includes('dynamic asset') || name.includes('dynamic asset') || name.includes('balanced')) return 'Balanced Advantage Fund';
-        if (name.includes('multi asset') || cat.includes('multi asset')) return 'Multi Asset Allocation Fund';
-        if (name.includes('aggressive') || cat.includes('aggressive hybrid')) return 'Aggressive Hybrid Fund';
-        if (name.includes('arbitrage') || cat.includes('arbitrage')) return 'Arbitrage Fund';
+        if ((name.includes('momentum') || cat.includes('momentum')) && !name.includes('index') && !name.includes('etf')) return 'Active Momentum Funds';
+        if ((name.includes('balanced advantage') || name.includes('baf') || cat.includes('balanced advantage')) && !name.includes('formerly known as sundaram balanced advantage')) return 'Balanced Advantage Funds';
+        if (name.includes('dynamic asset') || cat.includes('dynamic asset')) return 'Dynamic Asset Allocation Funds';
+        if (name.includes('aggressive') || cat.includes('aggressive')) return 'Aggressive Hybrid';
+        if (name.includes('arbitrage') || cat.includes('arbitrage')) return 'Arbitrage';
+        if (name.includes('multi asset') || cat.includes('multi asset')) return 'Multi Asset Allocation';
+        if (name.includes('conservative') || cat.includes('conservative')) return 'Conservative Hybrid';
+        if (name.includes('equity savings') || cat.includes('equity savings')) return 'Equity Savings';
+        if (name.includes('balanced') || cat.includes('balanced')) return 'Balanced Hybrid';
         return 'Other Hybrid';
       }
 
       if (marketFilter === 'index') {
-        if ((name.includes('s&p 500') || name.includes('sp 500')) && !name.includes('sensex')) return 'S&P 500';
-        if (name.includes('nifty 200 momentum 30') || name.includes('200 momentum 30')) return 'Nifty 200 Momentum 30';
+        if (name.includes('nifty 200 momentum 30') || name.includes('momentum 30')) return 'Nifty 200 Momentum 30';
+        if (name.includes('nifty next 50') || name.includes('next 50')) return 'Nifty Next 50';
         if (name.includes('nifty 50') || name.includes('nifty50')) return 'Nifty 50';
+        if (name.includes('nifty 100')) return 'Nifty 100';
+        if (name.includes('nifty 200')) return 'Nifty 200';
+        if (name.includes('nifty 500')) return 'Nifty 500';
+        if (name.includes('midcap 150')) return 'Nifty Midcap 150';
+        if (name.includes('smallcap 250')) return 'Nifty Smallcap 250';
         if (name.includes('bank') || name.includes('nifty bank')) return 'Nifty Bank';
         if (name.includes('sensex')) return 'Sensex';
         return 'Other Index';
@@ -2170,7 +2369,7 @@ export const IndianMfSectorAnalysis = () => {
 
       if (marketFilter === 'commodities') {
         if (name.includes('goldmine') || name.includes('mining') || name.includes('mine')) return 'Gold Mining';
-        if (name.includes('copper') || name.includes('metal')) return 'Copper / Metals';
+        if (name.includes('copper') || name.includes('metal')) return 'Other Metals';
         if (name.includes('silver')) return 'Silver';
         if (name.includes('gold')) return 'Gold';
         return 'Other Commodities';
@@ -2180,21 +2379,28 @@ export const IndianMfSectorAnalysis = () => {
         if ((name.includes('s&p 500') || name.includes('sp 500')) && !name.includes('sensex')) return 'S&P 500';
         if (name.includes('nasdaq')) return 'Nasdaq';
         if (name.includes('russell')) return 'Russell';
-        if (name.includes('gift') || name.includes('ifsc')) return 'GIFT City';
-        if (name.includes('tech') || name.includes('ai') || name.includes('artificial intelligence')) return 'Global Tech / AI & Tech';
-        if (name.includes('global') || name.includes('world') || name.includes('us ') || name.includes('overseas') || name.includes('international')) return 'Global Equity';
-        return 'Other Global';
+        if (name.includes('tech') || name.includes('ai')) return 'Global Tech / AI & Tech';
+        return 'Global Equity';
       }
 
       if (marketFilter === 'sectoral_thematic' || marketFilter === 'sectors') {
-        if (name.includes('bank') || name.includes('finan')) return 'Banking & Financials';
-        if (name.includes('pharma') || name.includes('health')) return 'Healthcare & Pharma';
-        if (name.includes('tech') || name.includes('it ')) return 'Technology';
-        if (name.includes('infra')) return 'Infrastructure';
-        if (name.includes('consum')) return 'Consumption';
-        if (name.includes('psu')) return 'PSU';
-        if (name.includes('esg')) return 'ESG';
-        return 'Other Sectors';
+        if (name.includes('defence') || name.includes('defense') || name.includes('aerospace')) return 'Defence Funds';
+        if (name.includes('energy') || name.includes('power') || name.includes('natural resource') || name.includes('comma') || name.includes('oil & gas') || name.includes('petro') || name.includes('commodit')) return 'Energy Funds';
+        if (name.includes('innovation') || name.includes('innovator') || name.includes('innovative') || name.includes('pioneer') || name.includes('disruption') || name.includes('special opportunities') || name.includes('opportunities fund') || name.includes('special situation')) return 'Innovation Funds';
+        if (name.includes('manufactur') || name.includes('make in india')) return 'Manufacturing Funds';
+        if (name.includes('business cycle') || name.includes('business cycles') || name.includes('conglomerate')) return 'Business Cycle Funds';
+        if (name.includes('mnc') || name.includes('multinational')) return 'MNC Funds';
+        if (name.includes('esg') || name.includes('sustainability') || name.includes('sustainable') || name.includes('climate') || name.includes('ethical')) return 'ESG Funds';
+        if (name.includes('bluechip') && (name.includes('thematic') || cat.includes('thematic') || cat.includes('sectoral'))) return 'BlueChip Funds';
+        if (name.includes('quant fund') || name.includes('quantamental') || name.includes('quantitative') || name.includes('multi-factor') || name.includes('multi factor') || name.includes('minimum variance') || (name.includes('quality') && !name.includes('large') && !name.includes('mid') && !name.includes('small') && !name.includes('flexi'))) return 'Quant Funds';
+        if (name.includes('bank') || name.includes('finan') || name.includes('bfsi')) return 'Banking & Financial Services';
+        if (name.includes('tech') || name.includes('teck') || name.includes('digital') || name.includes('it ') || name.includes('technology')) return 'Technology';
+        if (name.includes('pharma') || name.includes('health') || name.includes('healthcare')) return 'Healthcare & Pharma';
+        if (name.includes('infra') || name.includes('infrastructure') || name.includes('build india') || name.includes('tiger') || name.includes('t.i.g.e.r') || name.includes('housing')) return 'Infrastructure';
+        if (name.includes('fmcg') || name.includes('consum') || name.includes('consumer')) return 'FMCG & Consumption';
+        if (name.includes('psu') || name.includes('cpse')) return 'PSU';
+        if (name.includes('auto') || name.includes('mobility') || name.includes('transportation')) return 'Auto';
+        return 'Other Sector/Thematic';
       }
 
       return fund.subType ? (fund.subType.charAt(0).toUpperCase() + fund.subType.slice(1)) : 'General';
@@ -2205,30 +2411,24 @@ export const IndianMfSectorAnalysis = () => {
     filteredDashboardFunds.forEach(fund => {
       let parentKey = 'EQUITY';
 
-      const catStr = (fund.category || '').toLowerCase();
-      const nameStr = (fund.name || '').toLowerCase();
-      const tStr = (fund.type || '').toLowerCase();
-
-      // STRICT EXCLUSIVITY IF/ELSE IF CHAIN - Every scheme belongs to EXACTLY ONE parent category
-      if (tStr === 'elss' || catStr.includes('elss') || nameStr.includes('elss') || nameStr.includes('tax saver')) {
-        parentKey = 'TAX SAVER';
-      } else if (tStr === 'debt' || catStr.includes('debt') || catStr.includes('income') || catStr.includes('gilt') || catStr.includes('liquid') || catStr.includes('bond') || catStr.includes('money market') || catStr.includes('overnight') || catStr.includes('fmp') || catStr.includes('floater') || catStr.includes('treasury') || nameStr.includes('debt') || nameStr.includes('bond') || nameStr.includes('gilt') || nameStr.includes('liquid') || nameStr.includes('treasury')) {
-        parentKey = 'DEBT';
-      } else if (tStr === 'index' || catStr.includes('index') || nameStr.includes('index') || nameStr.includes('etf') || nameStr.includes('nifty') || nameStr.includes('sensex') || nameStr.includes('bees')) {
-        parentKey = 'INDEX';
-      } else if (tStr === 'hybrid' || catStr.includes('hybrid') || catStr.includes('balanced') || catStr.includes('arbitrage') || catStr.includes('dynamic asset') || nameStr.includes('hybrid') || nameStr.includes('balanced advantage') || nameStr.includes('baf') || nameStr.includes('dynamic asset') || nameStr.includes('arbitrage') || nameStr.includes('equity savings') || nameStr.includes('multi asset')) {
-        parentKey = 'HYBRID';
-      } else if (tStr === 'global' || catStr.includes('global') || catStr.includes('international') || catStr.includes('overseas') || nameStr.includes('international') || nameStr.includes('us equity') || nameStr.includes('nasdaq') || nameStr.includes('s&p') || nameStr.includes('gift')) {
-        parentKey = 'GLOBAL';
-      } else if (tStr === 'commodities' || catStr.includes('gold') || catStr.includes('silver') || catStr.includes('commodity') || nameStr.includes('gold') || nameStr.includes('silver')) {
-        parentKey = 'COMMODITIES';
-      } else if (tStr === 'sectoral_thematic' || catStr.includes('sector') || catStr.includes('thematic') || nameStr.includes('pharma') || nameStr.includes('infra') || nameStr.includes('tech') || nameStr.includes('banking')) {
-        parentKey = 'SECTORS';
+      if (fund.parentCategory) {
+        const pc = String(fund.parentCategory).toUpperCase();
+        if (pc === 'ELSS' || pc === 'TAX SAVER') parentKey = 'TAX SAVER';
+        else if (pc === 'SECTORAL_THEMATIC' || pc === 'SECTORS' || pc === 'SECTORAL & THEMATIC') parentKey = 'SECTORAL & THEMATIC';
+        else parentKey = pc;
       } else {
-        parentKey = 'EQUITY';
+        const tStr = (fund.type || '').toLowerCase();
+        if (tStr === 'elss') parentKey = 'TAX SAVER';
+        else if (tStr === 'debt') parentKey = 'DEBT';
+        else if (tStr === 'index' || tStr === 'etf') parentKey = 'INDEX';
+        else if (tStr === 'hybrid') parentKey = 'HYBRID';
+        else if (tStr === 'global') parentKey = 'GLOBAL';
+        else if (tStr === 'commodities') parentKey = 'COMMODITIES';
+        else if (tStr === 'sectoral_thematic' || tStr === 'sectoral') parentKey = 'SECTORAL & THEMATIC';
+        else parentKey = 'EQUITY';
       }
 
-      const subKey = getSubcategoryKey(fund, activeMarketFilter === 'all' ? parentKey.toLowerCase() : activeMarketFilter);
+      const subKey = getSubcategoryKey(fund, activeMarketFilter === 'all' ? (fund.type || 'equity') : activeMarketFilter);
 
       if (!tree[parentKey]) {
         tree[parentKey] = {
@@ -2558,7 +2758,7 @@ export const IndianMfSectorAnalysis = () => {
                 const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(enrichedFunds, null, 2))}`;
                 const downloadAnchor = document.createElement('a');
                 downloadAnchor.setAttribute("href", jsonString);
-                downloadAnchor.setAttribute("download", `MarketPulse_Mutual_Funds_${new Date().toISOString().slice(0,10)}.json`);
+                downloadAnchor.setAttribute("download", `TheLalStreetScreener_Mutual_Funds_${new Date().toISOString().slice(0,10)}.json`);
                 document.body.appendChild(downloadAnchor);
                 downloadAnchor.click();
                 downloadAnchor.remove();
@@ -2605,6 +2805,7 @@ export const IndianMfSectorAnalysis = () => {
           <MfRankingTable
             funds={filteredDashboardFunds}
             groupedCategories={groupedCategories}
+            activeMarketFilter={activeMarketFilter}
             isAllFundsMode={isAllFundsMode}
             activeTimeframe={rankingTimeframe}
             rankMode={rankMode}

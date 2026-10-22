@@ -61,7 +61,7 @@ class ETFService {
       summary = {
         holdings: summaryRes?.topHoldings?.holdings || [],
         sectorWeightings: summaryRes?.topHoldings?.sectorWeightings || [],
-        expenseRatio: summaryRes?.fundProfile?.feesExpensesInvestment?.expenseRatioValue || 0.002
+        expenseRatio: summaryRes?.fundProfile?.feesExpensesInvestment?.expenseRatioValue ?? null
       };
     } catch (e) {
       console.warn(`Could not get topHoldings/profile for ETF ${symbol}:`, e.message);
@@ -69,12 +69,12 @@ class ETFService {
 
     const detail = {
       ...quote,
-      holdings: summary.holdings.map(h => ({
+      holdings: summary.holdings ? summary.holdings.map(h => ({
         name: h.holdingName || h.symbol,
         allocation: (h.holdingPercent * 100).toFixed(2)
-      })),
-      expenseRatio: summary.expenseRatio ? (summary.expenseRatio * 100).toFixed(2) + '%' : '0.20%',
-      sectorWeightings: summary.sectorWeightings
+      })) : [],
+      expenseRatio: (typeof summary.expenseRatio === 'number') ? (summary.expenseRatio * 100).toFixed(2) + '%' : null,
+      sectorWeightings: summary.sectorWeightings || []
     };
 
     cacheService.set(cacheKey, detail, 'STANDARD');

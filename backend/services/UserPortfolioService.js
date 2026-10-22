@@ -15,11 +15,12 @@ class UserPortfolioService {
     // Enrich with latest live NAV
     const enriched = await Promise.all(holdings.map(async (holding) => {
       // Try to get latest NAV. We fetch a very short range and get the last candle.
-      const navHistory = await unifiedMfService.getFundNavHistory(holding.schemeCode, holding.region || 'india', '1y'); 
+      const navHistoryRes = await unifiedMfService.getFundNavHistory(holding.schemeCode, holding.region || 'india', '1y'); 
+      const navData = Array.isArray(navHistoryRes) ? navHistoryRes : (navHistoryRes?.data || []);
       let currentNav = holding.avgBuyNav; // fallback to buy nav if live fails
       
-      if (navHistory && navHistory.length > 0) {
-        currentNav = navHistory[navHistory.length - 1].value;
+      if (navData.length > 0) {
+        currentNav = navData[navData.length - 1].value;
       }
 
       const currentValue = holding.units * currentNav;

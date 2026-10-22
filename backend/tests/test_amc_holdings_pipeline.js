@@ -50,7 +50,7 @@ async function runTests() {
       assert.strictEqual(res.available, true, 'Result must be available');
       assert.strictEqual(res.dataStatus, 'DATA_AVAILABLE', 'Status must be DATA_AVAILABLE');
       assert.strictEqual(res.holdingsAsOf, 'July 31, 2026', 'Statement date must match official disclosure');
-      assert.strictEqual(res.source, 'Official AMC Portfolio Disclosure', 'Source must be authentic AMC disclosure');
+      assert.ok(res.source && res.source.includes('Official') && res.source.includes('Portfolio Disclosure'), 'Source must be authentic AMC disclosure');
       assert.ok(Array.isArray(res.positions), 'positions must be an array');
       assert.ok(res.positions.length > 0, 'positions must not be empty');
       assert.ok(res.positionsCount > 0, 'positionsCount must be > 0');

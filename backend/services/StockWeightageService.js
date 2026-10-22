@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import officialAmcPortfolioService from './OfficialAmcPortfolioService.js';
 import indianMfRankingService from './IndianMfRankingService.js';
 import marketDataGateway from './MarketDataGateway.js';
+import { STOCK_SNAPSHOTS } from '../config/stockSnapshotData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,13 @@ const POSSIBLE_BSE_PATHS = [
   path.resolve(__dirname, '../../data/bse_scrip_mapping.json'),
   path.resolve('backend/data/bse_scrip_mapping.json'),
   path.resolve('data/bse_scrip_mapping.json')
+];
+
+const POSSIBLE_EQUITY_MASTER_PATHS = [
+  path.resolve(__dirname, '../data/indian_equity_master.json'),
+  path.resolve(__dirname, '../../data/indian_equity_master.json'),
+  path.resolve('backend/data/indian_equity_master.json'),
+  path.resolve('data/indian_equity_master.json')
 ];
 
 const POSSIBLE_AMFI_PATHS = [
@@ -29,6 +37,22 @@ const POSSIBLE_HOLDINGS_CACHE_PATHS = [
   path.resolve('backend/data/verified_fund_holdings_cache.json'),
   path.resolve('data/verified_fund_holdings_cache.json')
 ];
+
+const POSSIBLE_AUM_CACHE_PATHS = [
+  path.resolve(__dirname, '../data/verified_aum_cache.json'),
+  path.resolve(__dirname, '../../data/verified_aum_cache.json'),
+  path.resolve('backend/data/verified_aum_cache.json'),
+  path.resolve('data/verified_aum_cache.json')
+];
+
+export const isIsinCode = (str) => typeof str === 'string' && /^IN[A-Z0-9]{10}$/i.test(str.trim());
+
+export const isLikelyListedTicker = (sym) => {
+  if (!sym || typeof sym !== 'string') return false;
+  const s = sym.trim().toUpperCase();
+  if (isIsinCode(s) || s.startsWith('IN0') || s.startsWith('INF0') || s.startsWith('INE0')) return false;
+  return true;
+};
 
 /**
  * Canonical Stock Weightage Screener Service
@@ -49,11 +73,16 @@ class StockWeightageService {
     this.schemeMap = new Map(); // schemeCode -> scheme record with complete portfolio
     this.bseScripMap = new Map(); // isin / symbol -> { symbol, isin, companyName }
     this.eligibleFundUniverseMap = new Map(); // schemeCode -> eligible Direct Growth fund metadata
+    this.stockByIsinMap = new Map(); // isin -> stock record for fast O(1) resolution
+    this._screenerAggregationCache = new Map(); // category__amc -> memoized base aggregated stocks and KPIs
+    this._sectorBreakdownCache = null; // memoized sector view breakdown
+    this._coverageDiagnosticsCache = null; // memoized coverage diagnostics
+    this._coverageDiagnosticsCacheTime = 0;
     this.universeStats = {
-      totalDiscovered: 2106,
-      eligibleDirectGrowth: 2106,
-      targetCategoryTotal: 226,
-      categories: { 'Large Cap': 35, 'Mid Cap': 85, 'Small Cap': 65, 'Contra': 4, 'Value': 37 },
+      totalDiscovered: 2125,
+      eligibleDirectGrowth: 2125,
+      targetCategoryTotal: 228,
+      categories: { 'Large Cap': 35, 'Mid Cap': 84, 'Small Cap': 65, 'Contra': 4, 'Value': 40 },
       uniqueAmcs: 43
     };
     this.initialized = false;
@@ -62,10 +91,12 @@ class StockWeightageService {
 
   normalizeTargetCategory(category, name = '') {
     const c = (String(category || '') + ' ' + String(name || '')).toLowerCase();
+    // Strictly isolate non-pure equity funds: ELSS, Sectoral, Hybrid, Index, Debt
+    if (/elss|tax\s*saver|tax-saver|sector|thematic|hybrid|arbitrage|index|etf|fmp|debt|liquid/i.test(c)) return null;
     if (/contra/i.test(c)) return 'Contra';
     if ((/small\s*cap/i.test(c) || /small\s*cap/i.test(name)) && !/mid/i.test(name)) return 'Small Cap';
     if ((/mid\s*cap/i.test(c) || /mid\s*cap/i.test(name)) && !/large\s*(&|and)\s*mid/i.test(c) && !/large\s*(&|and)\s*mid/i.test(name)) return 'Mid Cap';
-    if ((/large\s*cap/i.test(c) || /large\s*cap/i.test(name) || /bluechip/i.test(name) || /top 100/i.test(name)) && !/large\s*(&|and)\s*mid/i.test(c) && !/large\s*(&|and)\s*mid/i.test(name) && !/index/i.test(category) && !/etf/i.test(category)) return 'Large Cap';
+    if ((/large\s*cap/i.test(c) || /large\s*cap/i.test(name) || /bluechip/i.test(name) || /top 100/i.test(name)) && !/large\s*(&|and)\s*mid/i.test(c) && !/large\s*(&|and)\s*mid/i.test(name)) return 'Large Cap';
     if ((/value/i.test(c) || /value/i.test(name)) && !/large\s*(&|and)\s*mid/i.test(c)) return 'Value';
     return null;
   }
@@ -128,6 +159,38 @@ class StockWeightageService {
         console.warn(`StockWeightageService: failed to read BSE mapping from ${p}:`, err.message);
       }
     }
+
+    // Load full 2600+ Indian equity securities master
+    for (const p of POSSIBLE_EQUITY_MASTER_PATHS) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            for (const item of list) {
+              if (item.isin && item.symbol) {
+                const isinKey = item.isin.trim().toUpperCase();
+                const symKey = item.symbol.trim().toUpperCase();
+                const entry = {
+                  symbol: symKey,
+                  isin: isinKey,
+                  bseCode: item.bseCode ? item.bseCode.trim() : null,
+                  companyName: item.name ? item.name.trim() : symKey
+                };
+                if (!this.bseScripMap.has(symKey)) {
+                  this.bseScripMap.set(symKey, entry);
+                }
+                this.bseScripMap.set(isinKey, entry);
+              }
+            }
+            console.log(`⚡ StockWeightageService: Loaded ${list.length} securities from equity master (${p})`);
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn(`StockWeightageService: failed to read equity master from ${p}:`, err.message);
+      }
+    }
   }
 
   _resolveStockIdentity(name, isin) {
@@ -166,13 +229,24 @@ class StockWeightageService {
   _findStock(identifier) {
     if (!identifier) return null;
     const clean = String(identifier).trim().toUpperCase();
+    const cleanNoExt = clean.replace(/\.NS$|\.BO$/i, '');
 
     // 1. Direct match by symbol
     if (this.stockMap.has(clean)) {
       return this.stockMap.get(clean);
     }
+    if (this.stockMap.has(cleanNoExt)) {
+      return this.stockMap.get(cleanNoExt);
+    }
 
-    // 2. Direct match by ISIN
+    // 2. Direct fast match by ISIN (O(1))
+    if (this.stockByIsinMap.has(clean)) {
+      return this.stockByIsinMap.get(clean);
+    }
+    if (this.stockByIsinMap.has(cleanNoExt)) {
+      return this.stockByIsinMap.get(cleanNoExt);
+    }
+
     for (const stock of this.stockMap.values()) {
       if (stock.isin && stock.isin.toUpperCase() === clean) {
         return stock;
@@ -208,6 +282,102 @@ class StockWeightageService {
     return null;
   }
 
+  _formatSectorName(raw) {
+    if (!raw) return 'Unknown / Unmapped';
+    const s = String(raw).trim();
+    if (/^banking$/i.test(s) || /^banks$/i.test(s)) return 'Banks';
+    if (/^it$/i.test(s) || /^technology$/i.test(s) || /^it - software$/i.test(s)) return 'IT - Software';
+    if (/^pharma$/i.test(s) || /^pharmaceuticals$/i.test(s) || /pharmaceuticals & biotechnology/i.test(s)) return 'Pharmaceuticals & Biotechnology';
+    if (/^fmcg$/i.test(s) || /^consumer staples$/i.test(s) || /^consumption$/i.test(s)) return 'Consumer Goods & Retail';
+    if (/^auto$/i.test(s) || /^automobiles$/i.test(s)) return 'Automobiles';
+    if (/^finance$/i.test(s) || /^financials$/i.test(s) || /^financial services$/i.test(s)) return 'Finance';
+    if (/^energy$/i.test(s) || /^oil & gas$/i.test(s)) return 'Energy & Power';
+    if (/^infra$/i.test(s) || /^infrastructure$/i.test(s)) return 'Construction & Infrastructure';
+    return s;
+  }
+
+  _resolveStockSectorProvenance(symbol, name, isin, rawSector, positions = []) {
+    const cleanSym = String(symbol || '').trim().toUpperCase();
+    const n = String(name || symbol || '').toLowerCase();
+
+    // 1. Verified stock/security master / exchange classification (HIGH confidence)
+    if (cleanSym === 'BHARTIARTL' || cleanSym.includes('AIRTEL') || n.includes('airtel')) {
+      return { sector: 'Telecommunication', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+    if (cleanSym === 'RELIANCE' || n.includes('reliance industries')) {
+      return { sector: 'Energy & Diversified', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+    if (cleanSym === 'ITC' || n.includes('itc limited') || n.includes('itc ltd')) {
+      return { sector: 'Consumer Goods & Retail', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+    if (cleanSym === 'LT' || n.includes('larsen & toubro')) {
+      return { sector: 'Construction & Infrastructure', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+    if (['TCS', 'INFY', 'WIPRO', 'HCLTECH', 'TECHM', 'LTIM'].includes(cleanSym)) {
+      return { sector: 'IT - Software', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+    if (['HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK', 'INDUSINDBK'].includes(cleanSym)) {
+      return { sector: 'Banks', sectorSource: 'EXCHANGE_CLASSIFICATION', sectorConfidence: 'HIGH' };
+    }
+
+    // 2. Official statutory disclosure metadata (HIGH confidence)
+    if (Array.isArray(positions)) {
+      for (const pos of positions) {
+        const s = pos.sector || pos.industry;
+        if (s && s !== 'General' && s !== 'Other' && s.trim() !== '' && s !== 'Diversified / Industrial') {
+          return { sector: this._formatSectorName(s), sectorSource: 'OFFICIAL_DISCLOSURE', sectorConfidence: 'HIGH' };
+        }
+      }
+    }
+
+    if (rawSector && rawSector !== 'General' && rawSector !== 'Other' && rawSector.trim() !== '' && rawSector !== 'Diversified / Industrial') {
+      return { sector: this._formatSectorName(rawSector), sectorSource: 'OFFICIAL_DISCLOSURE', sectorConfidence: 'HIGH' };
+    }
+
+    // 3. Verified STOCK_SNAPSHOTS (HIGH confidence)
+    const snap = STOCK_SNAPSHOTS[`${cleanSym}.NS`] || STOCK_SNAPSHOTS[`${cleanSym}.BO`] || STOCK_SNAPSHOTS[cleanSym];
+    if (snap && snap.sector && snap.sector !== 'General' && snap.sector !== 'Index') {
+      return { sector: this._formatSectorName(snap.sector), sectorSource: 'VERIFIED_SNAPSHOT', sectorConfidence: 'HIGH' };
+    }
+
+    const normName = String(name || '').toLowerCase().replace(/limited|ltd\.?|corp\.?|corporation|industries|india/g, '').trim();
+    if (normName.length > 2) {
+      for (const snapData of Object.values(STOCK_SNAPSHOTS)) {
+        if (!snapData.sector || snapData.sector === 'General' || snapData.sector === 'Index') continue;
+        const sName = String(snapData.name || '').toLowerCase().replace(/limited|ltd\.?|corp\.?|corporation|industries|india/g, '').trim();
+        if (sName.length > 3 && (normName.includes(sName) || sName.includes(normName))) {
+          return { sector: this._formatSectorName(snapData.sector), sectorSource: 'VERIFIED_SNAPSHOT', sectorConfidence: 'HIGH' };
+        }
+      }
+    }
+
+    // 4. Heuristic fallback (LOW confidence)
+    if (n.includes('bank')) return { sector: 'Banks', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('pharma') || n.includes('laborator') || n.includes('therapeutics') || n.includes('remedies') || n.includes('biotech')) return { sector: 'Pharmaceuticals & Biotechnology', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('cement')) return { sector: 'Cement & Construction Materials', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('chemical') || n.includes('fertiliz') || n.includes('fluorine')) return { sector: 'Chemicals & Petrochemicals', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('petrol') || n.includes('refiner') || n.includes('energy') || n.includes('power') || n.includes('gas') || n.includes('petronet') || n.includes('oil')) return { sector: 'Energy & Power', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('finance') || n.includes('finvest') || n.includes('capital') || n.includes('holding') || n.includes('insurance') || n.includes('credit') || n.includes('housing dev') || n.includes('repco')) return { sector: 'Finance', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('software') || n.includes('infotech') || n.includes('technol') || n.includes('systems') || n.includes('digital') || n.includes('hexaware') || n.includes('cognizant')) return { sector: 'IT - Software', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('motor') || n.includes('auto') || n.includes('tyre') || n.includes('bearing') || n.includes('wabco') || n.includes('forging')) return { sector: 'Auto Components', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('steel') || n.includes('metal') || n.includes('mining') || n.includes('iron') || n.includes('aluminium') || n.includes('zinc') || n.includes('tubes')) return { sector: 'Metals & Mining', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('infra') || n.includes('construct') || n.includes('engineer') || n.includes('project') || n.includes('infratech') || n.includes('sadbhav')) return { sector: 'Construction & Infrastructure', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('food') || n.includes('beverage') || n.includes('consumer') || n.includes('retail') || n.includes('fmcg') || n.includes('products') || n.includes('footwear') || n.includes('relaxo') || n.includes('itc')) return { sector: 'Consumer Goods & Retail', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('hotel') || n.includes('resort') || n.includes('leisure') || n.includes('hospitality')) return { sector: 'Leisure Services', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('hospital') || n.includes('health') || n.includes('medical') || n.includes('clinic')) return { sector: 'Healthcare Services', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('telecom') || n.includes('communi') || n.includes('cable')) return { sector: 'Telecommunication', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('textile') || n.includes('garment') || n.includes('apparel') || n.includes('fashion')) return { sector: 'Textiles & Apparels', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('transport') || n.includes('distripark') || n.includes('logistics') || n.includes('port')) return { sector: 'Logistics & Transportation', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+    if (n.includes('electric') || n.includes('appliances') || n.includes('electronics')) return { sector: 'Electrical Equipment', sectorSource: 'HEURISTIC_FALLBACK', sectorConfidence: 'LOW' };
+
+    // 5. Unknown / Unmapped (never fabricate certainty)
+    return { sector: 'Unknown / Unmapped', sectorSource: 'UNMAPPED', sectorConfidence: 'NONE' };
+  }
+
+  _resolveStockSector(symbol, name, isin, rawSector, positions = []) {
+    return this._resolveStockSectorProvenance(symbol, name, isin, rawSector, positions).sector;
+  }
+
   /**
    * Aggregate all available official mutual fund disclosures into the screener index
    */
@@ -215,6 +385,26 @@ class StockWeightageService {
     this.stockMap.clear();
     this.schemeMap.clear();
     this.eligibleFundUniverseMap.clear();
+    this.stockByIsinMap.clear();
+    this._screenerAggregationCache.clear();
+    this._sectorBreakdownCache = null;
+    this._coverageDiagnosticsCache = null;
+    this._coverageDiagnosticsCacheTime = 0;
+
+    // 0. Load comprehensive statutory AUM disclosures cache
+    let aumDisclosuresMap = {};
+    for (const p of POSSIBLE_AUM_CACHE_PATHS) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.disclosures) {
+            aumDisclosuresMap = parsed.disclosures;
+            break;
+          }
+        }
+      } catch (e) {}
+    }
 
     // 1. Discover and index ALL eligible Direct + Growth mutual funds from active master registry
     let rawSchemesList = [];
@@ -243,9 +433,14 @@ class StockWeightageService {
 
       const code = String(rawScheme.schemeCode).trim();
       const verifiedAum = indianMfRankingService.resolveSchemeAum({ schemeCode: code });
+      const aumDisc = aumDisclosuresMap[code];
       const aumCr = (verifiedAum && typeof verifiedAum.aumCr === 'number' && verifiedAum.aumCr > 0)
         ? verifiedAum.aumCr
-        : (typeof rawScheme.aumCr === 'number' && rawScheme.aumCr > 0 ? rawScheme.aumCr : (typeof rawScheme.aum === 'number' ? rawScheme.aum : null));
+        : (aumDisc && typeof aumDisc.aumCr === 'number' && aumDisc.aumCr > 0
+          ? aumDisc.aumCr
+          : (aumDisc && typeof aumDisc.aaumCr === 'number' && aumDisc.aaumCr > 0
+            ? aumDisc.aaumCr
+            : (typeof rawScheme.aumCr === 'number' && rawScheme.aumCr > 0 ? rawScheme.aumCr : (typeof rawScheme.aum === 'number' ? rawScheme.aum : null))));
 
       const fundEntry = {
         schemeCode: code,
@@ -307,9 +502,10 @@ class StockWeightageService {
     const ingestSchemePositions = (code, meta, positions, aumCr, portfolioDate) => {
       if (!positions || !Array.isArray(positions) || positions.length === 0) return;
       const verifiedAum = indianMfRankingService.resolveSchemeAum({ schemeCode: code });
-      const resolvedAumCr = verifiedAum?.aumCr ?? aumCr ?? null;
+      const aumDisc = aumDisclosuresMap[String(code).trim()];
+      const resolvedAumCr = verifiedAum?.aumCr ?? aumDisc?.aumCr ?? aumDisc?.aaumCr ?? aumCr ?? null;
       const schemeCategory = meta.category || 'Equity Scheme';
-      const targetCategory = this.normalizeTargetCategory(schemeCategory, meta.schemeName) || 'Large Cap';
+      const targetCategory = this.normalizeTargetCategory(schemeCategory, meta.schemeName) || 'Other Equity';
 
       const schemeEntry = {
         schemeCode: String(code).trim(),
@@ -340,7 +536,16 @@ class StockWeightageService {
         }
 
         const stockIdentity = this._resolveStockIdentity(pos.name || pos.stock, pos.ISIN || pos.securityId || pos.isin);
-        const symbol = stockIdentity.symbol || pos.stock || pos.symbol || 'UNKNOWN';
+        let rawSymbol = stockIdentity.symbol;
+        if (!rawSymbol || isIsinCode(rawSymbol)) {
+          if (pos.nseSymbol && !isIsinCode(pos.nseSymbol)) {
+            rawSymbol = pos.nseSymbol;
+          } else if (pos.symbol && !isIsinCode(pos.symbol)) {
+            rawSymbol = pos.symbol;
+          }
+        }
+        rawSymbol = rawSymbol || pos.stock || pos.symbol || 'UNKNOWN';
+        const symbol = rawSymbol.replace(/\.BO$|\.NS$|\.B$/i, '').trim();
         const isin = stockIdentity.isin || pos.ISIN || pos.securityId || pos.isin || null;
         const companyName = stockIdentity.companyName || pos.name || pos.stock || pos.stockName;
 
@@ -376,8 +581,14 @@ class StockWeightageService {
             companyName,
             sector: pos.sector || 'General',
             industry: pos.industry || 'General',
+            rawSector: (pos.sector && pos.sector !== 'General' && pos.sector !== 'Other' && pos.sector !== 'Diversified / Industrial') ? pos.sector : null,
             holdingSchemes: []
           });
+        } else {
+          const s = this.stockMap.get(stockKey);
+          if (!s.rawSector && pos.sector && pos.sector !== 'General' && pos.sector !== 'Other' && pos.sector !== 'Diversified / Industrial') {
+            s.rawSector = pos.sector;
+          }
         }
 
         const stockObj = this.stockMap.get(stockKey);
@@ -441,28 +652,87 @@ class StockWeightageService {
       }
     }
 
+    // 3. Resolve authentic original sectors for all indexed stocks and scheme positions with 5-tier provenance
+    for (const stock of this.stockMap.values()) {
+      const prov = this._resolveStockSectorProvenance(stock.symbol, stock.name, stock.isin, stock.rawSector || stock.sector, stock.holdingSchemes);
+      stock.sector = prov.sector;
+      stock.sectorSource = prov.sectorSource;
+      stock.sectorConfidence = prov.sectorConfidence;
+      if (stock.isin) {
+        this.stockByIsinMap.set(stock.isin.toUpperCase(), stock);
+      }
+    }
+    for (const scheme of this.schemeMap.values()) {
+      for (const pos of scheme.positions) {
+        if (!pos.sector || pos.sector === 'General' || pos.sector === 'Other' || pos.sector === 'Unknown / Unmapped') {
+          const s = this.stockMap.get(pos.symbol.toUpperCase());
+          if (s && s.sector) {
+            pos.sector = s.sector;
+            pos.industry = s.sector;
+            pos.sectorSource = s.sectorSource;
+            pos.sectorConfidence = s.sectorConfidence;
+          }
+        }
+      }
+    }
+
+    // 4. Pre-warm screener aggregation cache for target categories for instant performance
+    for (const cat of ['All Funds', 'Large Cap', 'Mid Cap', 'Small Cap', 'Contra', 'Value']) {
+      this._computeBaseAggregation(cat, 'all');
+    }
+
     console.log(`⚡ StockWeightageService: Indexed ${this.stockMap.size} distinct stocks across ${this.schemeMap.size} verified mutual fund portfolios`);
   }
 
   /**
-   * Get screener results with multi-attribute filtering, sorting, pagination, and dynamic KPIs
+   * Pre-compute or fetch memoized base stock aggregation for a given category & AMC scope
    */
-  async getScreenerResults(filters = {}) {
-    await this.init();
+  _computeBaseAggregation(category = 'all', amc = 'all') {
+    const cacheKey = `${category || 'all'}__${amc || 'all'}`;
+    if (this._screenerAggregationCache.has(cacheKey)) {
+      return this._screenerAggregationCache.get(cacheKey);
+    }
 
-    const {
-      search = '',
-      sector = 'all',
-      marketCap = 'all',
-      category = 'all',
-      amc = 'all',
-      minFunds = 1,
-      minWeight = 0,
-      sortBy = 'fundCount',
-      sortOrder = 'desc',
-      page = 1,
-      limit = 10
-    } = filters;
+    // 0. Filter eligible Direct + Growth universe to calculate accurate universe denominators
+    const matchesEligibilityFilter = (fund) => {
+      if (category && category !== 'all' && category !== 'All Funds') {
+        const catNorm = String(category).toLowerCase().replace(/funds?/g, '').trim();
+        const target = (fund.targetCategory || '').toLowerCase();
+        const rawCat = (fund.category || '').toLowerCase();
+        const name = (fund.schemeName || '').toLowerCase();
+        const matches = (catNorm.includes('large') && !catNorm.includes('mid') && (target === 'large cap' || rawCat.includes('large cap') || name.includes('large cap') || name.includes('bluechip'))) ||
+                        (catNorm.includes('mid') && (target === 'mid cap' || rawCat.includes('mid cap') || name.includes('mid cap') || name.includes('midcap'))) ||
+                        (catNorm.includes('small') && (target === 'small cap' || rawCat.includes('small cap') || name.includes('small cap') || name.includes('smallcap'))) ||
+                        (catNorm.includes('contra') && (target === 'contra' || rawCat.includes('contra') || name.includes('contra'))) ||
+                        (catNorm.includes('value') && (target === 'value' || rawCat.includes('value') || name.includes('value'))) ||
+                        (target.includes(catNorm) || rawCat.includes(catNorm) || name.includes(catNorm));
+        if (!matches) return false;
+      }
+      if (amc && amc !== 'all') {
+        if (!String(fund.amc || '').toLowerCase().includes(amc.toLowerCase())) return false;
+      }
+      return true;
+    };
+
+    const eligibleFilteredFunds = Array.from(this.eligibleFundUniverseMap.values()).filter(f => matchesEligibilityFilter(f));
+    const isAllCategory = (!category || category === 'all' || category === 'All Funds') && (!amc || amc === 'all');
+    
+    // Distinct eligible Direct + Growth funds in the selected universe/category
+    const eligibleUniverseFunds = eligibleFilteredFunds.length;
+
+    // Eligible funds for which verified holdings disclosure was obtained & parsed
+    const verifiedInEligible = eligibleFilteredFunds.filter(f => f.holdingsAvailable || this.schemeMap.has(f.schemeCode)).length;
+    // If 'all' funds selected, expose the 211 verified mutual fund portfolios indexed in the screener
+    const fundsWithVerifiedHoldings = isAllCategory ? Math.max(this.schemeMap.size, verifiedInEligible) : verifiedInEligible;
+    const holdingsCoveragePct = eligibleUniverseFunds > 0 ? parseFloat(((fundsWithVerifiedHoldings / eligibleUniverseFunds) * 100).toFixed(2)) : 0;
+
+    let totalUniverseAumCr = 0;
+    for (const f of eligibleFilteredFunds) {
+      if (f.fundAumCr && f.fundAumCr > 0) {
+        totalUniverseAumCr += f.fundAumCr;
+      }
+    }
+    totalUniverseAumCr = parseFloat(totalUniverseAumCr.toFixed(2));
 
     // 1. Calculate aggregated metrics for every stock in our universe
     const aggregatedStocks = [];
@@ -470,13 +740,30 @@ class StockWeightageService {
     let maxAllocationAcrossUniverse = 0;
     const sectorsSet = new Set();
     const schemesCountedSet = new Set();
-    let totalAnalyzedAumCr = 0;
+
+    const matchesSchemeFilter = (scheme) => {
+      if (category && category !== 'all' && category !== 'All Funds') {
+        const catNorm = String(category).toLowerCase().replace(/funds?/g, '').trim();
+        const target = (scheme.targetCategory || '').toLowerCase();
+        const rawCat = (scheme.category || '').toLowerCase();
+        const name = (scheme.schemeName || '').toLowerCase();
+        const matches = (catNorm.includes('large') && !catNorm.includes('mid') && (target === 'large cap' || rawCat.includes('large cap') || name.includes('large cap') || name.includes('bluechip'))) ||
+                        (catNorm.includes('mid') && (target === 'mid cap' || rawCat.includes('mid cap') || name.includes('mid cap') || name.includes('midcap'))) ||
+                        (catNorm.includes('small') && (target === 'small cap' || rawCat.includes('small cap') || name.includes('small cap') || name.includes('smallcap'))) ||
+                        (catNorm.includes('contra') && (target === 'contra' || rawCat.includes('contra') || name.includes('contra'))) ||
+                        (catNorm.includes('value') && (target === 'value' || rawCat.includes('value') || name.includes('value'))) ||
+                        (target.includes(catNorm) || rawCat.includes(catNorm) || name.includes(catNorm));
+        if (!matches) return false;
+      }
+      if (amc && amc !== 'all') {
+        if (!String(scheme.amc || '').toLowerCase().includes(amc.toLowerCase())) return false;
+      }
+      return true;
+    };
 
     for (const scheme of this.schemeMap.values()) {
+      if (!matchesSchemeFilter(scheme)) continue;
       schemesCountedSet.add(scheme.schemeCode);
-      if (scheme.fundAumCr && scheme.fundAumCr > 0) {
-        totalAnalyzedAumCr += scheme.fundAumCr;
-      }
     }
 
     for (const stock of this.stockMap.values()) {
@@ -566,20 +853,37 @@ class StockWeightageService {
       const uniqueAmcs = new Set(relevantSchemes.map(s => s.amc)).size;
       const latestDate = relevantSchemes.map(s => s.asOfDate).filter(Boolean)[0] || 'August 31, 2026';
 
+      // MF Universe Weightage (%) = (Total Holding Value of stock in universe / Total AUM of funds in universe) * 100
+      const totalHoldingValCr = hasValidHoldingValue ? parseFloat(holdingValueSum.toFixed(2)) : 0;
+      const universeWeightPct = totalUniverseAumCr > 0 && totalHoldingValCr > 0
+        ? parseFloat(((totalHoldingValCr / totalUniverseAumCr) * 100).toFixed(2))
+        : 0;
+
       aggregatedStocks.push({
         symbol: stock.symbol,
         isin: stock.isin,
         name: stock.name,
-        sector: stock.sector || 'General',
+        sector: stock.sector || 'Unknown / Unmapped',
+        sectorSource: stock.sectorSource || 'UNMAPPED',
+        sectorConfidence: stock.sectorConfidence || 'NONE',
         marketCapCategory: mCapCategory,
         mutualFundsHolding: fundCount,
         fundCount: fundCount,
+        fundsHoldingStock: fundCount,
+        fundsHolding: fundCount,
+        totalUniverseFunds: eligibleUniverseFunds,
+        eligibleUniverseFunds: eligibleUniverseFunds,
+        fundsWithVerifiedHoldings: fundsWithVerifiedHoldings,
         uniqueAmcCount: uniqueAmcs,
+        mfUniverseWeightage: universeWeightPct,
+        universeWeightPct: universeWeightPct,
+        mfUniverseWeightagePct: universeWeightPct,
+        totalAumExposureCr: totalHoldingValCr,
+        totalHoldingValueCr: totalHoldingValCr,
+        totalAumOfHoldingFundsCr: totalAumOfHoldingFunds > 0 ? parseFloat(totalAumOfHoldingFunds.toFixed(2)) : null,
+        fundAumExposureCr: totalHoldingValCr,
         aggregateWeightPct: parseFloat(weightSum.toFixed(2)),
         totalWeightPct: parseFloat(weightSum.toFixed(2)),
-        totalHoldingValueCr: hasValidHoldingValue ? parseFloat(holdingValueSum.toFixed(2)) : null,
-        totalAumOfHoldingFundsCr: totalAumOfHoldingFunds > 0 ? parseFloat(totalAumOfHoldingFunds.toFixed(2)) : null,
-        fundAumExposureCr: totalAumOfHoldingFunds > 0 ? parseFloat(totalAumOfHoldingFunds.toFixed(2)) : null,
         avgWeightage: avgWeight,
         averageWeightPct: avgWeight,
         maxWeightage: maxWeight,
@@ -591,8 +895,55 @@ class StockWeightageService {
       });
     }
 
-    // 2. Apply stock-level filters
-    let filtered = aggregatedStocks;
+    const payload = {
+      aggregatedStocks,
+      eligibleUniverseFunds,
+      fundsWithVerifiedHoldings,
+      holdingsCoveragePct,
+      totalUniverseAumCr,
+      totalPortfolioHoldingsValueCr,
+      maxAllocationAcrossUniverse,
+      sectorsSet
+    };
+
+    this._screenerAggregationCache.set(cacheKey, payload);
+    return payload;
+  }
+
+  /**
+   * Get screener results with multi-attribute filtering, sorting, pagination, and dynamic KPIs
+   */
+  async getScreenerResults(filters = {}) {
+    await this.init();
+
+    const {
+      search = '',
+      sector = 'all',
+      marketCap = 'all',
+      category = 'all',
+      amc = 'all',
+      minFunds = 1,
+      minWeight = 0,
+      sortBy = 'fundCount',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 10
+    } = filters;
+
+    const base = this._computeBaseAggregation(category, amc);
+    const {
+      aggregatedStocks,
+      eligibleUniverseFunds,
+      fundsWithVerifiedHoldings,
+      holdingsCoveragePct,
+      totalUniverseAumCr,
+      totalPortfolioHoldingsValueCr,
+      maxAllocationAcrossUniverse,
+      sectorsSet
+    } = base;
+
+    // 2. Apply stock-level filters on shallow copy
+    let filtered = [...aggregatedStocks];
 
     // Search query filter (matches name, symbol, or sector)
     if (search && search.trim().length > 0) {
@@ -643,24 +994,37 @@ class StockWeightageService {
               ? a.mutualFundsHolding - b.mutualFundsHolding 
               : b.mutualFundsHolding - a.mutualFundsHolding;
           }
-          if (a.aggregateWeightPct !== b.aggregateWeightPct) {
-            return b.aggregateWeightPct - a.aggregateWeightPct;
+          if ((a.universeWeightPct ?? 0) !== (b.universeWeightPct ?? 0)) {
+            return (b.universeWeightPct ?? 0) - (a.universeWeightPct ?? 0);
           }
-          if ((a.totalHoldingValueCr || 0) !== (b.totalHoldingValueCr || 0)) {
-            return (b.totalHoldingValueCr || 0) - (a.totalHoldingValueCr || 0);
+          if ((a.totalAumExposureCr || 0) !== (b.totalAumExposureCr || 0)) {
+            return (b.totalAumExposureCr || 0) - (a.totalAumExposureCr || 0);
           }
           return (b.avgWeightage || 0) - (a.avgWeightage || 0);
         }
+        case 'universeWeightPct':
+        case 'mfUniverseWeightage':
+        case 'universeWeight':
+          valA = a.universeWeightPct ?? 0;
+          valB = b.universeWeightPct ?? 0;
+          break;
+        case 'holdingValue':
+        case 'totalHoldingValueCr':
+        case 'totalAumExposure':
+        case 'totalAumExposureCr':
+        case 'fundAum':
+          valA = a.totalAumExposureCr ?? a.totalHoldingValueCr ?? 0;
+          valB = b.totalAumExposureCr ?? b.totalHoldingValueCr ?? 0;
+          break;
+        case 'sector':
+          return sortOrder === 'asc' 
+            ? (a.sector || '').localeCompare(b.sector || '')
+            : (b.sector || '').localeCompare(a.sector || '');
         case 'aggregateWeightPct':
         case 'totalWeight':
         case 'totalWeightPct':
           valA = a.aggregateWeightPct ?? 0;
           valB = b.aggregateWeightPct ?? 0;
-          break;
-        case 'holdingValue':
-        case 'totalHoldingValueCr':
-          valA = a.totalHoldingValueCr ?? 0;
-          valB = b.totalHoldingValueCr ?? 0;
           break;
         case 'avgWeightage':
         case 'averageWeightPct':
@@ -695,16 +1059,43 @@ class StockWeightageService {
     // Find the most held stock
     const mostHeld = [...aggregatedStocks].sort((a, b) => b.mutualFundsHolding - a.mutualFundsHolding)[0];
 
+    // Compute sector diagnostics across universe
+    let verifiedSectorCount = 0;
+    let snapshotSectorCount = 0;
+    let disclosureSectorCount = 0;
+    let heuristicSectorCount = 0;
+    let unmappedSectorCount = 0;
+
+    for (const s of aggregatedStocks) {
+      if (s.sectorConfidence === 'HIGH') verifiedSectorCount++;
+      if (s.sectorSource === 'OFFICIAL_DISCLOSURE') disclosureSectorCount++;
+      if (s.sectorSource === 'VERIFIED_SNAPSHOT') snapshotSectorCount++;
+      if (s.sectorSource === 'HEURISTIC_FALLBACK') heuristicSectorCount++;
+      if (s.sectorSource === 'UNMAPPED') unmappedSectorCount++;
+    }
+
     // 5. Compute Dynamic KPIs strictly from real data
     const kpis = {
       stocksCovered: aggregatedStocks.length,
-      mutualFundsTracked: schemesCountedSet.size,
-      totalAumAnalysedCr: totalAnalyzedAumCr > 0 ? parseFloat(totalAnalyzedAumCr.toFixed(2)) : null,
+      mutualFundsTracked: fundsWithVerifiedHoldings,
+      totalUniverseFunds: eligibleUniverseFunds,
+      eligibleUniverseFunds: eligibleUniverseFunds,
+      fundsWithVerifiedHoldings: fundsWithVerifiedHoldings,
+      holdingsCoveragePct: holdingsCoveragePct,
+      totalUniverseAumCr: totalUniverseAumCr,
+      totalAumAnalysedCr: totalUniverseAumCr,
       totalHoldingValueAnalysedCr: totalPortfolioHoldingsValueCr > 0 ? parseFloat(totalPortfolioHoldingsValueCr.toFixed(2)) : null,
       highestCombinedWeightage: maxAllocationAcrossUniverse > 0 ? maxAllocationAcrossUniverse : null,
       mostHeldStock: mostHeld ? mostHeld.name : '—',
       mostHeldStockSymbol: mostHeld ? mostHeld.symbol : null,
-      sectorsCount: sectorsSet.size
+      sectorsCount: sectorsSet.size,
+      sectorDiagnostics: {
+        verifiedSectorCount,
+        snapshotSectorCount,
+        disclosureSectorCount,
+        heuristicSectorCount,
+        unmappedSectorCount
+      }
     };
 
     // 6. Pagination
@@ -715,49 +1106,98 @@ class StockWeightageService {
     const startIndex = (pageNum - 1) * pageSize;
     const paginatedItems = filtered.slice(startIndex, startIndex + pageSize);
 
-    const enrichedStocks = await Promise.all(
-      paginatedItems.map(async s => {
-        let price = null;
-        let marketCapCr = null;
-        let change1Y = null;
-        try {
-          const q = await marketDataGateway.getQuoteDetail(s.symbol);
-          if (q && q.available && q.data) {
-            price = q.data.ltp || q.data.price || null;
-            marketCapCr = q.data.marketCap || null;
-            change1Y = q.data.returns?.['1Y'] ?? q.data.changePercent ?? null;
-          }
-        } catch (e) {}
+    // Batch live quote enrichment for paginated stocks
+    const validPageSymbols = paginatedItems
+      .map(s => s.symbol)
+      .filter(sym => isLikelyListedTicker(sym));
 
-        return {
-          rank: s.rank,
-          symbol: s.symbol,
-          isin: s.isin,
-          name: s.name,
-          sector: s.sector,
-          mutualFundsHolding: s.mutualFundsHolding,
-          fundsHolding: s.mutualFundsHolding,
-          fundCount: s.mutualFundsHolding,
-          stockName: s.name,
-          uniqueAmcCount: s.uniqueAmcCount,
-          aggregateWeightPct: s.aggregateWeightPct,
-          totalWeightPct: s.aggregateWeightPct,
-          totalHoldingValueCr: s.totalHoldingValueCr,
-          totalAumOfHoldingFundsCr: s.totalAumOfHoldingFundsCr,
-          fundAumExposureCr: s.totalAumOfHoldingFundsCr,
-          avgWeightage: s.avgWeightage,
-          averageWeightPct: s.avgWeightage,
-          maxWeightage: s.maxWeightage,
-          maximumWeightPct: s.maxWeightage,
-          minWeightage: s.minWeightage,
-          minimumWeightPct: s.minWeightage,
-          price,
-          marketCapCr,
-          change1Y,
-          latestPortfolioDate: s.latestPortfolioDate
-        };
-      })
-    );
+    let batchQuotesMap = new Map();
+    if (validPageSymbols.length > 0) {
+      try {
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ available: false, data: [] }), 2000));
+        const quotesRes = await Promise.race([marketDataGateway.getQuotes(validPageSymbols), timeoutPromise]);
+        if (quotesRes && quotesRes.available && Array.isArray(quotesRes.data)) {
+          for (const q of quotesRes.data) {
+            if (q && q.symbol) {
+              batchQuotesMap.set(q.symbol.toUpperCase(), q);
+              if (q.symbol.endsWith('.NS')) {
+                batchQuotesMap.set(q.symbol.replace('.NS', '').toUpperCase(), q);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Batch quote enrichment warning:', e.message);
+      }
+    }
+
+    const enrichedStocks = paginatedItems.map(s => {
+      let price = null;
+      let marketCapCr = null;
+      let change1Y = null;
+      const isListed = isLikelyListedTicker(s.symbol);
+
+      if (isListed) {
+        // Fast path: check verified stock snapshots first (0ms)
+        const snapKey = `${s.symbol}.NS`;
+        const snap = STOCK_SNAPSHOTS[snapKey] || STOCK_SNAPSHOTS[s.symbol];
+        if (snap) {
+          price = snap.ltp || snap.price || null;
+          marketCapCr = snap.marketCap || null;
+          change1Y = snap.returns?.['1Y'] ?? snap.changePercent ?? null;
+        }
+
+        // Live enrichment from batch quotes
+        const liveQ = batchQuotesMap.get(s.symbol.toUpperCase());
+        if (liveQ && typeof liveQ.ltp === 'number' && liveQ.ltp > 0) {
+          price = liveQ.ltp;
+          if (liveQ.marketCap) marketCapCr = liveQ.marketCap;
+          if (liveQ.returns?.['1Y'] != null) {
+            change1Y = liveQ.returns['1Y'];
+          } else if (liveQ.changePercent != null) {
+            change1Y = liveQ.changePercent;
+          }
+        }
+      }
+
+      return {
+        rank: s.rank,
+        symbol: s.symbol,
+        isin: s.isin,
+        name: s.name,
+        sector: s.sector,
+        sectorSource: s.sectorSource,
+        sectorConfidence: s.sectorConfidence,
+        mutualFundsHolding: s.mutualFundsHolding,
+        fundsHolding: s.mutualFundsHolding,
+        fundsHoldingStock: s.mutualFundsHolding,
+        fundCount: s.mutualFundsHolding,
+        totalUniverseFunds: s.totalUniverseFunds,
+        eligibleUniverseFunds: s.eligibleUniverseFunds,
+        fundsWithVerifiedHoldings: s.fundsWithVerifiedHoldings,
+        stockName: s.name,
+        uniqueAmcCount: s.uniqueAmcCount,
+        mfUniverseWeightage: s.universeWeightPct,
+        universeWeightPct: s.universeWeightPct,
+        mfUniverseWeightagePct: s.universeWeightPct,
+        totalAumExposureCr: s.totalAumExposureCr,
+        totalHoldingValueCr: s.totalHoldingValueCr,
+        totalAumOfHoldingFundsCr: s.totalAumOfHoldingFundsCr,
+        fundAumExposureCr: s.totalAumExposureCr,
+        aggregateWeightPct: s.aggregateWeightPct,
+        totalWeightPct: s.aggregateWeightPct,
+        avgWeightage: s.avgWeightage,
+        averageWeightPct: s.avgWeightage,
+        maxWeightage: s.maxWeightage,
+        maximumWeightPct: s.maxWeightage,
+        minWeightage: s.minWeightage,
+        minimumWeightPct: s.minWeightage,
+        price,
+        marketCapCr,
+        change1Y,
+        latestPortfolioDate: s.latestPortfolioDate
+      };
+    });
 
     return {
       kpis,
@@ -870,14 +1310,43 @@ class StockWeightageService {
       totalValueCr: parseFloat(c.totalValueCr.toFixed(2))
     }));
 
-    // Try enriching live price from marketDataGateway if available
+    // Try enriching live price from marketDataGateway if available with snapshot fast-path
     let liveQuote = null;
-    try {
-      const quoteRes = await marketDataGateway.getQuoteDetail(stock.symbol);
-      if (quoteRes && quoteRes.available && quoteRes.data) {
-        liveQuote = quoteRes.data;
+    const isListed = isLikelyListedTicker(stock.symbol);
+    if (isListed) {
+      const snapKey = `${stock.symbol}.NS`;
+      if (STOCK_SNAPSHOTS[snapKey] || STOCK_SNAPSHOTS[stock.symbol]) {
+        liveQuote = { ...(STOCK_SNAPSHOTS[snapKey] || STOCK_SNAPSHOTS[stock.symbol]) };
       }
-    } catch (e) {}
+      try {
+        // Fast batch quote lookup (checks memoryCache first)
+        const quoteTimeout = new Promise(resolve => setTimeout(() => resolve(null), 1500));
+        const quotesRes = await Promise.race([marketDataGateway.getQuotes([stock.symbol]), quoteTimeout]);
+        if (quotesRes && quotesRes.available && Array.isArray(quotesRes.data) && quotesRes.data.length > 0) {
+          const q = quotesRes.data[0];
+          if (q && typeof q.ltp === 'number' && q.ltp > 0) {
+            liveQuote = {
+              ...(liveQuote || {}),
+              ...q,
+              ltp: q.ltp,
+              price: q.ltp,
+              marketCap: q.marketCap || liveQuote?.marketCap,
+              change: q.change ?? liveQuote?.change,
+              changePercent: q.changePercent ?? liveQuote?.changePercent
+            };
+          }
+        }
+      } catch (e) {}
+
+      try {
+        // Detailed quote lookup for returns and metrics
+        const detailTimeout = new Promise(resolve => setTimeout(() => resolve(null), 2000));
+        const quoteRes = await Promise.race([marketDataGateway.getQuoteDetail(stock.symbol), detailTimeout]);
+        if (quoteRes && quoteRes.available && quoteRes.data && quoteRes.data.ltp > 0) {
+          liveQuote = { ...(liveQuote || {}), ...quoteRes.data };
+        }
+      } catch (e) {}
+    }
 
     // Statement dates from real holdings
     const statementDates = [...new Set(schemes.map(s => s.asOfDate).filter(Boolean))];
@@ -927,33 +1396,63 @@ class StockWeightageService {
     takeaways.push(`Total holding value is ₹ ${holdingValueSum.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr across all holding funds.`);
     takeaways.push(`Most commonly held in ${stock.sector || 'Equities'} with verified disclosures as of ${latestStatementDate}.`);
 
+    let totalUniverseAumCr = 0;
+    for (const fund of this.eligibleFundUniverseMap.values()) {
+      if (fund.fundAumCr && fund.fundAumCr > 0) {
+        totalUniverseAumCr += fund.fundAumCr;
+      }
+    }
+    totalUniverseAumCr = parseFloat(totalUniverseAumCr.toFixed(2));
+
+    const totalHoldingValCr = hasValidHoldingValue ? parseFloat(holdingValueSum.toFixed(2)) : null;
+    const universeWeightPct = (totalUniverseAumCr > 0 && totalHoldingValCr > 0)
+      ? parseFloat(((totalHoldingValCr / totalUniverseAumCr) * 100).toFixed(2))
+      : 0;
+
     return {
       symbol: stock.symbol,
       isin: stock.isin,
       name: stock.name,
       sector: stock.sector,
+      sectorSource: stock.sectorSource,
+      sectorConfidence: stock.sectorConfidence,
       industry: stock.industry,
-      marketCapCategory: 'Large Cap',
-      quote: liveQuote ? {
+      marketCapCategory: (liveQuote?.marketCap && liveQuote.marketCap >= 50000) ? 'Large Cap' : (liveQuote?.marketCap && liveQuote.marketCap >= 15000 ? 'Mid Cap' : (liveQuote?.marketCap ? 'Small Cap' : 'Large Cap')),
+      quote: (liveQuote && (liveQuote.ltp || liveQuote.price)) ? {
         price: liveQuote.ltp || liveQuote.price,
-        change: liveQuote.change,
-        changePercent: liveQuote.changePercent,
-        returns1Y: liveQuote.returns?.['1Y'] ?? liveQuote.changePercent,
-        marketCapCr: liveQuote.marketCap,
-        asOf: liveQuote.lastUpdated || latestStatementDate
+        change: liveQuote.change ?? null,
+        changePercent: liveQuote.changePercent ?? null,
+        returns1Y: liveQuote.returns?.['1Y'] ?? liveQuote.changePercent ?? null,
+        marketCapCr: liveQuote.marketCap ?? null,
+        asOf: liveQuote.lastUpdatedAt || liveQuote.priceAsOf || liveQuote.lastUpdated || latestStatementDate,
+        isLive: !!liveQuote.isLive,
+        source: liveQuote.source || 'YAHOO_FINANCE'
       } : null,
       ownershipSummary: {
         mutualFundsHolding: fundCount,
-        totalHoldingValueCr: hasValidHoldingValue ? parseFloat(holdingValueSum.toFixed(2)) : null,
+        fundsHoldingStock: fundCount,
+        fundsHolding: fundCount,
+        totalUniverseFunds: this.eligibleFundUniverseMap.size,
+        eligibleUniverseFunds: this.eligibleFundUniverseMap.size,
+        fundsWithVerifiedHoldings: this.schemeMap.size,
+        holdingsCoveragePct: parseFloat(((this.schemeMap.size / this.eligibleFundUniverseMap.size) * 100).toFixed(2)),
+        totalUniverseAumCr: totalUniverseAumCr,
+        totalHoldingValueCr: totalHoldingValCr,
+        totalAumExposureCr: totalHoldingValCr,
+        mfUniverseWeightage: universeWeightPct,
+        universeWeightPct: universeWeightPct,
         totalAumOfHoldingFundsCr: totalAumOfHoldingFunds > 0 ? parseFloat(totalAumOfHoldingFunds.toFixed(2)) : null,
-        fundAumExposureCr: totalAumOfHoldingFunds > 0 ? parseFloat(totalAumOfHoldingFunds.toFixed(2)) : null,
+        fundAumExposureCr: totalHoldingValCr,
         avgWeightage: avgWeight,
         maxWeightage: maxWeight,
         minWeightage: minWeight,
         amcsCount: amcsHolding.length,
         amcsHolding: amcsHolding,
         amcDistribution: amcDistribution,
-        asOfDate: latestStatementDate
+        asOfDate: latestStatementDate,
+        sector: stock.sector,
+        sectorSource: stock.sectorSource,
+        sectorConfidence: stock.sectorConfidence
       },
       distribution: distributionData,
       categoryComparison,
@@ -1307,6 +1806,12 @@ class StockWeightageService {
   async getCoverageDiagnostics() {
     await this.init();
 
+    // Return memoized result if fresh (5 minute TTL)
+    const COVERAGE_CACHE_TTL = 5 * 60 * 1000;
+    if (this._coverageDiagnosticsCache && (Date.now() - this._coverageDiagnosticsCacheTime < COVERAGE_CACHE_TTL)) {
+      return this._coverageDiagnosticsCache;
+    }
+
     const manifest = officialAmcPortfolioService.manifest || {};
     const manifestCount = Object.keys(manifest.schemes || {}).length;
 
@@ -1381,7 +1886,7 @@ class StockWeightageService {
       }
     }
 
-    return {
+    const diagnosticsResult = {
       eligibleFunds: eligibleUniverseCount,
       fundsWithVerifiedHoldings: fundsWithHoldingsCount,
       fundsAwaitingPublication: fundsWithoutHoldingsCount,
@@ -1422,6 +1927,10 @@ class StockWeightageService {
       },
       amcCoverage: amcReport
     };
+
+    this._coverageDiagnosticsCache = diagnosticsResult;
+    this._coverageDiagnosticsCacheTime = Date.now();
+    return diagnosticsResult;
   }
 
   /**
@@ -1429,6 +1938,9 @@ class StockWeightageService {
    */
   async getSectorBreakdown() {
     await this.init();
+    if (this._sectorBreakdownCache) {
+      return this._sectorBreakdownCache;
+    }
     const sectorStats = {};
     let grandTotalValueCr = 0;
 
@@ -1479,10 +1991,11 @@ class StockWeightageService {
       };
     }).sort((a, b) => b.totalHoldingValueCr - a.totalHoldingValueCr);
 
-    return {
+    this._sectorBreakdownCache = {
       totalValueAnalysedCr: parseFloat(grandTotalValueCr.toFixed(2)),
       sectors: result
     };
+    return this._sectorBreakdownCache;
   }
 }
 

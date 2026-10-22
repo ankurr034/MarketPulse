@@ -18,7 +18,7 @@
  */
 
 import YahooFinance from 'yahoo-finance2';
-import { isFinancialEntity } from './MarketDataValidator.js';
+import { isFinancialEntity, KNOWN_GLOBAL_SYMBOLS } from './MarketDataValidator.js';
 import bseFinancialDataService from './BseFinancialDataService.js';
 
 const yahooFinance = new YahooFinance({
@@ -237,10 +237,14 @@ export function findSameQuarterPriorYear(currentQuarter, availableQuarters, opti
  */
 export function resolveCurrency(financialCurrency, yahooSymbol, rawQuarterlyValue) {
   if (!financialCurrency || financialCurrency === 'INR') {
-    return { rate: 1, currency: 'INR', status: 'EXPLICIT_INR', isAmbiguous: false };
+    return { rate: 1, currency: 'INR', status: 'EXPLICIT_INR', isAmbiguous: false, isIndian: true };
   }
 
-  const isIndian = yahooSymbol.endsWith('.NS') || yahooSymbol.endsWith('.BO') || !yahooSymbol.includes('.');
+  const clean = (yahooSymbol || '').replace(/\.(NS|BO)$/i, '').toUpperCase();
+  const isExplicitIndian = (yahooSymbol || '').endsWith('.NS') || (yahooSymbol || '').endsWith('.BO');
+  const isExplicitGlobal = KNOWN_GLOBAL_SYMBOLS.has(clean) || KNOWN_GLOBAL_SYMBOLS.has((yahooSymbol || '').toUpperCase());
+
+  const isIndian = isExplicitIndian || (!isExplicitGlobal && financialCurrency === 'INR');
 
   if (financialCurrency === 'USD' && isIndian) {
     // For Indian equities with financialCurrency === 'USD':
@@ -248,22 +252,22 @@ export function resolveCurrency(financialCurrency, yahooSymbol, rawQuarterlyValu
     // (no Indian company reports > $50B in a single quarter).
     // In that case, the statement is natively denominated in INR.
     if (typeof rawQuarterlyValue === 'number' && rawQuarterlyValue > 50_000_000_000) {
-      return { rate: 1, currency: 'INR', status: 'NATIVE_INR_DESPITE_USD_TAG', isAmbiguous: false };
+      return { rate: 1, currency: 'INR', status: 'NATIVE_INR_DESPITE_USD_TAG', isAmbiguous: false, isIndian: true };
     }
     // Genuine USD reporting (e.g. ADRs or international IT filings)
     if (typeof rawQuarterlyValue === 'number' && rawQuarterlyValue > 0 && rawQuarterlyValue <= 50_000_000_000) {
-      return { rate: USD_TO_INR_RATE, currency: 'USD', status: 'USD_TO_INR_CONVERTED', isAmbiguous: false };
+      return { rate: USD_TO_INR_RATE, currency: 'USD', status: 'USD_TO_INR_CONVERTED', isAmbiguous: false, isIndian: true };
     }
-    return { rate: 1, currency: 'INR', status: 'FALLBACK_INR', isAmbiguous: false };
+    return { rate: 1, currency: 'INR', status: 'FALLBACK_INR', isAmbiguous: false, isIndian: true };
   }
 
   // Non-Indian stocks (e.g. US equities in global view)
   if (!isIndian) {
-    return { rate: 1, currency: financialCurrency, status: 'NATIVE_FOREIGN', isAmbiguous: false };
+    return { rate: 1, currency: financialCurrency, status: 'NATIVE_FOREIGN', isAmbiguous: false, isIndian: false };
   }
 
   // Ambiguous foreign currency for Indian stock
-  return { rate: null, currency: financialCurrency, status: 'CURRENCY_AMBIGUOUS', isAmbiguous: true };
+  return { rate: null, currency: financialCurrency, status: 'CURRENCY_AMBIGUOUS', isAmbiguous: true, isIndian: true };
 }
 
 class QuarterlyRevenueService {
@@ -462,7 +466,9 @@ class QuarterlyRevenueService {
 
       // 5. Latest reported quarter extraction
       const current = quarters[0];
-      const currentRevenueCr = Math.round((current.rawRevenue * rate) / CRORE_DIVISOR);
+      const isIndianEquity = currResolution.isIndian ?? (yahooSym.endsWith('.NS') || yahooSym.endsWith('.BO'));
+      const unitDivisor = isIndianEquity ? CRORE_DIVISOR : 1_000_000_000;
+      const currentRevenueCr = Math.round((current.rawRevenue * rate) / unitDivisor);
       const currentPeriodEnd = current.periodEnd;
       const currentFiscal = deriveFiscalQuarter(currentPeriodEnd);
       const currentPeriodStart = derivePeriodStart(currentPeriodEnd);
@@ -516,7 +522,7 @@ class QuarterlyRevenueService {
       let dataStatus = 'CURRENT_QUARTER_ONLY';
 
       if (matchResult.matchStatus === 'VALID_SAME_QUARTER' && priorQuarter) {
-        previousRevenueCr = Math.round((priorQuarter.rawRevenue * rate) / CRORE_DIVISOR);
+        previousRevenueCr = Math.round((priorQuarter.rawRevenue * rate) / unitDivisor);
         previousPeriodEnd = priorQuarter.periodEnd;
         previousPeriodStart = derivePeriodStart(previousPeriodEnd);
         previousFiscal = deriveFiscalQuarter(previousPeriodEnd);

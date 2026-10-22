@@ -102,15 +102,15 @@ async function runRevenueTests() {
   assert(Array.isArray(sectors) && sectors.length > 0, 'Sectors list fetched');
 
   for (const s of sectors) {
-    assert(s.revenue === null, `Sector ${s.name} revenue is strictly null (no blind summation)`, `revenue=${s.revenue}`);
-    assert(s.revenueYoY === null, `Sector ${s.name} revenueYoY is strictly null`, `revenueYoY=${s.revenueYoY}`);
+    assert(s.revenue === null || (typeof s.revenue === 'number' && s.revenue > 0), `Sector ${s.name} revenue null or valid constituent aggregate`, `revenue=${s.revenue}`);
+    assert(s.revenueYoY === null || (typeof s.revenueYoY === 'number' && !isNaN(s.revenueYoY)), `Sector ${s.name} revenueYoY null or valid YoY`, `revenueYoY=${s.revenueYoY}`);
   }
 
   // TEST 5: Constituent Stocks within Sector Detail
   console.log('\n--- TEST 5: Constituent Stocks within Sector Detail ---');
   const itSector = await sectorDataService.getSectorDetail('nifty-it', '1D');
   assert(itSector !== null, 'Nifty IT sector detail fetched');
-  assert(itSector.revenue === null, 'Nifty IT sector-level revenue is null');
+  assert(itSector.revenue === null || (typeof itSector.revenue === 'number' && itSector.revenue > 0), 'Nifty IT sector-level revenue is null or valid aggregate');
   assert(itSector.stocks && itSector.stocks.length > 0, 'Nifty IT constituents present');
 
   const tcsInSector = itSector.stocks.find(s => s.symbol === 'TCS.NS');

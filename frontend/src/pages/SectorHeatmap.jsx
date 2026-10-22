@@ -554,16 +554,20 @@ export default function SectorHeatmap() {
             {athDistText}
           </span>
         </div>
-        {(hasLowSub || hasAthSub) && (
-          <div className="text-[9px] text-slate-400 dark:text-slate-400 font-mono tracking-tight whitespace-nowrap mt-0.5 leading-tight">
-            {hasLowSub && (
-              <div>(52W L: ₹{formatIndianNumber(low52Price, 2, 2)} on {low52Date})</div>
-            )}
-            {hasAthSub && (
-              <div>(ATH: ₹{formatIndianNumber(athPrice, 2, 2)} on {athDate})</div>
-            )}
-          </div>
-        )}
+        {(hasLowSub || hasAthSub) && (() => {
+          const itemIsGlobal = (region === 'global') || (item?.currency === 'USD') || (item?.symbol && !item.symbol.endsWith('.NS') && !item.symbol.endsWith('.BO'));
+          const curSym = itemIsGlobal ? '$' : '₹';
+          return (
+            <div className="text-[9px] text-slate-400 dark:text-slate-400 font-mono tracking-tight whitespace-nowrap mt-0.5 leading-tight">
+              {hasLowSub && (
+                <div>(52W L: {curSym}{formatIndianNumber(low52Price, 2, 2)} on {low52Date})</div>
+              )}
+              {hasAthSub && (
+                <div>(ATH: {curSym}{formatIndianNumber(athPrice, 2, 2)} on {athDate})</div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     );
   };
@@ -1048,12 +1052,12 @@ export default function SectorHeatmap() {
                   <th className="py-3 px-3">Stock</th>
                   <th className="py-3 px-3">Sector</th>
                   <th className="py-2.5 px-3 text-right">
-                    <div>Revenue (₹ Cr)</div>
+                    <div>Revenue {region === 'global' ? '($B)' : '(₹ Cr)'}</div>
                     <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
                       Current Qtr YoY
                     </div>
                   </th>
-                  <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
+                  <th className="py-3 px-3 text-right">Market Cap {region === 'global' ? '($B)' : '(₹ Cr)'}</th>
                   <th className="py-2.5 px-3 text-center">
                     <div className="font-bold text-slate-700 dark:text-slate-200">
                       52W H/L %
@@ -1062,7 +1066,7 @@ export default function SectorHeatmap() {
                       (Up from 52W Low / Down from ATH)
                     </div>
                   </th>
-                  <th className="py-3 px-3 text-right">Price (₹)</th>
+                  <th className="py-3 px-3 text-right">Price {region === 'global' ? '($)' : '(₹)'}</th>
 
                   {/* Performance Header with Subcolumns (Placed before P/E, EPS, EBIT) */}
                   <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
@@ -1081,8 +1085,8 @@ export default function SectorHeatmap() {
                   </th>
 
                   <th className="py-3 px-3 text-right">P/E</th>
-                  <th className="py-3 px-3 text-right">EPS (₹)</th>
-                  <th className="py-3 px-3 text-right">EBIT (₹ Cr)</th>
+                  <th className="py-3 px-3 text-right">EPS {region === 'global' ? '($)' : '(₹)'}</th>
+                  <th className="py-3 px-3 text-right">EBIT {region === 'global' ? '($B)' : '(₹ Cr)'}</th>
                 </tr>
               </thead>
 
@@ -1212,13 +1216,13 @@ export default function SectorHeatmap() {
                   <th className="py-3 px-3 w-8 text-center">#</th>
                   <th className="py-3 px-3">Sector</th>
                   <th className="py-2.5 px-3 text-right">
-                    <div>Revenue (₹ Cr)</div>
+                    <div>Revenue {region === 'global' ? '($B)' : '(₹ Cr)'}</div>
                     <div className="text-[9px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
                       Current Qtr YoY
                     </div>
                   </th>
                   <th className="py-3 px-3 text-center">Up / Down / Total</th>
-                  <th className="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
+                  <th className="py-3 px-3 text-right">Market Cap {region === 'global' ? '($B)' : '(₹ Cr)'}</th>
                   <th className="py-2.5 px-3 text-center">
                     <div className="font-bold text-slate-700 dark:text-slate-200">
                       52W H/L %
@@ -1227,7 +1231,7 @@ export default function SectorHeatmap() {
                       (Up from 52W Low / Down from ATH)
                     </div>
                   </th>
-                  <th className="py-3 px-3 text-right">Price (₹)</th>
+                  <th className="py-3 px-3 text-right">Price {region === 'global' ? '($)' : '(₹)'}</th>
 
                   {/* Performance Header with Subcolumns (Placed before P/E, EPS, EBIT) */}
                   <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
@@ -1246,8 +1250,8 @@ export default function SectorHeatmap() {
                   </th>
 
                   <th className="py-3 px-3 text-right">P/E</th>
-                  <th className="py-3 px-3 text-right">EPS (₹)</th>
-                  <th className="py-3 px-3 text-right">EBIT (₹ Cr)</th>
+                  <th className="py-3 px-3 text-right">EPS {region === 'global' ? '($)' : '(₹)'}</th>
+                  <th className="py-3 px-3 text-right">EBIT {region === 'global' ? '($B)' : '(₹ Cr)'}</th>
                 </tr>
               </thead>
 

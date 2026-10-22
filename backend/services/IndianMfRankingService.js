@@ -64,7 +64,7 @@ class IndianMfRankingService {
                     aumMetric: 'AUM',
                     source: item.source || 'AMFI Scheme-Wise Disclosure',
                     status: 'PROVIDER_REPORTED',
-                    asOf: item.asOf || '30 Jun 2026'
+                    asOf: item.asOf || null
                   };
                   this.verifiedAumMap.set(cleanCode, entry);
                   if (item.isin) {
@@ -79,6 +79,11 @@ class IndianMfRankingService {
         console.warn(`IndianMfRankingService: Failed reading AUM cache from ${p}:`, e.message);
       }
     }
+  }
+
+  reloadVerifiedAumCache() {
+    this.verifiedAumMap.clear();
+    this._loadVerifiedAumCache();
   }
 
   /**
@@ -176,7 +181,7 @@ class IndianMfRankingService {
             aumMetric: 'AUM',
             source: scheme.aumSource || 'AMFI Scheme-Wise Disclosure',
             status: 'PROVIDER_REPORTED',
-            asOf: scheme.aumAsOf || scheme.aumAsOfDate || '30 Jun 2026'
+            asOf: scheme.aumAsOf || scheme.aumAsOfDate || null
           }
         };
       }

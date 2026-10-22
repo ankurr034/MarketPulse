@@ -19,6 +19,7 @@ class BseFinancialDataService {
     this.cache = new Map();
     this.cacheTTL = 4 * 60 * 60 * 1000; // 4 hours
     this.bseMapping = {};
+    this.bseBlockedUntil = 0;
     
     this.loadMapping();
   }
@@ -74,6 +75,9 @@ class BseFinancialDataService {
   }
 
   async fetchBseData(bseCode, flag) {
+    if (this.bseBlockedUntil && Date.now() < this.bseBlockedUntil) {
+      return null;
+    }
     const url = `https://api.bseindia.com/BseIndiaAPI/api/FinancialResult/w?scripcode=${bseCode}&flag=${flag}`;
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -82,12 +86,17 @@ class BseFinancialDataService {
     };
 
     try {
-      const response = await withTimeout(axios.get(url, { insecureHTTPParser: true, headers, httpAgent, httpsAgent }), 10000, null);
+      const response = await withTimeout(axios.get(url, { insecureHTTPParser: true, headers, httpAgent, httpsAgent }), 5000, null);
       if (response && response.data) {
         return response.data;
       }
     } catch (error) {
-      console.error(`BseFinancialDataService: Error fetching data for ${bseCode} flag=${flag}`, error.message);
+      if (error.response?.status === 403 || error.message?.includes('403')) {
+        this.bseBlockedUntil = Date.now() + 30 * 60 * 1000;
+        console.warn(`[BseFinancialDataService] BSE API returned 403 Forbidden. Backing off live BSE scraping for 30 minutes.`);
+      } else {
+        console.warn(`BseFinancialDataService: Error fetching data for ${bseCode} flag=${flag}`, error.message);
+      }
     }
     return null;
   }
