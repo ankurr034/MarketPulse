@@ -4,7 +4,7 @@ import {
   Search, ChevronRight, PieChart as PieChartIcon, 
   Building2, Landmark, TrendingUp, Flag, Disc, Star, 
   HelpCircle, X, Check, Award, Layers, BarChart3,
-  ExternalLink, Briefcase
+  ExternalLink, Briefcase, Filter, SlidersHorizontal
 } from 'lucide-react';
 import StockWeightageTable from './StockWeightageTable';
 import StockDetailPanel from './StockDetailPanel';
@@ -165,6 +165,14 @@ export default function MutualFundStockWeightageScreener() {
     fetchFundsList();
   }, []);
 
+  // Live search query debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchStockScreener(1, sortBy, sortOrder, pageSize, selectedCategory);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [stockSearchQuery]);
+
   // Whenever selectedSchemeCode changes, fetch its portfolio
   useEffect(() => {
     if (selectedSchemeCode && activeTab === 'top10_per_fund') {
@@ -207,9 +215,72 @@ export default function MutualFundStockWeightageScreener() {
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
       
-      {/* ── 1. CATEGORY PILLS & HOW TO USE BUTTON ── */}
-      <div className="flex items-center justify-between gap-3 overflow-x-auto pb-1 scrollbar-none">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+      {/* ── 1. UNIFIED NOTICEABLE FILTER BAR (COMPACT & SLIM, ALL AT SINGLE PLACE) ── */}
+      <div className="rounded-xl sm:rounded-2xl border border-emerald-500/35 dark:border-emerald-500/40 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/50 dark:from-slate-900 dark:via-slate-900/95 dark:to-emerald-950/30 p-2 sm:p-2.5 shadow-xs flex flex-col gap-1.5 sm:gap-2">
+        
+        {/* Row 1: View Mode Switch + Search Input + Help */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          {/* Sub-Nav View Tabs (Most Held Stocks vs Sector View) */}
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700">
+            {navTabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleSelectTab(tab.id)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? 'bg-[#0D6B58] text-white shadow-2xs ring-1 ring-emerald-400/30'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/60'
+                  }`}
+                >
+                  <Icon size={12} className={isActive ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box & How to Use */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-52">
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400" />
+              <input
+                type="text"
+                placeholder="Search stock or symbol..."
+                value={stockSearchQuery}
+                onChange={(e) => setStockSearchQuery(e.target.value)}
+                className="w-full pl-6 pr-6 py-1 text-[11px] sm:text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+              />
+              {stockSearchQuery && (
+                <button
+                  onClick={() => setStockSearchQuery('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowHowToUseModal(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] sm:text-[11px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shrink-0"
+            >
+              <HelpCircle size={12} className="text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">How to use?</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Category Filter Pills (All visible at single place, flex-wrap, no scrollbar!) */}
+        <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-600/10 dark:bg-emerald-500/20 text-[#0D6B58] dark:text-emerald-400 font-extrabold text-[9.5px] sm:text-[10px] uppercase tracking-wider shrink-0 border border-emerald-600/20 dark:border-emerald-500/25">
+            <Filter size={10} className="text-[#0D6B58] dark:text-emerald-400" />
+            <span>Category:</span>
+          </div>
+
           {categoryPills.map((item) => {
             const Icon = item.icon;
             const isSelected = selectedCategory === item.label;
@@ -218,51 +289,20 @@ export default function MutualFundStockWeightageScreener() {
               <button
                 key={item.label}
                 onClick={() => handleSelectCategory(item.label)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold transition-all duration-150 cursor-pointer ${
                   isSelected
-                    ? 'bg-[#0D6B58] text-white shadow-xs'
-                    : 'bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    ? 'bg-gradient-to-r from-[#0D6B58] to-[#0a5243] text-white shadow-2xs ring-1 ring-emerald-500/40'
+                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400'
                 }`}
               >
-                <Icon size={14} className={isSelected ? 'text-white' : 'text-blue-500'} />
+                <Icon size={11} className={isSelected ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'} />
                 <span>{item.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* How to use? Button */}
-        <button
-          onClick={() => setShowHowToUseModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-colors cursor-pointer shrink-0 ml-auto"
-        >
-          <HelpCircle size={14} className="text-blue-500" />
-          <span>How to use?</span>
-        </button>
       </div>
-
-
-          {/* ── 4. SUB-NAVIGATION TABS (ROW 3 MATCHING REFERENCE DESIGN) ── */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {navTabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleSelectTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    isActive
-                      ? 'bg-[#0D6B58] text-white shadow-xs'
-                      : 'bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon size={14} className={isActive ? 'text-white' : 'text-blue-500'} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
 
           {/* ── 5. TAB VIEWS ── */}
 

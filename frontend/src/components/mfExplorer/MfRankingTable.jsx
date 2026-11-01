@@ -395,12 +395,12 @@ export default function MfRankingTable({
       : num < 0 
       ? 'text-rose-600 dark:text-rose-400 font-semibold' 
       : 'text-slate-500 dark:text-slate-400';
-    return <span className={`font-mono text-[10px] md:text-xs ${color}`}>{sign}{num.toFixed(2)}%</span>;
+    return <span className={`font-mono text-[9px] sm:text-[10px] md:text-xs ${color}`}>{sign}{num.toFixed(2)}%</span>;
   };
 
   const formatRatio = (val) => {
     if (val == null || isNaN(val)) return '—';
-    return <span className="font-mono text-[10px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">{Number(val).toFixed(2)}</span>;
+    return <span className="font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">{Number(val).toFixed(2)}</span>;
   };
 
   const cleanFundName = (rawName) => {
@@ -725,31 +725,31 @@ export default function MfRankingTable({
         className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors cursor-pointer group"
       >
         {/* Numerical Rank # Column */}
-        <td className="py-1.5 md:py-2.5 px-1 md:px-2 text-center align-middle font-mono text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] shrink-0 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800/60">
+        <td className="py-1.5 md:py-2.5 px-1 md:px-2 text-center align-middle font-mono text-[9px] sm:text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] shrink-0 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800/60">
           {rankDisplay != null ? rankDisplay : '—'}
         </td>
 
         {/* Fund Name Column */}
-        <td className="py-1.5 md:py-2.5 px-1.5 md:px-3 min-w-[102px] sm:min-w-[130px] md:min-w-[240px] max-w-[110px] sm:max-w-[160px] md:max-w-[340px] align-middle overflow-visible relative sticky left-[20px] md:left-[32px] z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800/60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
-          <div className="flex items-center gap-1 min-w-0">
+        <td className="py-1.5 md:py-2.5 px-1.5 md:px-3 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] align-middle overflow-visible relative sticky left-[20px] md:left-[32px] z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800/60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+          <div className="flex items-start gap-1 min-w-0">
             <StarHoverTooltip
               fund={fund}
               isStarred={isStarred}
               categorySharpeRange={categorySharpeRange}
               categorySortinoRange={categorySortinoRange}
             />
-            <span className="text-[10px] sm:text-[11px] md:text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" title={fund.name}>
+            <span className="text-[9px] sm:text-[11px] md:text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug break-words" title={fund.name}>
               {cleanFundName(fund.name || fund.schemeName)}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 md:gap-2 text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-            <span className="font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1 md:px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800/60 text-[8.5px] md:text-[10px]">
+          <div className="flex items-center gap-1.5 md:gap-2 text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <span className="hidden sm:inline-block font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1 md:px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800/60 text-[8.5px] md:text-[10px]">
               {fund.planType || 'Direct Growth'}
             </span>
             {getLaunchInfo(fund) && (
               <>
-                <span>•</span>
-                <span className="font-bold text-slate-600 dark:text-slate-400 bg-slate-500/10 px-1 md:px-1.5 py-0.2 rounded border border-slate-500/20 text-[8.5px] md:text-[10px]">
+                <span className="hidden sm:inline">•</span>
+                <span className="font-bold text-slate-600 dark:text-slate-400 bg-slate-500/10 px-1 md:px-1.5 py-0 sm:py-0.2 rounded border border-slate-500/20 text-[7px] sm:text-[8.5px] md:text-[10px]">
                   {getLaunchInfo(fund)}
                 </span>
               </>
@@ -758,13 +758,13 @@ export default function MfRankingTable({
         </td>
 
         {/* AUM */}
-        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
+        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
           {formatAUM(fund.aumMetric === 'AAUM' ? null : (fund.aumCr ?? fund.aum))}
         </td>
 
         {/* NAV */}
         <td 
-          className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap"
+          className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap"
           title={`NAV: ${formatNAV(fund.nav)}\nAs of: ${formatNavDate(fund.navAsOfDate || fund.navDate || fund.asOfDate)}`}
         >
           {formatNAV(fund.nav)}
@@ -817,14 +817,14 @@ export default function MfRankingTable({
       {/* Main Full-Width Table */}
       <div className="w-full overflow-x-auto scrollbar-thin">
         <table className="w-full text-left border-collapse min-w-[1100px]">
-          <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[9px] md:text-[10.5px]">
+          <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[8.5px] sm:text-[9px] md:text-[10.5px]">
             <tr>
               <th className="py-2 md:py-3 px-1 md:px-2 text-center text-slate-500 dark:text-slate-400 font-normal w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] sticky left-0 z-20 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">#</th>
               {renderSortHeader(
                 'FUND / CATEGORY',
                 'name',
                 'text-left',
-                'sticky left-[20px] md:left-[32px] z-20 bg-slate-100 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 min-w-[102px] sm:min-w-[130px] md:min-w-[240px] max-w-[110px] sm:max-w-[160px] md:max-w-[340px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]'
+                'sticky left-[20px] md:left-[32px] z-20 bg-slate-100 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]'
               )}
               {renderSortHeader('AUM (Cr)', 'aum', 'text-right')}
               {renderSortHeader('NAV', 'nav', 'text-right')}
@@ -875,13 +875,13 @@ export default function MfRankingTable({
                           onMouseLeave={handleSubMouseLeave}
                           className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none group"
                         >
-                          <td colSpan={2} className="py-1.5 md:py-2.5 px-2 md:px-3 pl-2 md:pl-3 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-900 min-w-[122px] sm:min-w-[150px] md:min-w-[272px] max-w-[130px] sm:max-w-[180px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                          <td colSpan={2} className="py-1.5 md:py-2.5 px-2 md:px-3 pl-2 md:pl-3 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-900 min-w-[137px] sm:min-w-[155px] md:min-w-[248px] max-w-[185px] sm:max-w-[210px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                             <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
                               <span className="text-slate-400 shrink-0">
                                 {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                               </span>
                               <span className="hidden md:inline-flex shrink-0">{getCategoryIcon(subKey, false)}</span>
-                              <span className="text-[11px] md:text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                              <span className="text-[10px] sm:text-[11px] md:text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                                 {subKey}
                               </span>
                               <span className="hidden md:inline-flex text-[9px] md:text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-1.5 md:px-2 py-0.5 rounded-full shrink-0">
@@ -889,8 +889,8 @@ export default function MfRankingTable({
                               </span>
                             </div>
                           </td>
-                          <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
-                          <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-400">—</td>
+                          <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
+                          <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-400">—</td>
                           <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['1W'])}</td>
                           <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['1M'])}</td>
                           <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['3M'])}</td>
@@ -953,7 +953,7 @@ export default function MfRankingTable({
                         onMouseLeave={handleParentMouseLeave}
                         className="bg-slate-50 dark:bg-slate-900/90 hover:bg-slate-100 dark:hover:bg-slate-800 border-y border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none font-bold group"
                       >
-                        <td colSpan={2} className="py-2 md:py-3 px-2 md:px-3 sticky left-0 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 border-y border-slate-200 dark:border-slate-800 min-w-[122px] sm:min-w-[150px] md:min-w-[272px] max-w-[130px] sm:max-w-[180px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                        <td colSpan={2} className="py-2 md:py-3 px-2 md:px-3 sticky left-0 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 border-y border-slate-200 dark:border-slate-800 min-w-[137px] sm:min-w-[155px] md:min-w-[248px] max-w-[185px] sm:max-w-[210px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                           <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
                             <span className="text-slate-500 dark:text-slate-400 shrink-0">
                               {isParentCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
@@ -961,7 +961,7 @@ export default function MfRankingTable({
                             <span className="hidden md:inline-flex p-1 bg-blue-50 dark:bg-blue-950/60 rounded-md shrink-0">
                               {getCategoryIcon(parentKey, true)}
                             </span>
-                            <span className="text-[11px] md:text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider truncate">
+                            <span className="text-[10px] sm:text-[11px] md:text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider truncate">
                               {parentKey.replace(/_/g, ' ')}
                             </span>
                             <span className="hidden md:inline-flex text-[9.5px] md:text-[11px] font-mono font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2 md:px-2.5 py-0.5 rounded-full shrink-0">
@@ -969,8 +969,8 @@ export default function MfRankingTable({
                             </span>
                           </div>
                         </td>
-                        <td className="py-2 md:py-3 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">{formatAUM(parentAum)}</td>
-                        <td className="py-2 md:py-3 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-400">—</td>
+                        <td className="py-2 md:py-3 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">{formatAUM(parentAum)}</td>
+                        <td className="py-2 md:py-3 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-400">—</td>
                         <td className="py-2 md:py-3 px-1.5 md:px-2 text-right">{formatPct(parentReturns['1W'])}</td>
                         <td className="py-2 md:py-3 px-1.5 md:px-2 text-right">{formatPct(parentReturns['1M'])}</td>
                         <td className="py-2 md:py-3 px-1.5 md:px-2 text-right">{formatPct(parentReturns['3M'])}</td>
@@ -1012,13 +1012,13 @@ export default function MfRankingTable({
                               onMouseLeave={handleSubMouseLeave}
                               className="bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 border-b border-slate-100 dark:border-slate-900 transition-colors cursor-pointer select-none group"
                             >
-                              <td colSpan={2} className="py-1.5 md:py-2.5 px-2 md:px-3 pl-3 md:pl-8 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-900 min-w-[122px] sm:min-w-[150px] md:min-w-[272px] max-w-[130px] sm:max-w-[180px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                              <td colSpan={2} className="py-1.5 md:py-2.5 px-2 md:px-3 pl-3 md:pl-8 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-900 min-w-[137px] sm:min-w-[155px] md:min-w-[248px] max-w-[185px] sm:max-w-[210px] md:max-w-none shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                                 <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
                                   <span className="text-slate-400 shrink-0">
                                     {isSubCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                                   </span>
                                   <span className="hidden md:inline-flex shrink-0">{getCategoryIcon(subKey, false)}</span>
-                                  <span className="text-[11px] md:text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                                  <span className="text-[10px] sm:text-[11px] md:text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                                     {subKey}
                                   </span>
                                   <span className="hidden md:inline-flex text-[9px] md:text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-1.5 md:px-2 py-0.5 rounded-full shrink-0">
@@ -1026,8 +1026,8 @@ export default function MfRankingTable({
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
-                              <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[10px] md:text-xs text-slate-400">—</td>
+                              <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
+                              <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-400">—</td>
                               <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['1W'])}</td>
                               <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['1M'])}</td>
                               <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right">{formatPct(subReturns['3M'])}</td>

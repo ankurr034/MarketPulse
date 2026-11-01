@@ -109,10 +109,7 @@ export async function authenticateToken(req, res, next) {
       return res.status(403).json({ error: 'Two-factor authentication required. Please complete 2FA verification.' });
     }
 
-    // Block unverified email tokens from accessing protected routes
-    if (decoded.stage === 'email_verification_pending') {
-      return res.status(403).json({ error: 'Email verification required. Please verify your email.', requiresVerification: true });
-    }
+    // Email verification stage check removed — users are active immediately upon signup
 
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
     const isLogout = req.path === '/logout' || req.originalUrl?.endsWith('/logout');
@@ -150,17 +147,9 @@ export async function authenticateToken(req, res, next) {
           return res.status(401).json({ error: 'User account has been revoked.' });
         }
 
-        // Enforce email verification on protected features
-        if (!isLogout && !isVerificationEndpoint && user.isEmailVerified === false) {
-          return res.status(403).json({
-            error: 'Email verification required. Please verify your email address to access this feature.',
-            requiresVerification: true,
-            email: user.email
-          });
-        }
+        // Email verification enforcement removed — users are active immediately upon signup
 
         decoded.role = user.role || decoded.role || 'user';
-        decoded.isEmailVerified = user.isEmailVerified !== false;
       } catch (dbErr) {
         if (isSensitiveOperation) {
           return res.status(503).json({

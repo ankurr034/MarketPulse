@@ -179,27 +179,32 @@ export default function StockDetailPanel({
   ];
 
   return (
-    <div className="rounded-2xl border p-4 sm:p-5 flex flex-col gap-4 bg-white dark:bg-[var(--bg-card)] border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05)] animate-in fade-in duration-200">
+    <div className="rounded-xl sm:rounded-2xl border p-3 sm:p-5 flex flex-col gap-3 sm:gap-4 bg-white dark:bg-[var(--bg-card)] border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05)] animate-in fade-in duration-200">
       
       {/* ── 1. STOCK HEADER CARD ── */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
-        <div className="flex items-center gap-3">
-          <BrandLogo symbol={detail.symbol} name={detail.name} size="lg" />
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 sm:gap-3 border-b border-slate-100 dark:border-slate-800 pb-2.5 sm:pb-3.5">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="sm:hidden">
+            <BrandLogo symbol={detail.symbol} name={detail.name} size="md" />
+          </div>
+          <div className="hidden sm:block">
+            <BrandLogo symbol={detail.symbol} name={detail.name} size="lg" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h2 className="text-sm sm:text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tight truncate max-w-[200px] sm:max-w-none">
                 {detail.name}
               </h2>
-              <span className="text-xs font-mono font-medium text-slate-400">
+              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
                 {detail.symbol}
               </span>
             </div>
             {/* Sector & Market Cap Badges */}
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-sky-50 dark:bg-sky-950/40 text-[#2563EB] dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 flex-wrap">
+              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold bg-sky-50 dark:bg-sky-950/40 text-[#2563EB] dark:text-sky-400 border border-sky-200 dark:border-sky-800">
                 {detail.sector || 'Banks'}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-[#16A34A] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-[#16A34A] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                 {detail.marketCapCategory || 'Large Cap'}
               </span>
             </div>
@@ -207,17 +212,17 @@ export default function StockDetailPanel({
         </div>
 
         {/* Right Actions & Price */}
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center sm:flex-col justify-between sm:items-end gap-1.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
+          <div className="flex items-center gap-1 sm:gap-1.5 order-2 sm:order-1">
             <button
               onClick={() => setIsWatchlisted(!isWatchlisted)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border transition-all cursor-pointer ${
                 isWatchlisted 
                   ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 border-blue-200 dark:border-blue-800 shadow-2xs' 
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
               }`}
             >
-              {isWatchlisted ? <Check size={12} className="text-blue-600" /> : <Plus size={12} className="text-blue-600" />}
+              {isWatchlisted ? <Check size={11} className="text-blue-600" /> : <Plus size={11} className="text-blue-600" />}
               <span>{isWatchlisted ? 'Watchlisted' : '+ Watchlist'}</span>
             </button>
             <button
@@ -225,16 +230,16 @@ export default function StockDetailPanel({
               className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
               title="Close panel"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
 
-          <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+          <div className="flex items-baseline gap-1.5 order-1 sm:order-2">
+            <span className="text-base sm:text-xl md:text-2xl font-black font-mono text-slate-900 dark:text-white">
               {hasPrice ? `₹ ${formatPrice(stockPrice)}` : '—'}
             </span>
             {hasReturn && (
-              <span className={`text-xs font-bold ${
+              <span className={`text-[10px] sm:text-xs font-bold ${
                 isTrendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
               }`}>
                 {trendSign}{trendPct}% (1Y)
@@ -245,67 +250,67 @@ export default function StockDetailPanel({
       </div>
 
       {/* ── 2. 6 KEY METRIC BOXES ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-1.5 sm:gap-2">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
           <div className="flex items-baseline gap-1 justify-center sm:justify-start">
-            <span className="text-base font-black font-mono text-[#059669] dark:text-emerald-400">
+            <span className="text-xs sm:text-base font-black font-mono text-[#059669] dark:text-emerald-400">
               {totalFundsCount.toLocaleString('en-IN')}
             </span>
             {ownershipSummary.totalUniverseFunds ? (
-              <span className="text-[10px] text-slate-400 font-medium">
+              <span className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium">
                 / {ownershipSummary.totalUniverseFunds}
               </span>
             ) : null}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Number of Funds Holdings</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">Number of Funds Holdings</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+          <div className="text-xs sm:text-base font-black font-mono text-slate-900 dark:text-white">
             {ownershipSummary.universeWeightPct != null ? `${Number(ownershipSummary.universeWeightPct).toFixed(2)}%` : `${avgWeight.toFixed(2)}%`}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">MF Universe Weightage</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">MF Universe Weightage</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white truncate">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 truncate text-center sm:text-left">
+          <div className="text-xs sm:text-base font-black font-mono text-slate-900 dark:text-white truncate">
             {formatCr(ownershipSummary.totalAumExposureCr ?? totalHoldingValueCr)}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">Total AUM Exposure</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 truncate leading-tight">Total AUM Exposure</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
-          <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+          <div className="text-xs sm:text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
             {avgWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Avg. Scheme Weight</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">Avg. Scheme Weight</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+          <div className="text-xs sm:text-base font-black font-mono text-slate-900 dark:text-white">
             {maxWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Max. Scheme Weight</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">Max. Scheme Weight</div>
         </div>
 
-        <div className="p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
-          <div className="text-base font-black font-mono text-slate-900 dark:text-white">
+        <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-center sm:text-left">
+          <div className="text-xs sm:text-base font-black font-mono text-slate-900 dark:text-white">
             {minWeight.toFixed(2)}%
           </div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Min. Scheme Weight</div>
+          <div className="text-[8.5px] sm:text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">Min. Scheme Weight</div>
         </div>
       </div>
 
-      {/* ── 3. SUB-TABS NAVIGATION (matching reference design) ── */}
-      <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none pt-1">
+      {/* ── 3. SUB-TABS NAVIGATION (COMPACT, SINGLE PLACE, NO SCROLLING) ── */}
+      <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">
         {subTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10.5px] font-bold rounded-md sm:rounded-lg transition-all cursor-pointer ${
               activeTab === tab.id
                 ? 'bg-[#2563EB] text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
             }`}
           >
             {tab.label}
@@ -677,47 +682,47 @@ export default function StockDetailPanel({
 
       {/* ── 7. KEY INSIGHTS BAR (AT BOTTOM OF RIGHT PANEL) ── */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-        <div className="text-xs font-black text-slate-900 dark:text-white mb-2">
+        <div className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white mb-1.5 sm:mb-2">
           Key Insights
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2">
           {/* Item 1 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
-            <div className="w-6 h-6 rounded-full bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold text-[10.5px] shrink-0">
+          <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[10px] sm:text-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold text-[9px] sm:text-[10.5px] shrink-0">
               A
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
-              Held by <strong className="text-slate-900 dark:text-white">{totalFundsCount.toLocaleString('en-IN')}</strong> mutual funds (67.3% of selected universe).
+            <span className="text-[9.5px] sm:text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
+              Held by <strong className="text-slate-900 dark:text-white">{totalFundsCount.toLocaleString('en-IN')}</strong> mutual funds.
             </span>
           </div>
 
           {/* Item 2 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
-            <div className="w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0">
-              <TrendingUp size={12} />
+          <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[10px] sm:text-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0">
+              <TrendingUp size={11} />
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
-              Average weightage is <strong className="text-slate-900 dark:text-white">{avgWeight.toFixed(2)}%</strong> with a maximum of <strong className="text-slate-900 dark:text-white">{maxWeight.toFixed(2)}%</strong>.
+            <span className="text-[9.5px] sm:text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
+              Avg wt is <strong className="text-slate-900 dark:text-white">{avgWeight.toFixed(2)}%</strong> (max <strong className="text-slate-900 dark:text-white">{maxWeight.toFixed(2)}%</strong>).
             </span>
           </div>
 
           {/* Item 3 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
-            <div className="w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0">
-              <Landmark size={12} />
+          <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[10px] sm:text-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0">
+              <Landmark size={11} />
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
+            <span className="text-[9.5px] sm:text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
               Total holding value is <strong className="text-slate-900 dark:text-white">{formatCr(totalHoldingValueCr)}</strong>.
             </span>
           </div>
 
           {/* Item 4 */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-xs">
-            <div className="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-600 flex items-center justify-center shrink-0">
-              <ShieldCheck size={12} />
+          <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[10px] sm:text-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-500/15 text-indigo-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={11} />
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
-              Most commonly held stock across all fund categories.
+            <span className="text-[9.5px] sm:text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
+              Top held across all fund categories.
             </span>
           </div>
         </div>

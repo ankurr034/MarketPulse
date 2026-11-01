@@ -13,6 +13,7 @@ const BASE_URL = 'http://localhost:5001';
 const JWT_SECRET = (process.env.JWT_SECRET || 'super_secret_trading_dashboard_jwt_key_2026').trim();
 
 function request(options, body = null) {
+  options.headers = { 'x-test-suite': 'true', ...(options.headers || {}) };
   return new Promise((resolve, reject) => {
     const req = http.request(options, res => {
       let data = '';

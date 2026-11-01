@@ -102,27 +102,24 @@ export default function MutualFundsSectorWiseHoldings() {
   return (
     <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-6 shadow-2xs">
       {/* Top Header & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-3 sm:pb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <PieChartIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            Mutual Funds Sector-Wise & Major Stock Holdings
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <PieChartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span>Mutual Funds Sector-Wise & Major Stock Holdings</span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Aggregated sector allocations and top individual stock positions held across Indian Mutual Funds by Weight %, Market Cap, Volume, and Fund Exposure.
-          </p>
         </div>
 
         {/* Search Bar & Live Tag */}
-        <div className="flex items-center gap-3">
-          <div className="relative min-w-[260px] sm:min-w-[320px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72 sm:flex-none">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search stocks, symbols, sectors, funds..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
+              className="w-full pl-7 pr-7 py-1 sm:py-1.5 text-[11px] sm:text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
             />
             {searchQuery && (
               <button
@@ -130,14 +127,14 @@ export default function MutualFundsSectorWiseHoldings() {
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 title="Clear search"
               >
-                <X size={13} />
+                <X size={12} />
               </button>
             )}
           </div>
 
           {loading && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 animate-pulse">
-              <RefreshCw size={12} className="animate-spin text-blue-500" />
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-slate-400 animate-pulse shrink-0">
+              <RefreshCw size={11} className="animate-spin text-blue-500" />
             </span>
           )}
           <span className="hidden sm:inline-flex text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-full whitespace-nowrap">
@@ -164,30 +161,30 @@ export default function MutualFundsSectorWiseHoldings() {
             <span className="text-[10px] text-slate-400">Click a sector to filter stocks</span>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {filteredSectors.map(sec => {
             const isSectorSelected = searchQuery.toLowerCase().trim() === sec.sector.toLowerCase().trim();
             return (
               <div 
                 key={sec.sector} 
                 onClick={() => handleSectorClick(sec.sector)}
-                className={`border rounded-xl p-3 flex flex-col justify-between space-y-2 cursor-pointer transition-all ${
+                className={`border rounded-lg sm:rounded-xl p-2 sm:p-3 flex flex-col justify-between space-y-1.5 sm:space-y-2 cursor-pointer transition-all ${
                   isSectorSelected 
                     ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 ring-1 ring-indigo-500' 
                     : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-600'
                 }`}
                 title={`Click to filter stocks by ${sec.sector}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={sec.sector}>{sec.sector}</span>
-                  <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">{sec.weight}</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={sec.sector}>{sec.sector}</span>
+                  <span className="text-[9.5px] sm:text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">{sec.weight}</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1 sm:h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div className={`h-full ${sec.color}`} style={{ width: `${Math.min(100, Math.max(0, sec.pct))}%` }} />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                  <span>AUM: {sec.aum}</span>
-                  <span>{sec.fundsCount} Funds</span>
+                <div className="flex items-center justify-between text-[8.5px] sm:text-[10px] text-slate-500 dark:text-slate-400">
+                  <span className="truncate">AUM: {sec.aum}</span>
+                  <span className="shrink-0">{sec.fundsCount} Funds</span>
                 </div>
               </div>
             );
@@ -213,17 +210,17 @@ export default function MutualFundsSectorWiseHoldings() {
         <div className="overflow-x-auto border border-slate-200 dark:border-slate-800/80 rounded-xl">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/60">
-                <th className="py-3 px-4 font-semibold">Stock Name</th>
-                <th className="py-3 px-3 font-semibold">Sector</th>
-                <th className="py-3 px-3 font-semibold text-right">Avg Weight %</th>
-                <th className="py-3 px-3 font-semibold text-right">Market Cap</th>
-                <th className="py-3 px-3 font-semibold text-right">Volume (24h)</th>
-                <th className="py-3 px-3 font-semibold text-right">MF Holding %</th>
-                <th className="py-3 px-4 font-semibold">Top Invested Funds</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/60 text-[10.5px] sm:text-xs">
+                <th className="py-2 px-2.5 sm:py-3 sm:px-4 font-semibold">Stock Name</th>
+                <th className="py-2 px-2 sm:py-3 sm:px-3 font-semibold">Sector</th>
+                <th className="py-2 px-2 sm:py-3 sm:px-3 font-semibold text-right">Avg Weight %</th>
+                <th className="py-2 px-2 sm:py-3 sm:px-3 font-semibold text-right">Market Cap</th>
+                <th className="py-2 px-2 sm:py-3 sm:px-3 font-semibold text-right">Volume (24h)</th>
+                <th className="py-2 px-2 sm:py-3 sm:px-3 font-semibold text-right">MF Holding %</th>
+                <th className="py-2 px-2.5 sm:py-3 sm:px-4 font-semibold">Top Invested Funds</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/40">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/40 text-[10.5px] sm:text-xs">
               {filteredStocks.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="py-8 text-center text-slate-400 text-xs">
@@ -238,31 +235,31 @@ export default function MutualFundsSectorWiseHoldings() {
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors group"
                     title={`Open live quote, chart & technical analysis for ${item.stock}`}
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-2 px-2.5 sm:py-3 sm:px-4">
                       <div className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                        <span>{item.stock}</span>
-                        <ExternalLink size={11} className="opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity shrink-0" />
+                        <span className="truncate max-w-[130px] sm:max-w-none">{item.stock}</span>
+                        <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity shrink-0" />
                       </div>
-                      <div className="text-[10px] font-mono text-slate-500 group-hover:text-blue-500 transition-colors">{item.symbol}</div>
+                      <div className="text-[9.5px] sm:text-[10px] font-mono text-slate-500 group-hover:text-blue-500 transition-colors">{item.symbol}</div>
                     </td>
-                    <td className="py-3 px-3">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <td className="py-2 px-2 sm:py-3 sm:px-3">
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                         {item.sector}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/5">
+                    <td className="py-2 px-2 sm:py-3 sm:px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/5">
                       {item.weight}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                    <td className="py-2 px-2 sm:py-3 sm:px-3 text-right font-mono text-slate-800 dark:text-slate-200">
                       {item.mcap}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono text-slate-500 dark:text-slate-400">
+                    <td className="py-2 px-2 sm:py-3 sm:px-3 text-right font-mono text-slate-500 dark:text-slate-400">
                       {item.volume}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    <td className="py-2 px-2 sm:py-3 sm:px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                       {item.mfHolding}
                     </td>
-                    <td className="py-3 px-4 text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]" title={item.topFunds}>
+                    <td className="py-2 px-2.5 sm:py-3 sm:px-4 text-[9.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[160px] sm:max-w-[220px]" title={item.topFunds}>
                       {item.topFunds}
                     </td>
                   </tr>

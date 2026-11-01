@@ -13,8 +13,8 @@ const UserSchema = new mongoose.Schema({
   lockUntil: { type: Date, default: null },
   lastLoginAt: { type: Date, default: null },
 
-  // Email Verification & Anti-Fake Signup
-  isEmailVerified: { type: Boolean, default: false, index: true },
+  // Email Verification & Anti-Fake Signup (verification disabled — users are active immediately)
+  isEmailVerified: { type: Boolean, default: true, index: true },
   emailOtpHash: { type: String, default: null },
   emailOtpExpiresAt: { type: Date, default: null },
   emailOtpLastSentAt: { type: Date, default: null },
@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
   status: { 
     type: String, 
     enum: ['pending_verification', 'active', 'suspended'], 
-    default: 'pending_verification' 
+    default: 'active' 
   },
   signupIp: { type: String, default: null },
 

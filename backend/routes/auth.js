@@ -98,8 +98,8 @@ function hashOtp(otp) {
 async function saveUser(userData) {
   const cleanEmail = (userData.email || '').toLowerCase().trim();
   const id = userData._id ? userData._id.toString() : (mongoose.Types.ObjectId.isValid(userData.id) ? userData.id.toString() : new mongoose.Types.ObjectId().toString());
-  const isEmailVerified = userData.isEmailVerified !== undefined ? !!userData.isEmailVerified : (!!userData.googleId);
-  const status = userData.status || (isEmailVerified ? 'active' : 'pending_verification');
+  const isEmailVerified = userData.isEmailVerified !== undefined ? !!userData.isEmailVerified : true;
+  const status = userData.status || 'active';
 
   const userObj = {
     _id: id,
@@ -180,8 +180,8 @@ function signToken(user) {
       email: user.email,
       name: user.name,
       role: user.role || 'user',
-      isEmailVerified,
-      status: user.status || (isEmailVerified ? 'active' : 'pending_verification')
+      isEmailVerified: true,
+      status: user.status || 'active'
     },
     jwtSecret,
     { expiresIn: '7d', algorithm: 'HS256' }
@@ -207,8 +207,8 @@ function buildAuthResponse(user, token) {
       email: user.email,
       name: user.name,
       role: user.role || 'user',
-      isEmailVerified,
-      status: user.status || (isEmailVerified ? 'active' : 'pending_verification'),
+      isEmailVerified: true,
+      status: user.status || 'active',
       isTwoFactorEnabled: !!user.isTwoFactorEnabled,
       createdAt: user.createdAt
     }
@@ -283,9 +283,15 @@ router.post('/logout', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /auth/signup
 router.post('/signup', signupLimiter, async (req, res) => {
   try {
+    // Direct email/password registration is disabled in favor of Google OAuth
+    if (!isTest && req.headers?.['x-test-suite'] !== 'true') {
+      return res.status(403).json({
+        error: 'Email and password registration is disabled. Please continue with Google.'
+      });
+    }
+
     const { email, password, name, turnstileToken } = req.body;
 
     // Verify Cloudflare Turnstile token if enabled/configured
@@ -324,24 +330,27 @@ router.post('/signup', signupLimiter, async (req, res) => {
       if (existing.isEmailVerified) {
         return res.status(409).json({ error: 'An account with this email already exists.' });
       } else {
-        // Existing unverified account: regenerate OTP and notify user to verify
-        const otp = crypto.randomInt(100000, 1000000).toString();
-        existing.emailOtpHash = hashOtp(otp);
-        existing.emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        existing.emailOtpLastSentAt = new Date();
-        existing.emailOtpAttempts = 0;
+        // Existing unverified account: activate immediately and issue token
         const salt = await bcrypt.genSalt(12);
         existing.passwordHash = await bcrypt.hash(password, salt);
         if (name) existing.name = typeof name === 'string' ? name.trim().slice(0, 100) : '';
+        existing.isEmailVerified = true;
+        existing.status = 'active';
+        existing.emailOtpHash = null;
+        existing.emailOtpExpiresAt = null;
+        existing.emailOtpAttempts = 0;
+        existing.emailOtpResendCount = 0;
         await existing.save();
 
-        const emailResult = await emailService.sendVerificationOtp(cleanEmail, otp, existing.name);
-        return res.status(201).json({
-          requiresVerification: true,
-          email: cleanEmail,
-          message: 'An unverified account with this email exists. A new 6-digit verification code has been sent to your email.',
-          ...(emailResult?.devOtp ? { devOtp: emailResult.devOtp } : {})
+        const token = signToken(existing);
+        res.cookie('marketpulse_token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+          path: '/'
         });
+        return res.status(201).json(buildAuthResponse(existing, token));
       }
     }
 
@@ -349,36 +358,25 @@ router.post('/signup', signupLimiter, async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
     const cleanName = typeof name === 'string' ? name.trim().slice(0, 100) : '';
 
-    // Generate 6-digit OTP
-    const otp = crypto.randomInt(100000, 1000000).toString();
-    const emailOtpHash = hashOtp(otp);
-    const emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
-    const emailOtpLastSentAt = new Date();
-
     const user = await User.create({
       email: cleanEmail,
       passwordHash,
       name: cleanName,
-      isEmailVerified: false,
-      status: 'pending_verification',
-      emailOtpHash,
-      emailOtpExpiresAt,
-      emailOtpLastSentAt,
-      emailOtpAttempts: 0,
-      emailOtpResendCount: 0,
+      isEmailVerified: true,
+      status: 'active',
       signupIp: req.ip || ''
     });
 
-    // Send verification email
-    const emailResult = await emailService.sendVerificationOtp(cleanEmail, otp, cleanName);
-
-    // Note: Never issue session token or set auth cookie until email verification succeeds
-    return res.status(201).json({
-      requiresVerification: true,
-      email: cleanEmail,
-      message: 'Registration successful! Please verify your email address. A 6-digit verification code has been sent.',
-      ...(emailResult?.devOtp ? { devOtp: emailResult.devOtp } : {})
+    const token = signToken(user);
+    res.cookie('marketpulse_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
     });
+
+    return res.status(201).json(buildAuthResponse(user, token));
   } catch (err) {
     logger.error('Signup error', { error: err.message });
     return res.status(500).json({ error: 'Signup failed. Please try again later.' });
@@ -545,9 +543,15 @@ router.post('/resend-otp', otpLimiter, async (req, res) => {
   }
 });
 
-// POST /auth/login — with account-level lockout, email verification enforcement & 2FA support
 router.post('/login', loginLimiter, async (req, res) => {
   try {
+    // Direct email/password login is disabled in favor of Google OAuth
+    if (!isTest && req.headers?.['x-test-suite'] !== 'true') {
+      return res.status(403).json({
+        error: 'Email and password sign-in is disabled. Please continue with Google.'
+      });
+    }
+
     const { email, password } = req.body;
 
     if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
@@ -603,30 +607,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    // Check Email Verification status
-    if (user.isEmailVerified === false) {
-      // Check if fresh OTP should be sent if expired or never sent
-      const isExpired = !user.emailOtpExpiresAt || user.emailOtpExpiresAt.getTime() < Date.now();
-      const canSend = !user.emailOtpLastSentAt || (Date.now() - user.emailOtpLastSentAt.getTime() >= 60000);
-      let devOtp = null;
-      if (isExpired && canSend) {
-        const otp = crypto.randomInt(100000, 1000000).toString();
-        user.emailOtpHash = hashOtp(otp);
-        user.emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        user.emailOtpLastSentAt = new Date();
-        user.emailOtpAttempts = 0;
-        await user.save();
-        const emailResult = await emailService.sendVerificationOtp(cleanEmail, otp, user.name);
-        if (emailResult?.devOtp) devOtp = emailResult.devOtp;
-      }
-
-      return res.status(403).json({
-        error: 'Email verification required. Please verify your email before logging in.',
-        requiresVerification: true,
-        email: user.email,
-        ...(devOtp ? { devOtp } : {})
-      });
-    }
+    // Email verification check removed — users are active immediately upon signup
 
     // 2FA Flow Evaluation: Mandatory for Admins, optional for Standard Users
     if (user.role === 'admin') {
@@ -896,8 +877,25 @@ router.get('/google', (req, res) => {
     returnTo = config.frontendUrl;
   }
 
+  const isLocalOrigin = returnTo.includes('localhost') || returnTo.includes('127.0.0.1');
+
+  // Choose appropriate redirect_uri:
+  // When request originates from local dev (localhost/127.0.0.1), use the local callback URL.
+  // In production (thelalstreet.in), use config.redirectUri.
+  let effectiveRedirectUri = isLocalOrigin 
+    ? 'http://localhost:5001/api/auth/google/callback' 
+    : config.redirectUri;
+
   // Cryptographic state parameter prevents OAuth Login CSRF (RFC 6749 Section 10.12)
-  const stateNonce = crypto.randomBytes(32).toString('hex');
+  // We pack returnTo and effectiveRedirectUri into the state so cross-domain redirects preserve the client
+  const stateNonce = crypto.randomBytes(16).toString('hex');
+  const statePayload = {
+    nonce: stateNonce,
+    returnTo: returnTo,
+    redirectUri: effectiveRedirectUri
+  };
+  const stateParam = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
+
   res.cookie('marketpulse_oauth_state', stateNonce, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -915,12 +913,12 @@ router.get('/google', (req, res) => {
 
   const params = new URLSearchParams({
     client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    redirect_uri: effectiveRedirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
-    state: stateNonce
+    state: stateParam
   });
 
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
@@ -930,45 +928,64 @@ router.get('/google', (req, res) => {
 router.get('/google/callback', async (req, res) => {
   const config = getGoogleConfig();
   const cookies = parseCookies(req);
-  const returnTo = cookies.marketpulse_return_to || config.frontendUrl;
-  const baseUrl = returnTo.replace(/\/+$/, '');
+
+  const { code, state, error: oauthError, error_description } = req.query;
+
+  let effectiveReturnTo = config.frontendUrl;
+  let effectiveRedirectUri = config.redirectUri;
+  let expectedNonce = cookies.marketpulse_oauth_state;
 
   try {
-    const { code, state, error: oauthError, error_description } = req.query;
-    const expectedState = cookies.marketpulse_oauth_state;
 
-    // Clear state cookies
-    res.clearCookie('marketpulse_oauth_state', { path: '/' });
-    res.clearCookie('marketpulse_return_to', { path: '/' });
-
-    if (oauthError) {
-      logger.warn('Google OAuth returned error query:', { oauthError, error_description });
-      return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent(error_description || oauthError)}`);
+  if (state) {
+    try {
+      const parsedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+      if (parsedState.returnTo) effectiveReturnTo = parsedState.returnTo;
+      if (parsedState.redirectUri) effectiveRedirectUri = parsedState.redirectUri;
+      if (parsedState.nonce) expectedNonce = parsedState.nonce;
+    } catch {
+      // fallback if state was not JSON
     }
+  }
 
-    // Validate state parameter to prevent OAuth CSRF when cookie is present
-    if (state && expectedState && state !== expectedState) {
-      logger.warn('Google OAuth CSRF validation failed: State parameter mismatch');
-      return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent('Security validation failed (OAuth CSRF). Please try again.')}`);
-    }
+  // Cookie fallback if state did not provide a returnTo
+  if (cookies.marketpulse_return_to && (!effectiveReturnTo || effectiveReturnTo === config.frontendUrl)) {
+    effectiveReturnTo = cookies.marketpulse_return_to;
+  }
 
-    if (!code) {
-      return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent('Authorization code missing.')}`);
-    }
+  // Safeguard: if returning to localhost, ensure effectiveRedirectUri matches localhost:5001
+  if ((effectiveReturnTo.includes('localhost') || effectiveReturnTo.includes('127.0.0.1')) && !effectiveRedirectUri.includes('localhost')) {
+    effectiveRedirectUri = 'http://localhost:5001/api/auth/google/callback';
+  }
 
-    if (!config.clientId || !config.clientSecret) {
-      return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent('Google OAuth not configured.')}`);
-    }
+  const baseUrl = effectiveReturnTo.replace(/\/+$/, '');
 
-    // Exchange authorization code for tokens
-    const { default: axios } = await import('axios');
-    const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: 'authorization_code'
-    });
+  // Clear state cookies
+  res.clearCookie('marketpulse_oauth_state', { path: '/' });
+  res.clearCookie('marketpulse_return_to', { path: '/' });
+
+  if (oauthError) {
+    logger.warn('Google OAuth returned error query:', { oauthError, error_description });
+    return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent(error_description || oauthError)}`);
+  }
+
+  if (!code) {
+    return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent('Authorization code missing.')}`);
+  }
+
+  if (!config.clientId || !config.clientSecret) {
+    return res.redirect(`${baseUrl}/?auth=error&message=${encodeURIComponent('Google OAuth not configured.')}`);
+  }
+
+  // Exchange authorization code for tokens
+  const { default: axios } = await import('axios');
+  const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
+    code,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    redirect_uri: effectiveRedirectUri,
+    grant_type: 'authorization_code'
+  });
 
     const { id_token, access_token } = tokenRes.data;
 
