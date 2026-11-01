@@ -122,14 +122,14 @@ async function runTests() {
     let sectors, allStocks;
     try {
       const [sectorsRes, allStocksRes] = await Promise.all([
-        axios.get(`${BASE_URL}/sectors?region=india`),
+        axios.get(`${BASE_URL}/sectors?region=india&includeStocks=true`),
         axios.get(`${BASE_URL}/sectors/all-stocks?region=india`)
       ]);
       sectors = sectorsRes.data;
       allStocks = allStocksRes.data;
     } catch (e) {
       console.log('Backend HTTP server offline, fetching directly from SectorDataService pipeline...');
-      sectors = await sectorDataService.getAllSectors('india', '1D', 'stocks');
+      sectors = await sectorDataService.getAllSectors('india', '1D', 'stocks', true);
       allStocks = await sectorDataService.getAllRankedStocks('india', '1D', 'stocks');
     }
 
