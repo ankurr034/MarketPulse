@@ -1946,7 +1946,7 @@ export const IndianMfSectorAnalysis = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSubCategories, setSelectedSubCategories] = useState(['all']);
   const [activeMarketFilter, setActiveMarketFilter] = useState('all');
-  const [isAllFundsMode, setIsAllFundsMode] = useState(false);
+  const [isAllFundsMode, setIsAllFundsMode] = useState(true);
   const [rankMode, setRankMode] = useState('aum'); // 'aum' | 'performance'
   const [selectedSubCategory, setSelectedSubCategory] = useState('all');
   const [rankingTimeframe, setRankingTimeframe] = useState('1Y');
@@ -2025,7 +2025,10 @@ export const IndianMfSectorAnalysis = () => {
     if (marketParam === 'all_funds') {
       setIsAllFundsMode(true);
       setActiveMarketFilter('all');
-    } else if (marketParam && marketParam !== 'all') {
+    } else if (marketParam === 'all') {
+      setIsAllFundsMode(false);
+      setActiveMarketFilter('all');
+    } else if (marketParam) {
       setActiveMarketFilter(marketParam);
       setIsAllFundsMode(false);
     }
