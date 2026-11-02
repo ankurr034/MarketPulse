@@ -3,7 +3,7 @@ import SparklineChart from '../SparklineChart';
 import { 
   ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Info, Star, 
   Network, FileText, Banknote, LineChart, GitMerge, Globe, Coins, LayoutGrid, 
-  Layers, PieChart, Sparkles, Target, Activity, TrendingUp, Award, Shield 
+  Layers, PieChart, Sparkles, Target, Activity, TrendingUp, Award, Shield, Pin 
 } from 'lucide-react';
 import { getDisplayedMfRank } from '../../utils/rankMutualFunds';
 import { getSharpe as extractSharpe, getSortino as extractSortino } from '../../utils/financialCalculations';
@@ -127,8 +127,12 @@ export default function MfRankingTable({
   activeTimeframe = '1Y',
   rankMode = 'aum', // 'aum' | 'performance'
   onTimeframeChange,
-  onSelectFund
+  onSelectFund,
+  pinnedIds = [],
+  onTogglePin = null
 }) {
+  const pinnedSet = useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
+
   // Multi-column sorting state: array of up to 2 active sort criteria [{ field, order }]
   // sortCriteria[0] = Primary Sort Factor, sortCriteria[1] = Secondary Sort Factor
   const [sortCriteria, setSortCriteria] = useState([]);
@@ -626,7 +630,7 @@ export default function MfRankingTable({
     return (
       <th
         onClick={() => handleSort(field)}
-        className={`py-2 md:py-3 px-1.5 md:px-2 font-bold text-[9px] md:text-[10.5px] uppercase cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap ${alignment} ${
+        className={`sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2 md:py-3 px-1.5 md:px-2 font-bold text-[9px] md:text-[10.5px] uppercase cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap ${alignment} ${
           isSorted ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
         } ${extraClass ? extraClass : (isSorted ? 'bg-slate-50 dark:bg-slate-900/80' : '')}`}
       >
@@ -813,16 +817,16 @@ export default function MfRankingTable({
   return (
     <div className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs flex flex-col my-1.5 md:my-3">
       {/* Main Full-Width Table */}
-      <div className="w-full overflow-x-auto scrollbar-thin">
+      <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-160px)] scrollbar-thin">
         <table className="w-full text-left border-collapse min-w-[1100px]">
-          <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[8.5px] sm:text-[9px] md:text-[10.5px]">
+          <thead className="sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[8.5px] sm:text-[9px] md:text-[10.5px] shadow-2xs">
             <tr>
-              <th className="py-2 md:py-3 px-1 md:px-2 text-center text-slate-500 dark:text-slate-400 font-normal w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] sticky left-0 z-20 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">#</th>
+              <th className="py-2 md:py-3 px-1 md:px-2 text-center text-slate-500 dark:text-slate-400 font-normal w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] sticky top-0 left-0 z-40 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">#</th>
               {renderSortHeader(
                 'FUND / CATEGORY',
                 'name',
                 'text-left',
-                'sticky left-[20px] md:left-[32px] z-20 bg-slate-100 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]'
+                'sticky top-0 left-[20px] md:left-[32px] z-40 bg-slate-100 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]'
               )}
               {renderSortHeader('AUM (Cr)', 'aum', 'text-right')}
               {renderSortHeader('NAV', 'nav', 'text-right')}
@@ -836,7 +840,7 @@ export default function MfRankingTable({
               {renderSortHeader('INCEP. CAGR', 'return_All', 'text-right')}
               {renderSortHeader('SHARPE', 'sharpeRatio', 'text-right')}
               {renderSortHeader('SORTINO', 'sortinoRatio', 'text-right')}
-              <th className="py-2 md:py-3 px-1.5 md:px-2 text-center text-[9px] md:text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase">TREND (1Y)</th>
+              <th className="sticky top-0 z-20 py-2 md:py-3 px-1.5 md:px-2 text-center text-[9px] md:text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">TREND (1Y)</th>
             </tr>
           </thead>
           <tbody>
@@ -885,6 +889,30 @@ export default function MfRankingTable({
                               <span className="hidden md:inline-flex text-[9px] md:text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-1.5 md:px-2 py-0.5 rounded-full shrink-0">
                                 {subCount} Funds
                               </span>
+                              {onTogglePin && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTogglePin({
+                                      id: fullSubKey,
+                                      label: subKey,
+                                      parentKey: parentKey,
+                                      parentLabel: parentKey.toUpperCase(),
+                                      isSubcategory: true,
+                                      count: subCount
+                                    });
+                                  }}
+                                  className={`p-0.5 rounded transition-all cursor-pointer ${
+                                    pinnedSet.has(fullSubKey)
+                                      ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
+                                      : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                  }`}
+                                  title={pinnedSet.has(fullSubKey) ? 'Unpin subcategory' : 'Pin subcategory to quick access'}
+                                >
+                                  <Pin size={11} className={pinnedSet.has(fullSubKey) ? 'fill-amber-400 text-amber-500' : ''} />
+                                </button>
+                              )}
                             </div>
                           </td>
                           <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>
@@ -965,6 +993,28 @@ export default function MfRankingTable({
                             <span className="hidden md:inline-flex text-[9.5px] md:text-[11px] font-mono font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2 md:px-2.5 py-0.5 rounded-full shrink-0">
                               {parentCount.toLocaleString('en-IN')} Funds
                             </span>
+                            {onTogglePin && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onTogglePin({
+                                    id: parentKey,
+                                    label: parentKey.replace(/_/g, ' '),
+                                    isCategory: true,
+                                    count: parentCount
+                                  });
+                                }}
+                                className={`p-0.5 rounded transition-all cursor-pointer ${
+                                  pinnedSet.has(parentKey)
+                                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
+                                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                }`}
+                                title={pinnedSet.has(parentKey) ? 'Unpin category' : 'Pin category to quick access'}
+                              >
+                                <Pin size={12} className={pinnedSet.has(parentKey) ? 'fill-amber-400 text-amber-500' : ''} />
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 md:py-3 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">{formatAUM(parentAum)}</td>
@@ -1022,6 +1072,30 @@ export default function MfRankingTable({
                                   <span className="hidden md:inline-flex text-[9px] md:text-[10.5px] font-mono font-bold bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 px-1.5 md:px-2 py-0.5 rounded-full shrink-0">
                                     {subCount} Funds
                                   </span>
+                                  {onTogglePin && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin({
+                                          id: fullSubKey,
+                                          label: subKey,
+                                          parentKey: parentKey,
+                                          parentLabel: parentKey.toUpperCase(),
+                                          isSubcategory: true,
+                                          count: subCount
+                                        });
+                                      }}
+                                      className={`p-0.5 rounded transition-all cursor-pointer ${
+                                        pinnedSet.has(fullSubKey)
+                                          ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
+                                          : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                      }`}
+                                      title={pinnedSet.has(fullSubKey) ? 'Unpin subcategory' : 'Pin subcategory to quick access'}
+                                    >
+                                      <Pin size={11} className={pinnedSet.has(fullSubKey) ? 'fill-amber-400 text-amber-500' : ''} />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right font-mono text-[9px] sm:text-[10px] md:text-xs text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">{formatAUM(subAum)}</td>

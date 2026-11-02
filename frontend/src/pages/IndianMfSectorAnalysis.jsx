@@ -16,6 +16,7 @@ import MarketFilterStrip from '../components/mfExplorer/MarketFilterStrip';
 import MfCategorySidebar from '../components/mfExplorer/MfCategorySidebar';
 import MfRankingTable from '../components/mfExplorer/MfRankingTable';
 import MfMarketOverview from '../components/mfExplorer/MfMarketOverview';
+import PinnedItemsStrip from '../components/PinnedItemsStrip';
 import TradingViewChart from '../components/TradingViewChart.jsx';
 import { setActiveSymbol } from '../store/slices/marketSlice';
 import { calculateFundRankings } from '../utils/rankMutualFunds';
@@ -1953,6 +1954,85 @@ export const IndianMfSectorAnalysis = () => {
   });
   const [categoryTf, setCategoryTf] = useState('1Y');
   
+  // ── Drag-to-Pin Mutual Fund Categories / Subcategories State ──
+  const PINNED_MF_STORAGE_KEY = 'marketpulse_pinned_mf_categories';
+  const [pinnedMfCategories, setPinnedMfCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PINNED_MF_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse pinned MF categories:', e);
+    }
+    return [
+      { id: 'equity', label: 'Equity', isCategory: true },
+      { id: 'hybrid', label: 'Hybrid', isCategory: true },
+      { id: 'debt', label: 'Debt', isCategory: true },
+      { id: 'index', label: 'Index Funds', isCategory: true }
+    ];
+  });
+
+  const savePinnedMfCategories = useCallback((items) => {
+    setPinnedMfCategories(items);
+    try {
+      localStorage.setItem(PINNED_MF_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Failed to save pinned MF categories:', e);
+    }
+  }, []);
+
+  const handleTogglePinCategory = useCallback((item) => {
+    const itemId = item.id;
+    setPinnedMfCategories(prev => {
+      const exists = prev.some(p => p.id === itemId);
+      let next;
+      if (exists) {
+        next = prev.filter(p => p.id !== itemId);
+      } else {
+        next = [...prev, {
+          id: item.id,
+          label: item.label,
+          parentKey: item.parentKey || null,
+          parentLabel: item.parentLabel || null,
+          isSubcategory: !!item.isSubcategory,
+          isCategory: !!item.isCategory,
+          count: item.count || null
+        }];
+      }
+      try {
+        localStorage.setItem(PINNED_MF_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save pinned categories:', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleReorderPinnedCategories = useCallback((newItems) => {
+    savePinnedMfCategories(newItems);
+  }, [savePinnedMfCategories]);
+
+  const handleSelectPinnedCategory = useCallback((item) => {
+    if (item.isSubcategory && item.parentKey) {
+      setIsAllFundsMode(false);
+      setActiveMarketFilter(item.parentKey);
+      setSelectedSubCategory(item.label || item.id);
+    } else if (item.id === 'all_funds') {
+      setIsAllFundsMode(true);
+      setActiveMarketFilter('all');
+      setSelectedSubCategory('all');
+    } else {
+      setIsAllFundsMode(false);
+      setActiveMarketFilter(item.id);
+      setSelectedSubCategory('all');
+    }
+    if (rankingTableRef.current) {
+      rankingTableRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
   // View All toggle states (default true to show all funds)
   const [viewAllTopFunds, setViewAllTopFunds] = useState(true);
   const [viewAllRanking, setViewAllRanking] = useState(true);
@@ -3225,6 +3305,17 @@ export const IndianMfSectorAnalysis = () => {
           }}
         />
 
+        {/* ── PINNED CATEGORIES STRIP (DRAG TO PIN & REORDER) ── */}
+        <PinnedItemsStrip
+          items={pinnedMfCategories}
+          activeId={isAllFundsMode ? 'all_funds' : activeMarketFilter}
+          onSelect={handleSelectPinnedCategory}
+          onUnpin={(id) => handleTogglePinCategory({ id })}
+          onReorder={handleReorderPinnedCategories}
+          title="Pinned"
+          emptyMessage="Click the pin icon on any category or subcategory to pin it here for 1-click quick access"
+        />
+
         {/* ── MARKET FILTER STRIP ── */}
         <MarketFilterStrip
           activeFilter={activeMarketFilter}
@@ -3242,6 +3333,8 @@ export const IndianMfSectorAnalysis = () => {
           rankMode={rankMode}
           onRankModeChange={setRankMode}
           isAllFundsMode={isAllFundsMode}
+          pinnedIds={pinnedMfCategories.map(p => p.id)}
+          onTogglePin={handleTogglePinCategory}
         />
 
         {/* ── MAIN FULL-WIDTH MARKET TERMINAL EXPANDABLE ACCORDION TABLE ── */}
@@ -3254,6 +3347,8 @@ export const IndianMfSectorAnalysis = () => {
             activeTimeframe={rankingTimeframe}
             rankMode={rankMode}
             onTimeframeChange={(tf) => setRankingTimeframe(tf)}
+            pinnedIds={pinnedMfCategories.map(p => p.id)}
+            onTogglePin={handleTogglePinCategory}
             onSelectFund={(fund) => {
               setActiveModalFund(fund);
               const code = fund.schemeCode || fund.id;

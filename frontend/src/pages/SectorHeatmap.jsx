@@ -6,10 +6,11 @@ import {
   Hammer, Zap, Tv, HardHat, TrendingUp, Download, RefreshCw, 
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, 
   ChevronsLeft, ChevronsRight, ArrowRight, X, Activity,
-  ArrowUpDown, ArrowUp, ArrowDown
+  ArrowUpDown, ArrowUp, ArrowDown, Pin
 } from 'lucide-react';
 import axios from 'axios';
 import MacroCorrelationSection from '../components/MacroCorrelationSection';
+import PinnedItemsStrip from '../components/PinnedItemsStrip';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -227,6 +228,81 @@ export default function SectorHeatmap() {
 
   // Refresh trigger state
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── Drag-to-Pin Stock Sectors State ──
+  const PINNED_STOCKS_STORAGE_KEY = 'marketpulse_pinned_stock_sectors';
+  const [pinnedStockSectors, setPinnedStockSectors] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PINNED_STOCKS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse pinned stock sectors:', e);
+    }
+    return [
+      { id: 'financial-services', name: 'Financial Services' },
+      { id: 'information-technology', name: 'Information Technology' },
+      { id: 'automobile', name: 'Automobile' },
+      { id: 'healthcare', name: 'Healthcare' }
+    ];
+  });
+
+  const savePinnedStockSectors = useCallback((items) => {
+    setPinnedStockSectors(items);
+    try {
+      localStorage.setItem(PINNED_STOCKS_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Failed to save pinned stock sectors:', e);
+    }
+  }, []);
+
+  const handleTogglePinSector = useCallback((sector) => {
+    const sId = sector.id || sector.name;
+    setPinnedStockSectors(prev => {
+      const exists = prev.some(p => p.id === sId || p.name === sector.name);
+      let next;
+      if (exists) {
+        next = prev.filter(p => p.id !== sId && p.name !== sector.name);
+      } else {
+        next = [...prev, {
+          id: sector.id || sector.name,
+          name: sector.name,
+          totalStocks: sector.totalStocks || (sector.stocks ? sector.stocks.length : null)
+        }];
+      }
+      try {
+        localStorage.setItem(PINNED_STOCKS_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save pinned sectors:', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleReorderPinnedSectors = useCallback((newItems) => {
+    savePinnedStockSectors(newItems);
+  }, [savePinnedStockSectors]);
+
+  const handleSelectPinnedSector = useCallback((sectorItem) => {
+    const sId = sectorItem.id;
+    if (viewMode === 'all_stocks') {
+      setSelectedSectorFilter(sId);
+      setCurrentPage(1);
+    } else {
+      setViewMode('sectors');
+      setExpandedSectorId(sId);
+      setTimeout(() => {
+        const el = document.getElementById(`sector-row-${sId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [viewMode]);
+
+  const pinnedSectorIds = useMemo(() => new Set(pinnedStockSectors.map(s => s.id || s.name)), [pinnedStockSectors]);
 
   // Search handlers with automatic view mode management
   const handleSearchChange = useCallback((query) => {
@@ -1182,6 +1258,17 @@ export default function SectorHeatmap() {
         </div>
       </div>
 
+      {/* ── PINNED SECTORS STRIP (DRAG TO PIN & REORDER) ── */}
+      <PinnedItemsStrip
+        items={pinnedStockSectors}
+        activeId={selectedSectorFilter !== 'all' ? selectedSectorFilter : expandedSectorId}
+        onSelect={handleSelectPinnedSector}
+        onUnpin={(id) => handleTogglePinSector({ id })}
+        onReorder={handleReorderPinnedSectors}
+        title="Pinned Sectors"
+        emptyMessage="Click the pin icon on any sector below to pin it here for 1-click quick access"
+      />
+
       {/* ── MACRO TREND ANALYSIS (HIDDEN PAGE LIKE FACTS & FIGURES IN MUTUAL FUNDS) ── */}
       {showMacroTrends && (
         <div className="bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl p-5 md:p-6 shadow-sm space-y-6 animate-in fade-in slide-in-from-top-3 duration-300">
@@ -1869,29 +1956,29 @@ export default function SectorHeatmap() {
           </div>
 
           {/* ── DESKTOP TABLE: As it was before for laptop or desktop ── */}
-          <div className="hidden sm:block overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto overflow-y-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-160px)] scrollbar-thin">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <th onClick={() => handleGlobalSort('globalRank')} className={`py-3 px-3 w-8 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'globalRank' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+              <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                  <th onClick={() => handleGlobalSort('globalRank')} className={`sticky top-0 left-0 z-40 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 w-8 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'globalRank' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-center gap-0.5">
                       <span>#</span>
                       {renderSortIndicator('globalRank')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('stock')} className={`py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'stock' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('stock')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] ${globalSortKey === 'stock' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center gap-1">
                       <span>Stock</span>
                       {renderSortIndicator('stock')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('sector')} className={`py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('sector')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center gap-1">
                       <span>Sector</span>
                       {renderSortIndicator('sector')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('revenue')} className={`py-2.5 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'revenue' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('revenue')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2.5 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'revenue' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <div>
                         <div>Revenue {region === 'global' ? '($B)' : '(₹ Cr)'}</div>
@@ -1902,13 +1989,13 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('revenue')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('marketCap')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'marketCap' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('marketCap')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'marketCap' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>Market Cap {region === 'global' ? '($B)' : '(₹ Cr)'}</span>
                       {renderSortIndicator('marketCap')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('52w')} className={`py-2.5 px-3 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === '52w' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('52w')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2.5 px-3 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === '52w' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-center gap-1">
                       <div>
                         <div className="font-bold text-slate-700 dark:text-slate-200">
@@ -1921,7 +2008,7 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('52w')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('price')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'price' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('price')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'price' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>Price {region === 'global' ? '($)' : '(₹)'}</span>
                       {renderSortIndicator('price')}
@@ -1929,7 +2016,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Performance Header with Subcolumns */}
-                  <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
+                  <th colSpan={7} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1 px-3 text-center border-l border-r">
                     <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 pb-1">
                       Performance (%)
                     </div>
@@ -1947,19 +2034,19 @@ export default function SectorHeatmap() {
                     </div>
                   </th>
 
-                  <th onClick={() => handleGlobalSort('pe')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'pe' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('pe')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'pe' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>P/E</span>
                       {renderSortIndicator('pe')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('eps')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'eps' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('eps')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'eps' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>EPS {region === 'global' ? '($)' : '(₹)'}</span>
                       {renderSortIndicator('eps')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('ebit')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'ebit' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('ebit')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'ebit' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>EBIT {region === 'global' ? '($B)' : '(₹ Cr)'}</span>
                       {renderSortIndicator('ebit')}
@@ -2083,17 +2170,17 @@ export default function SectorHeatmap() {
           </div>
 
           {/* ── MOBILE TABLE: Groww-style Compact Stocks Screener with Fixed First Column ── */}
-          <div className="sm:hidden overflow-x-auto">
+          <div className="sm:hidden overflow-x-auto overflow-y-auto max-h-[calc(100vh-160px)] scrollbar-thin">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead>
-                <tr className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
-                  {/* Stock - sticky left-0 on mobile */}
-                  <th className="py-1.5 px-1.5 text-left sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+              <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
+                  {/* Stock - sticky top-0 left-0 on mobile */}
+                  <th className="py-1.5 px-1.5 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                     Stock
                   </th>
 
                   {/* 52W H/L % - scrollable */}
-                  <th className="py-1.5 px-1.5 text-center border-r border-slate-200 dark:border-slate-800 min-w-[90px]">
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-1.5 text-center border-r min-w-[90px]">
                     <div className="font-bold text-slate-700 dark:text-slate-200 text-[9.5px]">
                       52W H/L %
                     </div>
@@ -2103,7 +2190,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Performance Header with Subcolumns */}
-                  <th colSpan={7} className="py-1 px-1 text-center border-r border-slate-200 dark:border-slate-800">
+                  <th colSpan={7} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1 px-1 text-center border-r">
                     <div className="text-[8.5px] font-bold text-slate-700 dark:text-slate-300 pb-0.5">
                       Performance (%)
                     </div>
@@ -2119,7 +2206,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Revenue */}
-                  <th className="py-1.5 px-2 text-right min-w-[85px]">
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-right min-w-[85px]">
                     <div className="text-[9px]">Revenue (₹ Cr)</div>
                     <div className="text-[7.5px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
                       Current Qtr YoY
@@ -2127,10 +2214,10 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* EBIT */}
-                  <th className="py-1.5 px-2 text-right text-[9px]">EBIT (₹ Cr)</th>
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-right text-[9px]">EBIT (₹ Cr)</th>
 
                   {/* Sector */}
-                  <th className="py-1.5 px-2 text-left text-[9px]">Sector</th>
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-left text-[9px]">Sector</th>
                 </tr>
               </thead>
 
@@ -2235,23 +2322,23 @@ export default function SectorHeatmap() {
         /* ══════════════════════════════════════════════════════════════ */
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
           {/* ── DESKTOP TABLE: As it was before for laptop or desktop ── */}
-          <div className="hidden sm:block overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto overflow-y-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-160px)] scrollbar-thin">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <th onClick={() => handleGlobalSort('globalRank')} className={`py-3 px-3 w-8 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'globalRank' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+              <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                  <th onClick={() => handleGlobalSort('globalRank')} className={`sticky top-0 left-0 z-40 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 w-8 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'globalRank' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-center gap-0.5">
                       <span>#</span>
                       {renderSortIndicator('globalRank')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('sector')} className={`py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('sector')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center gap-1">
                       <span>Sector</span>
                       {renderSortIndicator('sector')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('revenue')} className={`py-2.5 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'revenue' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('revenue')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2.5 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'revenue' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <div>
                         <div>Revenue {region === 'global' ? '($B)' : '(₹ Cr)'}</div>
@@ -2262,14 +2349,14 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('revenue')}
                     </div>
                   </th>
-                  <th className="py-3 px-3 text-center">Up / Down / Total</th>
-                  <th onClick={() => handleGlobalSort('marketCap')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'marketCap' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-center">Up / Down / Total</th>
+                  <th onClick={() => handleGlobalSort('marketCap')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'marketCap' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>Market Cap {region === 'global' ? '($B)' : '(₹ Cr)'}</span>
                       {renderSortIndicator('marketCap')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('52w')} className={`py-2.5 px-3 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === '52w' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('52w')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2.5 px-3 text-center cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === '52w' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-center gap-1">
                       <div>
                         <div className="font-bold text-slate-700 dark:text-slate-200">
@@ -2282,7 +2369,7 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('52w')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('price')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'price' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('price')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'price' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>Price {region === 'global' ? '($)' : '(₹)'}</span>
                       {renderSortIndicator('price')}
@@ -2290,7 +2377,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Performance Header with Subcolumns */}
-                  <th colSpan={7} className="py-1 px-3 text-center border-l border-r border-slate-200 dark:border-slate-800">
+                  <th colSpan={7} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1 px-3 text-center border-l border-r">
                     <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 pb-1">
                       Performance (%)
                     </div>
@@ -2308,19 +2395,19 @@ export default function SectorHeatmap() {
                     </div>
                   </th>
 
-                  <th onClick={() => handleGlobalSort('pe')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'pe' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('pe')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'pe' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>P/E</span>
                       {renderSortIndicator('pe')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('eps')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'eps' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('eps')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'eps' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>EPS {region === 'global' ? '($)' : '(₹)'}</span>
                       {renderSortIndicator('eps')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('ebit')} className={`py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'ebit' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('ebit')} className={`sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-3 text-right cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${globalSortKey === 'ebit' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center justify-end gap-1">
                       <span>EBIT {region === 'global' ? '($B)' : '(₹ Cr)'}</span>
                       {renderSortIndicator('ebit')}
@@ -2341,7 +2428,9 @@ export default function SectorHeatmap() {
                     return (
                       <React.Fragment key={sector.id}>
                         {/* Main Sector Row */}
-                        <tr className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
+                        <tr 
+                          id={`sector-row-${sector.id}`}
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group ${
                           isExpanded ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
                         }`}>
                           {/* # */}
@@ -2374,6 +2463,22 @@ export default function SectorHeatmap() {
                                 className="text-left font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight text-xs hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
                               >
                                 {sector.name}
+                              </button>
+                              {/* Pin Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePinSector(sector);
+                                }}
+                                className={`p-0.5 rounded transition-all cursor-pointer ${
+                                  pinnedSectorIds.has(sector.id || sector.name)
+                                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
+                                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                }`}
+                                title={pinnedSectorIds.has(sector.id || sector.name) ? 'Unpin sector' : 'Pin sector to quick access'}
+                              >
+                                <Pin size={11} className={pinnedSectorIds.has(sector.id || sector.name) ? 'fill-amber-400 text-amber-500' : ''} />
                               </button>
                             </div>
                           </td>
@@ -2605,17 +2710,17 @@ export default function SectorHeatmap() {
           </div>
 
           {/* ── MOBILE TABLE: Groww-style Compact Screener with Fixed First Column ── */}
-          <div className="sm:hidden overflow-x-auto">
+          <div className="sm:hidden overflow-x-auto overflow-y-auto max-h-[calc(100vh-160px)] scrollbar-thin">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead>
-                <tr className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
-                  {/* Sector - sticky left-0 on mobile (~30% width) */}
-                  <th className="py-1.5 px-1.5 text-left sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+              <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
+                  {/* Sector - sticky top-0 left-0 on mobile (~30% width) */}
+                  <th className="py-1.5 px-1.5 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                     Sector
                   </th>
 
                   {/* 52W H/L % - scrollable */}
-                  <th className="py-1.5 px-1.5 text-center border-r border-slate-200 dark:border-slate-800 min-w-[90px]">
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-1.5 text-center border-r min-w-[90px]">
                     <div className="font-bold text-slate-700 dark:text-slate-200 text-[9.5px]">
                       52W H/L %
                     </div>
@@ -2625,7 +2730,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Performance Header with Subcolumns */}
-                  <th colSpan={7} className="py-1 px-1 text-center border-r border-slate-200 dark:border-slate-800">
+                  <th colSpan={7} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1 px-1 text-center border-r">
                     <div className="text-[8.5px] font-bold text-slate-700 dark:text-slate-300 pb-0.5">
                       Performance (%)
                     </div>
@@ -2641,7 +2746,7 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* Revenue */}
-                  <th className="py-1.5 px-2 text-right min-w-[85px]">
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-right min-w-[85px]">
                     <div className="text-[9px]">Revenue (₹ Cr)</div>
                     <div className="text-[7.5px] font-medium text-slate-400 dark:text-slate-400 normal-case tracking-normal">
                       Current Qtr YoY
@@ -2649,10 +2754,10 @@ export default function SectorHeatmap() {
                   </th>
 
                   {/* EBIT */}
-                  <th className="py-1.5 px-2 text-right text-[9px]">EBIT (₹ Cr)</th>
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-right text-[9px]">EBIT (₹ Cr)</th>
 
                   {/* Up / Down / Total */}
-                  <th className="py-1.5 px-2 text-center text-[9px]">Up / Down / Total</th>
+                  <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-1.5 px-2 text-center text-[9px]">Up / Down / Total</th>
                 </tr>
               </thead>
 
@@ -2700,6 +2805,22 @@ export default function SectorHeatmap() {
                                 title={sector.name}
                               >
                                 {sector.name}
+                              </button>
+                              {/* Pin Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePinSector(sector);
+                                }}
+                                className={`p-0.5 rounded transition-all cursor-pointer shrink-0 ${
+                                  pinnedSectorIds.has(sector.id || sector.name)
+                                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
+                                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-500'
+                                }`}
+                                title={pinnedSectorIds.has(sector.id || sector.name) ? 'Unpin sector' : 'Pin sector to quick access'}
+                              >
+                                <Pin size={10} className={pinnedSectorIds.has(sector.id || sector.name) ? 'fill-amber-400 text-amber-500' : ''} />
                               </button>
                             </div>
 
