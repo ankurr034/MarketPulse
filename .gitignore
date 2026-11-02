@@ -33,3 +33,4 @@ yarn-error.log*
 !/backend/data/amfi_active_schemes.json
 .vite/
 *.vite
+scratch/
