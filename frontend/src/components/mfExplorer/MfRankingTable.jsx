@@ -6,6 +6,7 @@ import {
   Layers, PieChart, Sparkles, Target, Activity, TrendingUp, Award, Shield 
 } from 'lucide-react';
 import { getDisplayedMfRank } from '../../utils/rankMutualFunds';
+import { getSharpe as extractSharpe, getSortino as extractSortino } from '../../utils/financialCalculations';
 
 // Star Hover Tooltip Component with explicit hover state & non-clipping position
 function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortinoRange }) {
@@ -15,8 +16,8 @@ function StarHoverTooltip({ fund, isStarred, categorySharpeRange, categorySortin
 
   if (!showStar) return null;
 
-  const fSharpe = fund?.sharpeRatio ?? fund?.sharpeRatio3Y ?? fund?.riskRatios?.['3Y']?.sharpe ?? fund?.riskRatios?.['All']?.sharpe ?? fund?.riskRatios?.['1Y']?.sharpe ?? null;
-  const fSortino = fund?.sortinoRatio ?? fund?.sortinoRatio3Y ?? fund?.riskRatios?.['3Y']?.sortino ?? fund?.riskRatios?.['All']?.sortino ?? fund?.riskRatios?.['1Y']?.sortino ?? null;
+  const fSharpe = extractSharpe(fund);
+  const fSortino = extractSortino(fund);
 
   return (
     <div 
@@ -122,7 +123,7 @@ export default function MfRankingTable({
   funds = [],
   groupedCategories = null,
   activeMarketFilter = 'all',
-  isAllFundsMode = false,
+  isAllFundsMode = true,
   activeTimeframe = '1Y',
   rankMode = 'aum', // 'aum' | 'performance'
   onTimeframeChange,
@@ -131,6 +132,10 @@ export default function MfRankingTable({
   // Multi-column sorting state: array of up to 2 active sort criteria [{ field, order }]
   // sortCriteria[0] = Primary Sort Factor, sortCriteria[1] = Secondary Sort Factor
   const [sortCriteria, setSortCriteria] = useState([]);
+
+  // Canonical ratio extractors scoped to MfRankingTable and bound to activeTimeframe
+  const getSharpe = (f) => extractSharpe(f, activeTimeframe);
+  const getSortino = (f) => extractSortino(f, activeTimeframe);
 
   // Accordion collapsed states (Parent & Subcategory)
   // By default, parent categories are collapsed so only category rows are visible on initial mount
@@ -494,15 +499,11 @@ export default function MfRankingTable({
     }
 
     if (field === 'sharpeRatio') {
-      const raw = fund.sharpeRatios?.[activeTimeframe] ?? fund.riskRatios?.[activeTimeframe]?.sharpe ?? fund.sharpeRatio ?? fund.sharpeRatio3Y ?? fund.riskRatios?.['3Y']?.sharpe ?? fund.riskRatios?.['All']?.sharpe ?? fund.riskRatios?.['1Y']?.sharpe;
-      const val = raw != null ? Number(raw) : null;
-      return val != null && !isNaN(val) ? val : null;
+      return getSharpe(fund);
     }
 
     if (field === 'sortinoRatio') {
-      const raw = fund.sortinoRatios?.[activeTimeframe] ?? fund.riskRatios?.[activeTimeframe]?.sortino ?? fund.sortinoRatio ?? fund.sortinoRatio3Y ?? fund.riskRatios?.['3Y']?.sortino ?? fund.riskRatios?.['All']?.sortino ?? fund.riskRatios?.['1Y']?.sortino;
-      const val = raw != null ? Number(raw) : null;
-      return val != null && !isNaN(val) ? val : null;
+      return getSortino(fund);
     }
 
     if (field === 'name') {
@@ -604,12 +605,12 @@ export default function MfRankingTable({
 
   // Compute Sharpe/Sortino ranges for the current page in All Funds Mode (for star tooltips)
   const allFundsSharpeRange = useMemo(() => {
-    const vals = paginatedAllFunds.map(f => f.sharpeRatios?.[activeTimeframe] ?? f.riskRatios?.[activeTimeframe]?.sharpe ?? f.sharpeRatio ?? f.sharpeRatio3Y ?? f.riskRatios?.['3Y']?.sharpe ?? f.riskRatios?.['All']?.sharpe ?? f.riskRatios?.['1Y']?.sharpe).filter(v => v != null && !isNaN(v));
+    const vals = paginatedAllFunds.map(getSharpe).filter(v => v != null && !isNaN(v));
     return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
   }, [paginatedAllFunds, activeTimeframe]);
 
   const allFundsSortinoRange = useMemo(() => {
-    const vals = paginatedAllFunds.map(f => f.sortinoRatios?.[activeTimeframe] ?? f.riskRatios?.[activeTimeframe]?.sortino ?? f.sortinoRatio ?? f.sortinoRatio3Y ?? f.riskRatios?.['3Y']?.sortino ?? f.riskRatios?.['All']?.sortino ?? f.riskRatios?.['1Y']?.sortino).filter(v => v != null && !isNaN(v));
+    const vals = paginatedAllFunds.map(getSortino).filter(v => v != null && !isNaN(v));
     return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
   }, [paginatedAllFunds, activeTimeframe]);
 
@@ -667,9 +668,6 @@ export default function MfRankingTable({
       const num = Number(aumVal);
       return num > 0 ? num : null;
     };
-
-    const getSharpe = (f) => f.sharpeRatios?.[activeTimeframe] ?? f.riskRatios?.[activeTimeframe]?.sharpe ?? f.sharpeRatio ?? f.sharpeRatio3Y ?? f.riskRatios?.['3Y']?.sharpe ?? f.riskRatios?.['All']?.sharpe ?? f.riskRatios?.['1Y']?.sharpe ?? null;
-    const getSortino = (f) => f.sortinoRatios?.[activeTimeframe] ?? f.riskRatios?.[activeTimeframe]?.sortino ?? f.sortinoRatio ?? f.sortinoRatio3Y ?? f.riskRatios?.['3Y']?.sortino ?? f.riskRatios?.['All']?.sortino ?? f.riskRatios?.['1Y']?.sortino ?? null;
 
     // Separate starred funds (pre-computed by calculateFundRankings) from non-starred
     // Strictly enforce at most 3 starred funds per subcategory
@@ -797,8 +795,8 @@ export default function MfRankingTable({
         </td>
 
         {/* Risk Ratios */}
-        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right whitespace-nowrap">{formatRatio(fund.sharpeRatios?.[activeTimeframe] ?? fund.riskRatios?.[activeTimeframe]?.sharpe ?? fund.sharpeRatio ?? fund.sharpeRatio3Y ?? fund.riskRatios?.['3Y']?.sharpe ?? fund.riskRatios?.['All']?.sharpe ?? fund.riskRatios?.['1Y']?.sharpe)}</td>
-        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right whitespace-nowrap">{formatRatio(fund.sortinoRatios?.[activeTimeframe] ?? fund.riskRatios?.[activeTimeframe]?.sortino ?? fund.sortinoRatio ?? fund.sortinoRatio3Y ?? fund.riskRatios?.['3Y']?.sortino ?? fund.riskRatios?.['All']?.sortino ?? fund.riskRatios?.['1Y']?.sortino)}</td>
+        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right whitespace-nowrap">{formatRatio(getSharpe(fund))}</td>
+        <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-right whitespace-nowrap">{formatRatio(getSortino(fund))}</td>
 
         {/* Sparkline Trend */}
         <td className="py-1.5 md:py-2.5 px-1.5 md:px-2 text-center w-20 md:w-24">

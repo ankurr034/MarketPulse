@@ -162,10 +162,11 @@ export const TradingViewChart = ({
   assetType = 'stock', // 'stock' | 'mf'
   region = 'india',
   socket = null,
-  height = 380,
+  height = 460,
   initialInterval = '1y',
   className = '',
-  previousClose = null
+  previousClose = null,
+  hideHeaderTitle = false
 }) => {
   // Infer assetType if schemeCode or fund is provided
   const effectiveType = (schemeCode || fund) ? 'mf' : assetType;
@@ -1317,181 +1318,323 @@ export const TradingViewChart = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-2.5 sm:p-4 md:p-5 text-slate-900 dark:text-slate-100 select-none ${className}`}>
+    <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm ${hideHeaderTitle ? 'p-2 sm:p-3 md:p-3.5' : 'p-2.5 sm:p-4 md:p-5'} text-slate-900 dark:text-slate-100 select-none ${className}`}>
       {/* Chart Header Bar: Asset Info, Stock toggles, Trendline Toolbar */}
-      <div className="flex flex-col gap-2 sm:gap-3 pb-2 sm:pb-3 mb-2 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-          {/* Asset Title / Badge */}
-          <div className="flex items-center gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display font-bold text-sm sm:text-base md:text-lg text-slate-900 dark:text-white">
-                  {fund?.name || symbol}
-                </span>
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                  {effectiveType === 'mf' ? (fund?.category || 'MUTUAL FUND') : 'STOCK'}
-                </span>
-              </div>
-              <p className="text-xs text-[#64748b] dark:text-slate-400 font-medium mt-0.5">
-                {isDrawing ? (
-                  <span className="text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
-                    {drawingStart ? '● Click second point to anchor trendline' : '● Click first point to start trendline (magnet snap active)'}
+      {!hideHeaderTitle ? (
+        <div className="flex flex-col gap-2 sm:gap-3 pb-2 sm:pb-3 mb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            {/* Asset Title / Badge */}
+            <div className="flex items-center gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-display font-bold text-sm sm:text-base md:text-lg text-slate-900 dark:text-white">
+                    {fund?.name || symbol}
                   </span>
-                ) : isSipMode ? (
-                  'Systematic Investment Plan (SIP) Simulation'
-                ) : (
-                  `${effectiveType === 'mf' ? 'Historical NAV Performance' : 'Price Action & Returns'}`
-                )}
-              </p>
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                    {effectiveType === 'mf' ? (fund?.category || 'MUTUAL FUND') : 'STOCK'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#64748b] dark:text-slate-400 font-medium mt-0.5">
+                  {isDrawing ? (
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
+                      {drawingStart ? '● Click second point to anchor trendline' : '● Click first point to start trendline (magnet snap active)'}
+                    </span>
+                  ) : isSipMode ? (
+                    'Systematic Investment Plan (SIP) Simulation'
+                  ) : (
+                    `${effectiveType === 'mf' ? 'Historical NAV Performance' : 'Price Action & Returns'}`
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Right Toolbar: Stock Specific Toggles & Trendline Buttons */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Stock specific toggles: Candles vs Area */}
+              {effectiveType === 'stock' && !isSipMode && (
+                <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                  <button
+                    onClick={() => setChartType('area')}
+                    className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
+                      chartType === 'area' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Area
+                  </button>
+                  <button
+                    onClick={() => setChartType('candle')}
+                    className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
+                      chartType === 'candle' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Candles
+                  </button>
+                </div>
+              )}
+
+              {/* Trendline Tool Strip */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleToggleDrawTrendline}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    isDrawing
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-400 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400/20'
+                      : trendline
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`}
+                  title="Double click anywhere or tap here to draw trendline"
+                >
+                  <Pencil size={14} />
+                </button>
+
+                <button
+                  onClick={handleClearTrendline}
+                  className={`p-1.5 rounded-lg border transition-colors ${
+                    trendline
+                      ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer'
+                      : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                  disabled={!trendline}
+                  title="Clear trendline"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Right Toolbar: Stock Specific Toggles & Trendline Buttons */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Stock specific toggles: Candles vs Area */}
-            {effectiveType === 'stock' && !isSipMode && (
-              <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
-                <button
-                  onClick={() => setChartType('area')}
-                  className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
-                    chartType === 'area' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Area
-                </button>
-                <button
-                  onClick={() => setChartType('candle')}
-                  className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
-                    chartType === 'candle' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Candles
-                </button>
+          {/* Dynamic Asset Statistics: Value, Percentage Change, High, Low, Returns */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 pt-1.5 sm:pt-2">
+            {/* Left: Value & Change Badge */}
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-xl sm:text-2xl md:text-3xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">
+                {activePrice > 0 ? activePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+              </span>
+
+              {((!isSipMode && (selectionData || hoveredPeriod || startPrice > 0)) || (isSipMode && sipResult)) && (
+                <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
+                  activeChange >= 0
+                    ? 'text-[#16B85A] bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800'
+                    : 'text-[#eb5b3c] bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-800'
+                }`}>
+                  <span>{activeChange >= 0 ? '▲ +' : '▼ '}{Math.abs(activeChange).toFixed(2)}</span>
+                  <span>({activeChange >= 0 ? '+' : ''}{activeChangePct.toFixed(2)}%)</span>
+                </span>
+              )}
+
+              <span className="text-[11px] sm:text-xs text-[#64748b] dark:text-slate-400 font-medium ml-1">
+                {activeDate}
+              </span>
+            </div>
+
+            {/* Right Stats: Stats bar in SIP or Standard mode */}
+            {isSipMode ? (
+              /* SIP Mode Stats: Investment | Value | Returns | NAV */
+              <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Investment: </span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                    {hoveredSipPoint 
+                      ? hoveredSipPoint.invested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : (sipResult ? sipResult.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
+                  </span>
+                </div>
+                <span className="text-slate-300 dark:text-slate-700">|</span>
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Value: </span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                    {hoveredSipPoint 
+                      ? hoveredSipPoint.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : (sipResult ? sipResult.currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
+                  </span>
+                </div>
+                <span className="text-slate-300 dark:text-slate-700">|</span>
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Returns: </span>
+                  <span className={`font-bold ${(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                    {(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? '▲ +' : '▼ '}
+                    {hoveredSipPoint 
+                      ? (hoveredSipPoint.invested > 0 ? Math.abs(((hoveredSipPoint.value - hoveredSipPoint.invested) / hoveredSipPoint.invested) * 100).toFixed(2) : '0.00')
+                      : (sipResult ? Math.abs(sipResult.returnPct).toFixed(2) : '0.00')}%
+                  </span>
+                </div>
+                <span className="text-slate-300 dark:text-slate-700">|</span>
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium">{effectiveType === 'mf' ? 'NAV: ' : 'Price: '}</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                    {hoveredSipPoint?.nav 
+                      ? hoveredSipPoint.nav.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : (latestNav ? latestNav.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* Standard Mode Stats: High | Low | Returns (matching uploaded screenshot) */
+              <div className="flex items-center gap-2.5 sm:gap-6 text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">High</span>
+                  <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
+                    {periodHigh > 0 ? periodHigh.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">Low</span>
+                  <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
+                    {periodLow > 0 ? periodLow.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">Returns</span>
+                  <span className={`font-bold text-xs sm:text-sm ${periodChange >= 0 ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                    {periodChange >= 0 ? '▲ +' : '▼ '}{Math.abs(periodChangePct).toFixed(2)}%
+                  </span>
+                </div>
               </div>
             )}
-
-            {/* Trendline Tool Strip */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleToggleDrawTrendline}
-                className={`p-1.5 rounded-lg border transition-all ${
-                  isDrawing
-                    ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-400 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400/20'
-                    : trendline
-                    ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700'
-                }`}
-                title="Double click anywhere or tap here to draw trendline"
-              >
-                <Pencil size={14} />
-              </button>
-
-              <button
-                onClick={handleClearTrendline}
-                className={`p-1.5 rounded-lg border transition-colors ${
-                  trendline
-                    ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer'
-                    : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                }`}
-                disabled={!trendline}
-                title="Clear trendline"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
           </div>
         </div>
-
-        {/* Dynamic Asset Statistics: Value, Percentage Change, High, Low, Returns */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 pt-1.5 sm:pt-2">
-          {/* Left: Value & Change Badge */}
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-xl sm:text-2xl md:text-3xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">
-              {activePrice > 0 ? activePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-            </span>
-
-            {((!isSipMode && (selectionData || hoveredPeriod || startPrice > 0)) || (isSipMode && sipResult)) && (
-              <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
-                activeChange >= 0
-                  ? 'text-[#16B85A] bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800'
-                  : 'text-[#eb5b3c] bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-800'
-              }`}>
-                <span>{activeChange >= 0 ? '▲ +' : '▼ '}{Math.abs(activeChange).toFixed(2)}</span>
-                <span>({activeChange >= 0 ? '+' : ''}{activeChangePct.toFixed(2)}%)</span>
-              </span>
-            )}
-
-            <span className="text-[11px] sm:text-xs text-[#64748b] dark:text-slate-400 font-medium ml-1">
-              {activeDate}
-            </span>
-          </div>
-
-          {/* Right Stats: Stats bar in SIP or Standard mode */}
-          {isSipMode ? (
-            /* SIP Mode Stats: Investment | Value | Returns | NAV */
-            <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Investment: </span>
-                <span className="text-slate-800 dark:text-slate-200 font-semibold">
-                  {hoveredSipPoint 
-                    ? hoveredSipPoint.invested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : (sipResult ? sipResult.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
-                </span>
-              </div>
-              <span className="text-slate-300 dark:text-slate-700">|</span>
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Value: </span>
-                <span className="text-slate-800 dark:text-slate-200 font-semibold">
-                  {hoveredSipPoint 
-                    ? hoveredSipPoint.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : (sipResult ? sipResult.currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
-                </span>
-              </div>
-              <span className="text-slate-300 dark:text-slate-700">|</span>
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Returns: </span>
-                <span className={`font-bold ${(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
-                  {(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? '▲ +' : '▼ '}
-                  {hoveredSipPoint 
-                    ? (hoveredSipPoint.invested > 0 ? Math.abs(((hoveredSipPoint.value - hoveredSipPoint.invested) / hoveredSipPoint.invested) * 100).toFixed(2) : '0.00')
-                    : (sipResult ? Math.abs(sipResult.returnPct).toFixed(2) : '0.00')}%
-                </span>
-              </div>
-              <span className="text-slate-300 dark:text-slate-700">|</span>
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium">{effectiveType === 'mf' ? 'NAV: ' : 'Price: '}</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                  {hoveredSipPoint?.nav 
-                    ? hoveredSipPoint.nav.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : (latestNav ? latestNav.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
-                </span>
-              </div>
-            </div>
-          ) : (
-            /* Standard Mode Stats: High | Low | Returns (matching uploaded screenshot) */
-            <div className="flex items-center gap-2.5 sm:gap-6 text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">High</span>
-                <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
-                  {periodHigh > 0 ? periodHigh.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                </span>
-              </div>
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">Low</span>
-                <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
-                  {periodLow > 0 ? periodLow.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                </span>
-              </div>
-              <div>
-                <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] sm:text-[10px] uppercase font-sans">Returns</span>
-                <span className={`font-bold text-xs sm:text-sm ${periodChange >= 0 ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
-                  {periodChange >= 0 ? '▲ +' : '▼ '}{Math.abs(periodChangePct).toFixed(2)}%
-                </span>
-              </div>
+      ) : (
+        /* Compact Header when hideHeaderTitle is TRUE (integrated single row, no duplicate title) */
+        <div className="flex flex-col gap-1.5 pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+          {isDrawing && (
+            <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold animate-pulse pb-1">
+              {drawingStart ? '● Click second point to anchor trendline' : '● Click first point to start trendline (magnet snap active)'}
             </div>
           )}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+            {/* Left: Value & Change Badge */}
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-xl sm:text-2xl md:text-3xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">
+                {activePrice > 0 ? activePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+              </span>
+
+              {((!isSipMode && (selectionData || hoveredPeriod || startPrice > 0)) || (isSipMode && sipResult)) && (
+                <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
+                  activeChange >= 0
+                    ? 'text-[#16B85A] bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800'
+                    : 'text-[#eb5b3c] bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-800'
+                }`}>
+                  <span>{activeChange >= 0 ? '▲ +' : '▼ '}{Math.abs(activeChange).toFixed(2)}</span>
+                  <span>({activeChange >= 0 ? '+' : ''}{activeChangePct.toFixed(2)}%)</span>
+                </span>
+              )}
+
+              <span className="text-[11px] sm:text-xs text-[#64748b] dark:text-slate-400 font-medium ml-1">
+                {activeDate}
+              </span>
+            </div>
+
+            {/* Right: Stats & Toolbars */}
+            <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap ml-auto">
+              {isSipMode ? (
+                <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Inv: </span>
+                    <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                      {hoveredSipPoint 
+                        ? hoveredSipPoint.invested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : (sipResult ? sipResult.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
+                    </span>
+                  </div>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Val: </span>
+                    <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                      {hoveredSipPoint 
+                        ? hoveredSipPoint.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : (sipResult ? sipResult.currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')}
+                    </span>
+                  </div>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium">Ret: </span>
+                    <span className={`font-bold ${(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                      {(hoveredSipPoint ? hoveredSipPoint.value >= hoveredSipPoint.invested : sipResult?.isGain) ? '▲ +' : '▼ '}
+                      {hoveredSipPoint 
+                        ? (hoveredSipPoint.invested > 0 ? Math.abs(((hoveredSipPoint.value - hoveredSipPoint.invested) / hoveredSipPoint.invested) * 100).toFixed(2) : '0.00')
+                        : (sipResult ? Math.abs(sipResult.returnPct).toFixed(2) : '0.00')}%
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5 sm:gap-4 text-xs font-mono text-[#64748b] dark:text-slate-400 flex-wrap">
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] uppercase font-sans">High</span>
+                    <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
+                      {periodHigh > 0 ? periodHigh.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] uppercase font-sans">Low</span>
+                    <span className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
+                      {periodLow > 0 ? periodLow.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#94a3b8] dark:text-slate-500 font-medium block text-[9px] uppercase font-sans">Returns</span>
+                    <span className={`font-bold text-xs sm:text-sm ${periodChange >= 0 ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                      {periodChange >= 0 ? '▲ +' : '▼ '}{Math.abs(periodChangePct).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Stock specific toggles: Candles vs Area */}
+              {effectiveType === 'stock' && !isSipMode && (
+                <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                  <button
+                    onClick={() => setChartType('area')}
+                    className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
+                      chartType === 'area' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Area
+                  </button>
+                  <button
+                    onClick={() => setChartType('candle')}
+                    className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-colors ${
+                      chartType === 'candle' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Candles
+                  </button>
+                </div>
+              )}
+
+              {/* Trendline Tool Strip */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleToggleDrawTrendline}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    isDrawing
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-400 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400/20'
+                      : trendline
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`}
+                  title="Double click anywhere or tap here to draw trendline"
+                >
+                  <Pencil size={14} />
+                </button>
+
+                <button
+                  onClick={handleClearTrendline}
+                  className={`p-1.5 rounded-lg border transition-colors ${
+                    trendline
+                      ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer'
+                      : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                  disabled={!trendline}
+                  title="Clear trendline"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SIP Mode Interactive Controller */}
       {isSipMode && (

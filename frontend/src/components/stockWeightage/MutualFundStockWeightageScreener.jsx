@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, ChevronRight, PieChart as PieChartIcon, 
@@ -18,6 +19,14 @@ import BrandLogo from './BrandLogo';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default function MutualFundStockWeightageScreener() {
+  const navigate = useNavigate();
+
+  const handleOpenFundPage = (schemeCode) => {
+    if (schemeCode) {
+      navigate(`/mutual-funds?schemeCode=${encodeURIComponent(schemeCode)}`);
+    }
+  };
+
   // Navigation tabs: 'most_held', 'sector_view'
   const [activeTab, setActiveTab] = useState('most_held');
 
@@ -340,8 +349,7 @@ export default function MutualFundStockWeightageScreener() {
                     stockSymbol={selectedStockSymbol}
                     onClose={() => setSelectedStockSymbol(null)}
                     onSelectFund={(schemeCode) => {
-                      setSelectedSchemeCode(schemeCode);
-                      setActiveFundModalCode(schemeCode);
+                      handleOpenFundPage(schemeCode);
                     }}
                     onViewAllFunds={(sym) => setActiveStockAllFundsSym(sym)}
                   />
@@ -506,7 +514,7 @@ export default function MutualFundStockWeightageScreener() {
                   fund={selectedFundData}
                   loading={selectedFundLoading}
                   onSelectStock={handleSelectStock}
-                  onViewAllHoldings={() => setActiveFundModalCode(selectedSchemeCode)}
+                  onViewAllHoldings={() => handleOpenFundPage(selectedSchemeCode)}
                 />
               </div>
 
@@ -526,8 +534,7 @@ export default function MutualFundStockWeightageScreener() {
           onClose={() => setActiveStockAllFundsSym(null)}
           onSelectFund={(code) => {
             setActiveStockAllFundsSym(null);
-            setSelectedSchemeCode(code);
-            setActiveFundModalCode(code);
+            handleOpenFundPage(code);
           }}
         />
       )}
@@ -539,7 +546,8 @@ export default function MutualFundStockWeightageScreener() {
           onClose={() => setActiveFundModalCode(null)}
           onSelectStock={(sym) => {
             setActiveFundModalCode(null);
-            handleSelectStock(sym);
+            const formatted = String(sym).endsWith('.NS') ? sym : `${sym}.NS`;
+            navigate(`/stocks?symbol=${encodeURIComponent(formatted)}`);
           }}
         />
       )}

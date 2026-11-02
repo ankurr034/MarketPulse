@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   X, Search, Plus, Check, ChevronLeft, ChevronRight,
@@ -11,6 +12,7 @@ import {
 } from 'recharts';
 import BrandLogo from './BrandLogo';
 import TradingViewChart from '../TradingViewChart';
+import { setActiveSymbol } from '../../store/slices/marketSlice';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -22,6 +24,8 @@ export default function StockDetailPanel({
   onSelectFund = () => {},
   onViewAllFunds = () => {}
 }) {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const reduxTheme = useSelector(state => state.market?.theme);
   const isDark = reduxTheme ? reduxTheme === 'dark' : (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
   const propSymbol = stockSymbol || symbol || selectedStock;
@@ -214,6 +218,17 @@ export default function StockDetailPanel({
         {/* Right Actions & Price */}
         <div className="flex items-center sm:flex-col justify-between sm:items-end gap-1.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
           <div className="flex items-center gap-1 sm:gap-1.5 order-2 sm:order-1">
+            <button
+              onClick={() => {
+                const sym = detail.symbol.endsWith('.NS') ? detail.symbol : `${detail.symbol}.NS`;
+                dispatch(setActiveSymbol(sym));
+                navigate(`/stocks?symbol=${encodeURIComponent(sym)}`);
+              }}
+              className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-all cursor-pointer"
+              title="Open full dedicated stock chart & metrics page"
+            >
+              <span>Full Stock Page ↗</span>
+            </button>
             <button
               onClick={() => setIsWatchlisted(!isWatchlisted)}
               className={`flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border transition-all cursor-pointer ${

@@ -6,7 +6,7 @@ export default function MarketFilterStrip({
   onSelectFilter, 
   rankMode = 'aum', 
   onRankModeChange = null,
-  isAllFundsMode = false 
+  isAllFundsMode = true 
 }) {
   return (
     <div className="w-full bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800/80 px-1.5 sm:px-4 py-1.5 sm:py-2.5 flex items-center gap-1.5 sm:gap-2 shadow-2xs overflow-x-auto no-scrollbar scrollbar-none flex-nowrap">

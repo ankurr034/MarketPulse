@@ -1,16 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, ArrowUpRight, ArrowDownRight, Activity, BarChart2, AlertTriangle } from 'lucide-react';
 import { TradingViewChart } from '../components/TradingViewChart.jsx';
-import { navigateBack } from '../store/slices/marketSlice.js';
+import { navigateBack, setActiveSymbol } from '../store/slices/marketSlice.js';
 import { formatPrice, formatMarketCap } from '../utils/currencyFormatter';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export const StockDetails = ({ socket }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { symbol: routeSymbol } = useParams();
   const { activeSymbol } = useSelector(state => state.market);
+
+  const querySymbol = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('symbol') || routeSymbol;
+  }, [location.search, routeSymbol]);
+
+  useEffect(() => {
+    if (querySymbol && querySymbol !== activeSymbol) {
+      dispatch(setActiveSymbol(querySymbol));
+    }
+  }, [querySymbol, activeSymbol, dispatch]);
+
+  const handleBack = () => {
+    dispatch(navigateBack());
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/stocks');
+    }
+  };
   
   // Market context
   const stocks = useSelector(state => state.market.stocks);
@@ -86,7 +110,7 @@ export const StockDetails = ({ socket }) => {
       <div className="glass-card p-12 text-center view-transition">
         <Activity size={40} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
         <h3 className="font-display font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>Stock not found</h3>
-        <button onClick={() => dispatch(navigateBack())} className="mt-3 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+        <button onClick={handleBack} className="mt-3 text-sm font-medium cursor-pointer" style={{ color: 'var(--accent)' }}>
           ← Go back
         </button>
       </div>
@@ -124,8 +148,8 @@ export const StockDetails = ({ socket }) => {
       {/* Top Bar with Market Context */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <button
-          onClick={() => dispatch(navigateBack())}
-          className="flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 w-fit"
+          onClick={handleBack}
+          className="flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 w-fit cursor-pointer"
           style={{ color: 'var(--accent)' }}
         >
           <ArrowLeft size={14} /> Back
@@ -195,7 +219,7 @@ export const StockDetails = ({ socket }) => {
 
       {/* Chart Area */}
       <div className="overflow-hidden rounded-2xl shadow-sm">
-        <TradingViewChart symbol={activeSymbol} socket={socket} assetType="stock" previousClose={stockMeta?.previousClose} />
+        <TradingViewChart symbol={activeSymbol} socket={socket} assetType="stock" height={480} previousClose={stockMeta?.previousClose} hideHeaderTitle={true} />
       </div>
 
       {/* Key Statistics */}

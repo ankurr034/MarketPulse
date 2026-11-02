@@ -221,7 +221,15 @@ export default function StockAllFundsModal({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {paged.map((f, i) => (
-                  <tr key={f.schemeCode || i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <tr 
+                    key={f.schemeCode || i} 
+                    onClick={() => {
+                      onClose();
+                      onSelectFund(f.schemeCode);
+                    }}
+                    className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+                    title={`Open ${f.schemeName} fund details page`}
+                  >
                     <td className="py-2.5 px-3 text-center text-slate-500 font-semibold">
                       {(page - 1) * pageSize + i + 1}
                     </td>

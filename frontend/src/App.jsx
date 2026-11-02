@@ -280,13 +280,18 @@ function App() {
   // Synchronize route URL to Redux state on direct URL loads or browser back/forward navigation
   useEffect(() => {
     const path = location.pathname;
-    if (path === '/stocks') {
+    if (path === '/stocks' || path.startsWith('/stocks/')) {
+      const urlParams = new URLSearchParams(location.search);
+      const symbolParam = urlParams.get('symbol') || (path.startsWith('/stocks/') ? decodeURIComponent(path.slice(8)) : null);
+      if (symbolParam) {
+        dispatch(setActiveSymbol(decodeURIComponent(symbolParam)));
+        dispatch(setActiveView('stock-detail'));
+      } else if (activeView !== 'stock-detail' && activeView !== 'sector-detail') {
+        dispatch(setActiveView('heatmap'));
+      }
       dispatch(setRegion('india'));
       dispatch(setAssetClass('stocks'));
       dispatch(setHowToUseOpen(false));
-      if (activeView !== 'stock-detail' && activeView !== 'sector-detail') {
-        dispatch(setActiveView('heatmap'));
-      }
     } else if (path === '/mutual-funds' || path === '/mutual-funds/registered-amcs') {
       dispatch(setAssetClass('indian-mf'));
       dispatch(setActiveView('indian-mf'));
@@ -321,13 +326,17 @@ function App() {
   }, [location.pathname, dispatch]);
 
   const renderStocksView = () => {
-    if (activeView === 'stock-detail') return <StockDetails socket={null} />;
+    const urlParams = new URLSearchParams(location.search);
+    const symbolParam = urlParams.get('symbol');
+    if (symbolParam || activeView === 'stock-detail') return <StockDetails socket={null} />;
     if (activeView === 'sector-detail') return <SectorDetail />;
     return <SectorHeatmap />;
   };
 
   const renderGlobalStocksView = () => {
-    if (activeView === 'stock-detail') return <StockDetails socket={null} />;
+    const urlParams = new URLSearchParams(location.search);
+    const symbolParam = urlParams.get('symbol');
+    if (symbolParam || activeView === 'stock-detail') return <StockDetails socket={null} />;
     if (activeView === 'sector-detail') return <SectorDetail />;
     return <SectorHeatmap />;
   };
@@ -342,7 +351,7 @@ function App() {
         {location.pathname !== '/' && location.pathname !== '/how-to-use' && location.pathname !== '/disclaimer' && location.pathname !== '/documentation' && location.pathname !== '/terms-of-use' && location.pathname !== '/terms' && <MarketIndicesTicker />}
 
         {/* Main content area */}
-        <main className="flex-1 max-w-[1600px] w-full mx-auto px-1 sm:px-4 md:px-6 py-2 sm:py-5">
+        <main className="flex-1 max-w-[1720px] w-full mx-auto px-1 sm:px-4 md:px-6 py-2 sm:py-5">
           <div className="flex flex-col lg:flex-row gap-5">
             {/* Primary content */}
             <div className="flex-1 min-w-0">
@@ -350,10 +359,12 @@ function App() {
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/stocks" element={renderStocksView()} />
+                  <Route path="/stocks/:symbol" element={renderStocksView()} />
                   <Route path="/mutual-funds" element={<IndianMfSectorAnalysis />} />
                   <Route path="/mutual-funds/registered-amcs" element={<RegisteredAmcsFactsPage />} />
                   <Route path="/analytics" element={<MfAnalyticsDashboard />} />
                   <Route path="/global-stocks" element={renderGlobalStocksView()} />
+                  <Route path="/global-stocks/:symbol" element={renderGlobalStocksView()} />
                   <Route path="/how-to-use" element={<LandingPage />} />
                   <Route path="/disclaimer" element={<DisclaimerPage />} />
                   <Route path="/documentation" element={<DocumentationPage />} />

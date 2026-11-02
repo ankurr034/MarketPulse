@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { 
   Search, Info, RefreshCcw, ChevronDown, ChevronRight, Activity, 
   TrendingUp, BarChart2, BarChart3, Briefcase, Percent, Award, ShieldAlert, 
   Sparkles, Calendar, HelpCircle, Flame, Plus, CheckCircle2, PieChart as PieChartIcon, X, Pin,
-  Filter, Layers, Bookmark, BookmarkCheck, RotateCcw, Trash2, Maximize2, ArrowRight, ShieldCheck, Crosshair, Pencil, Check, Building2
+  Filter, Layers, Bookmark, BookmarkCheck, RotateCcw, Trash2, Maximize2, ArrowRight, ArrowLeft, ShieldCheck, Crosshair, Pencil, Check, Building2
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Customized, ReferenceLine } from 'recharts';
 import { useWorkbench } from '../context/WorkbenchContext';
@@ -16,7 +17,9 @@ import MfCategorySidebar from '../components/mfExplorer/MfCategorySidebar';
 import MfRankingTable from '../components/mfExplorer/MfRankingTable';
 import MfMarketOverview from '../components/mfExplorer/MfMarketOverview';
 import TradingViewChart from '../components/TradingViewChart.jsx';
+import { setActiveSymbol } from '../store/slices/marketSlice';
 import { calculateFundRankings } from '../utils/rankMutualFunds';
+import { getSharpe, getSortino } from '../utils/financialCalculations';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -147,13 +150,8 @@ const FundRankingRow = ({ fund, rank, activeTimeframe, sortBy, onOpenRatioGuide 
   const ret = Number(fund?.returns?.[activeTimeframe] ?? 0);
   const isPositive = ret >= 0;
 
-  const currentSharpe = typeof fund?.sharpeRatios?.[activeTimeframe] === 'number'
-    ? fund.sharpeRatios[activeTimeframe]
-    : (fund?.sharpeRatio ?? fund?.sharpeRatio3Y ?? fund?.riskRatios?.['3Y']?.sharpe ?? fund?.riskRatios?.['All']?.sharpe ?? fund?.riskRatios?.['1Y']?.sharpe ?? null);
-
-  const currentSortino = typeof fund?.sortinoRatios?.[activeTimeframe] === 'number'
-    ? fund.sortinoRatios[activeTimeframe]
-    : (fund?.sortinoRatio ?? fund?.sortinoRatio3Y ?? fund?.riskRatios?.['3Y']?.sortino ?? fund?.riskRatios?.['All']?.sortino ?? fund?.riskRatios?.['1Y']?.sortino ?? null);
+  const currentSharpe = getSharpe(fund, activeTimeframe);
+  const currentSortino = getSortino(fund, activeTimeframe);
 
   const navValue = Number(fund?.nav ?? fund?.currentPrice_or_nav);
   const aumValue = Number(fund?.aumCr ?? fund?.aum);
@@ -419,7 +417,9 @@ const TrendlineBridge = ({ formattedGraphicalItems, offset, yAxisMap, onUpdate }
 };
 
 /* Interactive Fund Detail Modal Component Matching Reference UI */
-const FundDetailModal = ({ fund: propFund, onClose }) => {
+const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const fund = useMemo(() => {
     if (!propFund) return null;
     if (typeof propFund === 'object') return propFund;
@@ -931,13 +931,26 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
   }, [navChartData]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl max-w-5xl w-full max-h-[94vh] md:max-h-[92vh] overflow-y-auto shadow-2xl p-3 sm:p-5 md:p-7 relative text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800">
+    <div className={isFullPage ? "w-full animate-in fade-in duration-200" : "fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"}>
+      <div className={isFullPage ? "bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl w-full shadow-md p-2.5 sm:p-3.5 md:p-4 relative text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800" : "bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl max-w-5xl w-full max-h-[94vh] md:max-h-[92vh] overflow-y-auto shadow-2xl p-3 sm:p-5 md:p-7 relative text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800"}>
         
+        {/* Full-Page Back Navigation */}
+        {isFullPage && (
+          <div className="mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-2xs border border-slate-200 dark:border-slate-700"
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Mutual Funds Explorer</span>
+            </button>
+          </div>
+        )}
+
         {/* Modal Header Matching Reference UI - Compact & Readable on Smartphone */}
-        <div className="flex items-start justify-between gap-2.5 sm:gap-4 mb-3 md:mb-4">
+        <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 md:mb-2.5">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap mb-1.5 md:mb-2">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap mb-1">
               <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100/60 dark:border-indigo-800 px-2 md:px-3 py-0.5 rounded-full">
                 {fund.category || detail?.category || 'FLEXI CAP EQUITY'}
               </span>
@@ -960,7 +973,7 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
           <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
             <button
               onClick={handleToggleWatchlist}
-              className={`border px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1 md:gap-1.5 shadow-2xs transition-all ${
+              className={`border px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1 md:gap-1.5 shadow-2xs transition-all cursor-pointer ${
                 isWatchlisted
                   ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
                   : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -972,7 +985,7 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 md:p-2 rounded-lg md:rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100/70 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="p-1.5 md:p-2 rounded-lg md:rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100/70 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               title="Close modal"
             >
               <X size={16} className="md:w-[18px] md:h-[18px]" />
@@ -980,8 +993,8 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
           </div>
         </div>
 
-        {/* Historical NAV Performance & Movement */}
-        <div className="mb-4 md:mb-5">
+        {/* Historical NAV Performance & Movement (Mobile View) */}
+        <div className="mb-4 md:hidden">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5 md:mb-3">
             <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-slate-200/80 dark:border-slate-700 gap-0.5">
               <button
@@ -1008,7 +1021,7 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
           </div>
 
           {chartSubView === 'area' ? (
-            <TradingViewChart schemeCode={schemeId} fund={fund} assetType="mf" height={isMobileScreen ? 240 : 360} />
+            <TradingViewChart schemeCode={schemeId} fund={fund} assetType="mf" height={isMobileScreen ? 240 : 360} hideHeaderTitle={true} />
           ) : (
             <div className="bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-sm text-slate-900 dark:text-slate-100">
               <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">Monthly Historical Return Breakdown</h3>
@@ -1329,7 +1342,15 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
                             const initialChar = displayTicker.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || 'S';
 
                             return (
-                              <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50 transition-colors">
+                              <tr
+                                key={idx}
+                                onClick={() => {
+                                  dispatch(setActiveSymbol(displayTicker));
+                                  navigate(`/stocks?symbol=${encodeURIComponent(displayTicker)}`);
+                                }}
+                                className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
+                                title={`Open ${displayTicker} stock details page`}
+                              >
                                 <td className="py-1.5 px-1.5 text-center align-middle font-semibold text-[10px] text-slate-500 dark:text-slate-400">
                                   {idx + 1}
                                 </td>
@@ -1386,8 +1407,12 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
 
         {/* Desktop / Laptop View: Pre-existing Structure 100% Intact */}
         <div className="hidden md:block">
-          {/* Summary Metrics (Row of 4 Cards Matching Reference UI) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 mb-3 sm:mb-5">
+          {/* Top Section: Metrics on Left, Graph on Right */}
+          <div className="grid grid-cols-12 gap-3.5 md:gap-4 mb-3.5 items-start">
+            {/* LEFT COLUMN: Summary Metrics + Multi-Period Risk Ratios */}
+            <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-3">
+              {/* Stacked Grid of 4 Key Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5">
           {/* Card 1: NAV */}
           <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-500 dark:text-sky-400 flex items-center justify-center font-bold text-sm sm:text-lg shrink-0">
@@ -1457,7 +1482,7 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
             <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Sharpe & Sortino Ratios</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             {[
               { label: '1-Year', key: '1Y' },
               { label: '3-Year', key: '3Y' },
@@ -1513,6 +1538,98 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
             })}
           </div>
         </div>
+      </div>
+
+      {/* RIGHT COLUMN: Desktop Graph Page */}
+      <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5 md:mb-2">
+          <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-slate-200/80 dark:border-slate-700 gap-0.5">
+            <button
+              onClick={() => setChartSubView('area')}
+              className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
+                chartSubView === 'area'
+                  ? 'bg-[#16B85A] text-white shadow-xs font-bold'
+                  : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
+              }`}
+            >
+              Performance Chart
+            </button>
+            <button
+              onClick={() => setChartSubView('monthly')}
+              className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
+                chartSubView === 'monthly'
+                  ? 'bg-[#16B85A] text-white shadow-xs font-bold'
+                  : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
+              }`}
+            >
+              Monthly Breakdown
+            </button>
+          </div>
+        </div>
+
+        {chartSubView === 'area' ? (
+          <TradingViewChart schemeCode={schemeId} fund={fund} assetType="mf" height={480} hideHeaderTitle={true} />
+        ) : (
+          <div className="bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-sm text-slate-900 dark:text-slate-100">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">Monthly Historical Return Breakdown</h3>
+            <div className="h-80 sm:h-[480px] w-full">
+              {monthlyReturns.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyReturns} margin={{ top: 10, right: 15, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      stroke="#cbd5e1"
+                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e2e8f0' }}
+                    />
+                    <YAxis
+                      stroke="#cbd5e1"
+                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `${v}%`}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length > 0) {
+                          const d = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-xl text-xs font-sans text-slate-900 dark:text-slate-100">
+                              <div className="text-[#64748b] dark:text-slate-400 font-medium mb-1">{d.month} Historical Return</div>
+                              <div className={`text-base font-extrabold font-mono ${d.isGain ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                                {d.isGain ? '▲ +' : '▼ '}{d.returnPct.toFixed(2)}%
+                              </div>
+                              <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] mt-1 space-y-0.5">
+                                <div>Start NAV: {d.startNav.toFixed(2)}</div>
+                                <div>End NAV: {d.endNav.toFixed(2)}</div>
+                                <div>Change: {d.diff >= 0 ? '+' : ''}{d.diff.toFixed(2)}</div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <ReferenceLine y={0} stroke="rgba(148, 163, 184, 0.45)" strokeDasharray="2 2" />
+                    <Bar dataKey="returnPct" radius={[4, 4, 0, 0]}>
+                      {monthlyReturns.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.isGain ? '#16B85A' : '#eb5b3c'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">
+                  Monthly breakdown requires historical NAV data.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
 
         {loading ? (
           <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
@@ -1637,7 +1754,15 @@ const FundDetailModal = ({ fund: propFund, onClose }) => {
                           const initialChar = displayTicker.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || 'S';
 
                           return (
-                            <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50 transition-colors group">
+                            <tr
+                              key={idx}
+                              onClick={() => {
+                                dispatch(setActiveSymbol(displayTicker));
+                                navigate(`/stocks?symbol=${encodeURIComponent(displayTicker)}`);
+                              }}
+                              className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50 transition-colors group cursor-pointer"
+                              title={`Open ${displayTicker} stock details page`}
+                            >
                               {/* Rank */}
                               <td className="py-2.5 px-2 text-center align-middle">
                                 {isGold ? (
@@ -1852,7 +1977,22 @@ export const IndianMfSectorAnalysis = () => {
   const [allDirectSchemes, setAllDirectSchemes] = useState([]);
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { id: routeId } = useParams();
+
+  const handleCloseFund = useCallback(() => {
+    setActiveModalFund(null);
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('schemeCode') || params.has('fundId') || params.has('id')) {
+      params.delete('schemeCode');
+      params.delete('fundId');
+      params.delete('id');
+      const newQuery = params.toString();
+      const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -2780,8 +2920,8 @@ export const IndianMfSectorAnalysis = () => {
         }
       });
 
-      const getFSharpe = (f) => f.sharpeRatio ?? f.sharpeRatio3Y ?? f.riskRatios?.['3Y']?.sharpe ?? f.riskRatios?.['All']?.sharpe ?? f.riskRatios?.['1Y']?.sharpe ?? null;
-      const getFSortino = (f) => f.sortinoRatio ?? f.sortinoRatio3Y ?? f.riskRatios?.['3Y']?.sortino ?? f.riskRatios?.['All']?.sortino ?? f.riskRatios?.['1Y']?.sortino ?? null;
+      const getFSharpe = (f) => getSharpe(f, '3Y');
+      const getFSortino = (f) => getSortino(f, '3Y');
 
       const parentSharpes = parent.funds.map(getFSharpe).filter(v => v != null && !isNaN(v));
       if (parentSharpes.length > 0) parent.sharpeRatio = parseFloat((parentSharpes.reduce((a, b) => a + b, 0) / parentSharpes.length).toFixed(2));
@@ -3045,6 +3185,16 @@ export const IndianMfSectorAnalysis = () => {
 
   const { macro, sectors } = data;
 
+  if (activeModalFund) {
+    return (
+      <div className="flex-1 w-full min-h-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+        <div className="w-full max-w-[1720px] mx-auto p-1 sm:p-2 md:p-2.5">
+          <FundDetailModal fund={activeModalFund} onClose={handleCloseFund} isFullPage={true} />
+        </div>
+      </div>
+    );
+  }
+
   // Filter sectors based on search query
   const filteredSectors = sectors.map(sector => {
     const filteredFunds = (sector.topFunds || []).filter(fund => {
@@ -3104,20 +3254,31 @@ export const IndianMfSectorAnalysis = () => {
             activeTimeframe={rankingTimeframe}
             rankMode={rankMode}
             onTimeframeChange={(tf) => setRankingTimeframe(tf)}
-            onSelectFund={(fund) => setActiveModalFund(fund)}
+            onSelectFund={(fund) => {
+              setActiveModalFund(fund);
+              const code = fund.schemeCode || fund.id;
+              if (code) {
+                const params = new URLSearchParams(window.location.search);
+                params.set('schemeCode', code);
+                window.history.pushState({}, '', window.location.pathname + '?' + params.toString());
+              }
+            }}
           />
         </div>
 
         {/* ── CUSTOM FUND-WISE CROSS-CATEGORY COMPARISON MODULE ── */}
         <CustomFundComparison 
           funds={enrichedFunds} 
-          onSelectFundDetail={setActiveModalFund} 
+          onSelectFundDetail={(fund) => {
+            setActiveModalFund(fund);
+            const code = fund.schemeCode || fund.id;
+            if (code) {
+              const params = new URLSearchParams(window.location.search);
+              params.set('schemeCode', code);
+              window.history.pushState({}, '', window.location.pathname + '?' + params.toString());
+            }
+          }} 
         />
-
-        {/* Fund Detail Drawer / Modal */}
-        {activeModalFund && (
-          <FundDetailModal fund={activeModalFund} onClose={() => setActiveModalFund(null)} />
-        )}
 
         {/* Sharpe & Sortino Range Guide Modal */}
         {showRatioGuide && <RatioRangeGuideModal onClose={() => setShowRatioGuide(false)} />}
