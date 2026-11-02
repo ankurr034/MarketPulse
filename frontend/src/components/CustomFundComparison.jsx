@@ -434,7 +434,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-[10px]">
-                <th className="py-3 px-3 font-bold uppercase w-44 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800">
+                <th className="py-3 px-3 font-bold uppercase w-44 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800">
                   Metric / Scheme
                 </th>
                 {selectedFunds.map((f, idx) => (
@@ -450,7 +450,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800/40 text-xs">
               {/* NAV */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   Current NAV
                 </td>
                 {selectedFunds.map(f => (
@@ -462,7 +462,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* AUM */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   Fund AUM (Cr)
                 </td>
                 {selectedFunds.map(f => {
@@ -478,7 +478,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* 1Y Return */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   1-Year Return
                 </td>
                 {selectedFunds.map(f => {
@@ -496,7 +496,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* 3Y Return */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   3-Year Return
                 </td>
                 {selectedFunds.map(f => {
@@ -514,7 +514,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* 5Y Return */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   5-Year Return
                 </td>
                 {selectedFunds.map(f => {
@@ -532,7 +532,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* Sharpe Ratio ({activeTimeframe}) */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   Sharpe Ratio ({activeTimeframe})
                 </td>
                 {selectedFunds.map(f => {
@@ -553,7 +553,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* Sortino Ratio ({activeTimeframe}) */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   Sortino Ratio ({activeTimeframe})
                 </td>
                 {selectedFunds.map(f => {
@@ -574,7 +574,7 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
 
               {/* Actions / Compare Pin */}
               <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                <td className="py-2.5 px-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 text-[11px]">
                   Actions
                 </td>
                 {selectedFunds.map(f => {

@@ -724,15 +724,15 @@ export default function MfRankingTable({
       <tr
         key={fund.id || fund.schemeCode || index}
         onClick={() => onSelectFund && onSelectFund(fund)}
-        className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors cursor-pointer group"
+        className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors cursor-pointer group"
       >
         {/* Numerical Rank # Column */}
-        <td className="py-1.5 md:py-2.5 px-1 md:px-2 text-center align-middle font-mono text-[9px] sm:text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] shrink-0 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800/60">
+        <td className="py-1.5 md:py-2.5 px-1 md:px-2 text-center align-middle font-mono text-[9px] sm:text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 w-[20px] min-w-[20px] max-w-[20px] md:w-[32px] md:min-w-[32px] md:max-w-[32px] shrink-0 sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-b border-slate-100 dark:border-slate-800/60">
           {rankDisplay != null ? rankDisplay : '—'}
         </td>
 
         {/* Fund Name Column */}
-        <td className="py-1.5 md:py-2.5 px-1.5 md:px-3 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] align-middle overflow-visible relative sticky left-[20px] md:left-[32px] z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900/60 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800/60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+        <td className="py-1.5 md:py-2.5 px-1.5 md:px-3 min-w-[117px] sm:min-w-[135px] md:min-w-[216px] max-w-[165px] sm:max-w-[190px] md:max-w-[305px] align-middle overflow-visible relative sticky left-[20px] md:left-[32px] z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800/60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
           <div className="flex items-start gap-1 min-w-0">
             <StarHoverTooltip
               fund={fund}
