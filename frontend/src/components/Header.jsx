@@ -212,7 +212,11 @@ export default function Header() {
     (results.sectors && results.sectors.length > 0);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-primary)', backdropFilter: 'blur(12px)' }}>
+    <>
+      <header 
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b shadow-2xs ${mobileMenuOpen ? 'max-h-screen overflow-y-auto' : ''}`} 
+        style={{ borderColor: 'var(--border-color)', background: 'var(--bg-primary)', backdropFilter: 'blur(12px)' }}
+      >
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 w-full">
         {/* Main header row */}
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-6 w-full min-w-0">
@@ -420,8 +424,8 @@ export default function Header() {
 
           {/* Right controls */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Disclaimer badge on extra large screens */}
-            <div className="hidden 2xl:flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+            {/* Disclaimer badge on laptop and desktop screens */}
+            <div className="hidden xl:flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
               <AlertTriangle size={11} />
               Delayed ~15 min
             </div>
@@ -628,6 +632,12 @@ export default function Header() {
                 </div>
               )}
             </div>
+
+            {/* Disclaimer badge in mobile drawer */}
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium w-fit opacity-80" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+              <AlertTriangle size={11} />
+              Delayed ~15 min
+            </div>
           </div>
         )}
       </div>
@@ -638,5 +648,8 @@ export default function Header() {
         onClose={() => setProfileModalOpen(false)} 
       />
     </header>
+    {/* Spacer to preserve document layout and prevent content jumping under fixed header */}
+    <div className="h-14 sm:h-16 w-full shrink-0" aria-hidden="true" />
+  </>
   );
 }
