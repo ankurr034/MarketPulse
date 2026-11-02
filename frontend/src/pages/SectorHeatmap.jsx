@@ -6,11 +6,10 @@ import {
   Hammer, Zap, Tv, HardHat, TrendingUp, Download, RefreshCw, 
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, 
   ChevronsLeft, ChevronsRight, ArrowRight, X, Activity,
-  ArrowUpDown, ArrowUp, ArrowDown, Pin
+  ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import axios from 'axios';
 import MacroCorrelationSection from '../components/MacroCorrelationSection';
-import PinnedItemsStrip from '../components/PinnedItemsStrip';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -229,80 +228,7 @@ export default function SectorHeatmap() {
   // Refresh trigger state
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ── Drag-to-Pin Stock Sectors State ──
-  const PINNED_STOCKS_STORAGE_KEY = 'marketpulse_pinned_stock_sectors';
-  const [pinnedStockSectors, setPinnedStockSectors] = useState(() => {
-    try {
-      const saved = localStorage.getItem(PINNED_STOCKS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse pinned stock sectors:', e);
-    }
-    return [
-      { id: 'financial-services', name: 'Financial Services' },
-      { id: 'information-technology', name: 'Information Technology' },
-      { id: 'automobile', name: 'Automobile' },
-      { id: 'healthcare', name: 'Healthcare' }
-    ];
-  });
 
-  const savePinnedStockSectors = useCallback((items) => {
-    setPinnedStockSectors(items);
-    try {
-      localStorage.setItem(PINNED_STOCKS_STORAGE_KEY, JSON.stringify(items));
-    } catch (e) {
-      console.error('Failed to save pinned stock sectors:', e);
-    }
-  }, []);
-
-  const handleTogglePinSector = useCallback((sector) => {
-    const sId = sector.id || sector.name;
-    setPinnedStockSectors(prev => {
-      const exists = prev.some(p => p.id === sId || p.name === sector.name);
-      let next;
-      if (exists) {
-        next = prev.filter(p => p.id !== sId && p.name !== sector.name);
-      } else {
-        next = [...prev, {
-          id: sector.id || sector.name,
-          name: sector.name,
-          totalStocks: sector.totalStocks || (sector.stocks ? sector.stocks.length : null)
-        }];
-      }
-      try {
-        localStorage.setItem(PINNED_STOCKS_STORAGE_KEY, JSON.stringify(next));
-      } catch (e) {
-        console.error('Failed to save pinned sectors:', e);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleReorderPinnedSectors = useCallback((newItems) => {
-    savePinnedStockSectors(newItems);
-  }, [savePinnedStockSectors]);
-
-  const handleSelectPinnedSector = useCallback((sectorItem) => {
-    const sId = sectorItem.id;
-    if (viewMode === 'all_stocks') {
-      setSelectedSectorFilter(sId);
-      setCurrentPage(1);
-    } else {
-      setViewMode('sectors');
-      setExpandedSectorId(sId);
-      setTimeout(() => {
-        const el = document.getElementById(`sector-row-${sId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-    }
-  }, [viewMode]);
-
-  const pinnedSectorIds = useMemo(() => new Set(pinnedStockSectors.map(s => s.id || s.name)), [pinnedStockSectors]);
 
   // Search handlers with automatic view mode management
   const handleSearchChange = useCallback((query) => {
@@ -1258,16 +1184,6 @@ export default function SectorHeatmap() {
         </div>
       </div>
 
-      {/* ── PINNED SECTORS STRIP (DRAG TO PIN & REORDER) ── */}
-      <PinnedItemsStrip
-        items={pinnedStockSectors}
-        activeId={selectedSectorFilter !== 'all' ? selectedSectorFilter : expandedSectorId}
-        onSelect={handleSelectPinnedSector}
-        onUnpin={(id) => handleTogglePinSector({ id })}
-        onReorder={handleReorderPinnedSectors}
-        title="Pinned Sectors"
-        emptyMessage="Click the pin icon on any sector below to pin it here for 1-click quick access"
-      />
 
       {/* ── MACRO TREND ANALYSIS (HIDDEN PAGE LIKE FACTS & FIGURES IN MUTUAL FUNDS) ── */}
       {showMacroTrends && (
@@ -2464,22 +2380,6 @@ export default function SectorHeatmap() {
                               >
                                 {sector.name}
                               </button>
-                              {/* Pin Button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTogglePinSector(sector);
-                                }}
-                                className={`p-0.5 rounded transition-all cursor-pointer ${
-                                  pinnedSectorIds.has(sector.id || sector.name)
-                                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
-                                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100'
-                                }`}
-                                title={pinnedSectorIds.has(sector.id || sector.name) ? 'Unpin sector' : 'Pin sector to quick access'}
-                              >
-                                <Pin size={11} className={pinnedSectorIds.has(sector.id || sector.name) ? 'fill-amber-400 text-amber-500' : ''} />
-                              </button>
                             </div>
                           </td>
 
@@ -2805,22 +2705,6 @@ export default function SectorHeatmap() {
                                 title={sector.name}
                               >
                                 {sector.name}
-                              </button>
-                              {/* Pin Button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTogglePinSector(sector);
-                                }}
-                                className={`p-0.5 rounded transition-all cursor-pointer shrink-0 ${
-                                  pinnedSectorIds.has(sector.id || sector.name)
-                                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 opacity-100'
-                                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-500'
-                                }`}
-                                title={pinnedSectorIds.has(sector.id || sector.name) ? 'Unpin sector' : 'Pin sector to quick access'}
-                              >
-                                <Pin size={10} className={pinnedSectorIds.has(sector.id || sector.name) ? 'fill-amber-400 text-amber-500' : ''} />
                               </button>
                             </div>
 
