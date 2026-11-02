@@ -950,24 +950,16 @@ const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
         {/* Modal Header Matching Reference UI - Compact & Readable on Smartphone */}
         <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 md:mb-2.5">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap mb-1">
-              <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100/60 dark:border-indigo-800 px-2 md:px-3 py-0.5 rounded-full">
-                {fund.category || detail?.category || 'FLEXI CAP EQUITY'}
-              </span>
-              <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 md:px-3 py-0.5 rounded-full">
-                LAUNCHED: {fund.launchYear || detail?.launchYear || '2013'}
-              </span>
-            </div>
+            {(fund.launchYear || detail?.launchYear) && (
+              <div className="flex items-center gap-1.5 md:gap-2 flex-wrap mb-1">
+                <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 md:px-3 py-0.5 rounded-full">
+                  LAUNCHED: {fund.launchYear || detail?.launchYear}
+                </span>
+              </div>
+            )}
             <h2 className="text-sm sm:text-lg md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-snug md:leading-tight">
               {fund.name}
             </h2>
-            <div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 flex-wrap">
-              <ShieldCheck size={13} className="md:w-[15px] md:h-[15px] text-slate-400 shrink-0" />
-              <span>{fund.family || detail?.amc || 'PPFAS Mutual Fund'} • AMFI Verified Scheme</span>
-              {detail?.holdingsAsOf && (
-                <span className="text-slate-400">• Disclosed: {detail.holdingsAsOf}</span>
-              )}
-            </div>
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
@@ -994,12 +986,13 @@ const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
         </div>
 
         {/* Historical NAV Performance & Movement (Mobile View) */}
-        <div className="mb-4 md:hidden">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5 md:mb-3">
-            <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-slate-200/80 dark:border-slate-700 gap-0.5">
+        <div className="mb-4 md:hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-2.5 sm:p-3 text-slate-900 dark:text-slate-100">
+          {/* Inside Graph Card: Performance Chart / Monthly Breakdown Toggle Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700 gap-0.5">
               <button
                 onClick={() => setChartSubView('area')}
-                className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-all ${
                   chartSubView === 'area'
                     ? 'bg-[#16B85A] text-white shadow-xs font-bold'
                     : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
@@ -1009,7 +1002,7 @@ const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
               </button>
               <button
                 onClick={() => setChartSubView('monthly')}
-                className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-all ${
                   chartSubView === 'monthly'
                     ? 'bg-[#16B85A] text-white shadow-xs font-bold'
                     : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
@@ -1021,11 +1014,18 @@ const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
           </div>
 
           {chartSubView === 'area' ? (
-            <TradingViewChart schemeCode={schemeId} fund={fund} assetType="mf" height={isMobileScreen ? 240 : 360} hideHeaderTitle={true} />
+            <TradingViewChart 
+              schemeCode={schemeId} 
+              fund={fund} 
+              assetType="mf" 
+              height={isMobileScreen ? 200 : 240} 
+              hideHeaderTitle={true} 
+              className="!border-0 !shadow-none !bg-transparent !p-0"
+            />
           ) : (
-            <div className="bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-sm text-slate-900 dark:text-slate-100">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">Monthly Historical Return Breakdown</h3>
-              <div className="h-52 sm:h-64 w-full">
+            <div className="w-full">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2">Monthly Historical Return Breakdown</h3>
+              <div className="h-48 sm:h-56 w-full">
                 {monthlyReturns.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyReturns} margin={{ top: 10, right: 15, left: -20, bottom: 5 }}>
@@ -1542,92 +1542,103 @@ const FundDetailModal = ({ fund: propFund, onClose, isFullPage = true }) => {
 
       {/* RIGHT COLUMN: Desktop Graph Page */}
       <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5 md:mb-2">
-          <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-slate-200/80 dark:border-slate-700 gap-0.5">
-            <button
-              onClick={() => setChartSubView('area')}
-              className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
-                chartSubView === 'area'
-                  ? 'bg-[#16B85A] text-white shadow-xs font-bold'
-                  : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
-              }`}
-            >
-              Performance Chart
-            </button>
-            <button
-              onClick={() => setChartSubView('monthly')}
-              className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
-                chartSubView === 'monthly'
-                  ? 'bg-[#16B85A] text-white shadow-xs font-bold'
-                  : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
-              }`}
-            >
-              Monthly Breakdown
-            </button>
-          </div>
-        </div>
-
-        {chartSubView === 'area' ? (
-          <TradingViewChart schemeCode={schemeId} fund={fund} assetType="mf" height={480} hideHeaderTitle={true} />
-        ) : (
-          <div className="bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-sm text-slate-900 dark:text-slate-100">
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">Monthly Historical Return Breakdown</h3>
-            <div className="h-80 sm:h-[480px] w-full">
-              {monthlyReturns.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyReturns} margin={{ top: 10, right: 15, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      stroke="#cbd5e1"
-                      tick={{ fontSize: 11, fill: '#64748b' }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e2e8f0' }}
-                    />
-                    <YAxis
-                      stroke="#cbd5e1"
-                      tick={{ fontSize: 11, fill: '#64748b' }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0) {
-                          const d = payload[0].payload;
-                          return (
-                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-xl text-xs font-sans text-slate-900 dark:text-slate-100">
-                              <div className="text-[#64748b] dark:text-slate-400 font-medium mb-1">{d.month} Historical Return</div>
-                              <div className={`text-base font-extrabold font-mono ${d.isGain ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
-                                {d.isGain ? '▲ +' : '▼ '}{d.returnPct.toFixed(2)}%
-                              </div>
-                              <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] mt-1 space-y-0.5">
-                                <div>Start NAV: {d.startNav.toFixed(2)}</div>
-                                <div>End NAV: {d.endNav.toFixed(2)}</div>
-                                <div>Change: {d.diff >= 0 ? '+' : ''}{d.diff.toFixed(2)}</div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <ReferenceLine y={0} stroke="rgba(148, 163, 184, 0.45)" strokeDasharray="2 2" />
-                    <Bar dataKey="returnPct" radius={[4, 4, 0, 0]}>
-                      {monthlyReturns.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.isGain ? '#16B85A' : '#eb5b3c'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">
-                  Monthly breakdown requires historical NAV data.
-                </div>
-              )}
+        {/* Unified Graph Card with Performance Chart / Monthly Breakdown Toggle inside */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-3 sm:p-4 text-slate-900 dark:text-slate-100">
+          {/* Inside Graph Card: Performance Chart / Monthly Breakdown Toggle Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700 gap-0.5">
+              <button
+                onClick={() => setChartSubView('area')}
+                className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
+                  chartSubView === 'area'
+                    ? 'bg-[#16B85A] text-white shadow-xs font-bold'
+                    : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
+                }`}
+              >
+                Performance Chart
+              </button>
+              <button
+                onClick={() => setChartSubView('monthly')}
+                className={`px-2.5 md:px-3 py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold transition-all cursor-pointer ${
+                  chartSubView === 'monthly'
+                    ? 'bg-[#16B85A] text-white shadow-xs font-bold'
+                    : 'text-[#64748b] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700'
+                }`}
+              >
+                Monthly Breakdown
+              </button>
             </div>
           </div>
-        )}
+
+          {chartSubView === 'area' ? (
+            <TradingViewChart 
+              schemeCode={schemeId} 
+              fund={fund} 
+              assetType="mf" 
+              height={340} 
+              hideHeaderTitle={true} 
+              className="!border-0 !shadow-none !bg-transparent !p-0"
+            />
+          ) : (
+            <div className="w-full">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">Monthly Historical Return Breakdown</h3>
+              <div className="h-72 sm:h-[340px] w-full">
+                {monthlyReturns.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyReturns} margin={{ top: 10, right: 15, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        stroke="#cbd5e1"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#e2e8f0' }}
+                      />
+                      <YAxis
+                        stroke="#cbd5e1"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v}%`}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-xl text-xs font-sans text-slate-900 dark:text-slate-100">
+                                <div className="text-[#64748b] dark:text-slate-400 font-medium mb-1">{d.month} Historical Return</div>
+                                <div className={`text-base font-extrabold font-mono ${d.isGain ? 'text-[#16B85A]' : 'text-[#eb5b3c]'}`}>
+                                  {d.isGain ? '▲ +' : '▼ '}{d.returnPct.toFixed(2)}%
+                                </div>
+                                <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] mt-1 space-y-0.5">
+                                  <div>Start NAV: {d.startNav.toFixed(2)}</div>
+                                  <div>End NAV: {d.endNav.toFixed(2)}</div>
+                                  <div>Change: {d.diff >= 0 ? '+' : ''}{d.diff.toFixed(2)}</div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <ReferenceLine y={0} stroke="rgba(148, 163, 184, 0.45)" strokeDasharray="2 2" />
+                      <Bar dataKey="returnPct" radius={[4, 4, 0, 0]}>
+                        {monthlyReturns.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.isGain ? '#16B85A' : '#eb5b3c'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">
+                    Monthly breakdown requires historical NAV data.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
 
