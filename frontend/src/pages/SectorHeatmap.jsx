@@ -1982,15 +1982,15 @@ export default function SectorHeatmap() {
                       <tr 
                         key={stock.symbol || sIdx}
                         onClick={() => dispatch(setActiveSymbol(stock.symbol))}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
                       >
                         {/* # Global Rank */}
-                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500 dark:text-slate-400">
+                        <td className="w-8 min-w-[32px] max-w-[32px] sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 py-2.5 px-3 text-center font-mono font-bold text-slate-500 dark:text-slate-400 transition-colors">
                           {(stock.indiaStockRank ?? stock.globalRank) !== null && (stock.indiaStockRank ?? stock.globalRank) !== undefined ? `#${stock.indiaStockRank ?? stock.globalRank}` : '—'}
                         </td>
 
                         {/* Stock Badge + Symbol */}
-                        <td className="py-2.5 px-3">
+                        <td className="sticky left-8 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 transition-colors">
                           <div className="flex items-center gap-2">
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badge.bg}`}>
                               {badge.letter}
@@ -2148,10 +2148,10 @@ export default function SectorHeatmap() {
                       <tr 
                         key={stock.symbol || sIdx}
                         onClick={() => dispatch(setActiveSymbol(stock.symbol))}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
                       >
                         {/* Stock Badge + Symbol + Submetrics - sticky */}
-                        <td className="py-1.5 px-1.5 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                        <td className="py-1.5 px-1.5 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
                           <div className="flex items-center gap-1 min-w-0">
                             {(stock.indiaStockRank ?? stock.globalRank) != null && (
                               <span className="font-mono text-[8.5px] font-bold text-slate-400 shrink-0">
@@ -2346,16 +2346,24 @@ export default function SectorHeatmap() {
                         {/* Main Sector Row */}
                         <tr 
                           id={`sector-row-${sector.id}`}
-                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group ${
-                          isExpanded ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
+                          className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${
+                          isExpanded ? 'bg-blue-50/40 dark:bg-blue-950/30' : ''
                         }`}>
                           {/* # */}
-                          <td className="py-3 px-3 text-center font-mono text-slate-400 font-medium">
+                          <td className={`w-8 min-w-[32px] max-w-[32px] sticky left-0 z-10 py-3 px-3 text-center font-mono text-slate-400 font-medium transition-colors ${
+                            isExpanded 
+                              ? 'bg-blue-50 dark:bg-slate-900 group-hover:bg-blue-100/80 dark:group-hover:bg-slate-800' 
+                              : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
+                          }`}>
                             {rowIndex}
                           </td>
 
                           {/* Sector Name & Icon with Dropdown Toggle */}
-                          <td className="py-3 px-3">
+                          <td className={`sticky left-8 z-10 py-3 px-3 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
+                            isExpanded 
+                              ? 'bg-blue-50 dark:bg-slate-900 group-hover:bg-blue-100/80 dark:group-hover:bg-slate-800' 
+                              : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
+                          }`}>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => {
@@ -2485,15 +2493,15 @@ export default function SectorHeatmap() {
                                   <tr
                                     key={stock.symbol || sIdx}
                                     onClick={() => dispatch(setActiveSymbol(stock.symbol))}
-                                    className="bg-slate-50/30 dark:bg-slate-900/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800/60 transition-colors cursor-pointer group"
+                                    className="bg-slate-50/50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800/60 transition-colors cursor-pointer group"
                                   >
                                     {/* # India Rank */}
-                                    <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-400">
+                                    <td className="w-8 min-w-[32px] max-w-[32px] sticky left-0 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 py-2.5 px-3 text-center font-mono text-[11px] text-slate-400 transition-colors">
                                       {(stock.indiaStockRank ?? stock.globalRank) != null ? `#${stock.indiaStockRank ?? stock.globalRank}` : '—'}
                                     </td>
 
                                     {/* Stock Name + Badge (indented to show hierarchy) */}
-                                    <td className="py-2.5 px-3 pl-8">
+                                    <td className="sticky left-8 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 pl-8 transition-colors">
                                       <div className="flex items-center gap-2">
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badge.bg}`}>
                                           {badge.letter}
@@ -2577,19 +2585,21 @@ export default function SectorHeatmap() {
                               })}
 
                               {/* View All Stocks inline action row */}
-                              <tr className="bg-slate-50/60 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+                              <tr className="bg-slate-50/60 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                                 <td colSpan={17} className="py-2.5 px-4 text-left">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedSectorFilter(sector.id);
-                                      setViewMode('all_stocks');
-                                      setCurrentPage(1);
-                                    }}
-                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                                  >
-                                    <span>View All {constituentStocks.length || sector.totalStocks || constituentList.length} {sector.name} Stocks →</span>
-                                  </button>
+                                  <div className="sticky left-4 inline-block">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedSectorFilter(sector.id);
+                                        setViewMode('all_stocks');
+                                        setCurrentPage(1);
+                                      }}
+                                      className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <span>View All {constituentStocks.length || sector.totalStocks || constituentList.length} {sector.name} Stocks →</span>
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             </>
@@ -2673,12 +2683,14 @@ export default function SectorHeatmap() {
                     return (
                       <React.Fragment key={sector.id}>
                         {/* Main Sector Row */}
-                        <tr className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
-                          isExpanded ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
+                        <tr className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${
+                          isExpanded ? 'bg-blue-50/40 dark:bg-blue-950/30' : ''
                         }`}>
                           {/* Sector Name & Icon + Submetrics (MCap, Price, P/E, EPS) - sticky */}
-                          <td className={`py-1.5 px-1.5 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] ${
-                            isExpanded ? 'bg-blue-50/90 dark:bg-slate-900' : 'bg-white dark:bg-slate-900'
+                          <td className={`py-1.5 px-1.5 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
+                            isExpanded 
+                              ? 'bg-blue-50 dark:bg-slate-900 group-hover:bg-blue-100/80 dark:group-hover:bg-slate-800' 
+                              : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
                           }`}>
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="font-mono text-[8.5px] text-slate-400 font-medium shrink-0">#{rowIndex}</span>
@@ -2792,10 +2804,10 @@ export default function SectorHeatmap() {
                                   <tr 
                                     key={stock.symbol || sIdx}
                                     onClick={() => dispatch(setActiveSymbol(stock.symbol))}
-                                    className="bg-slate-50/30 dark:bg-slate-900/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800/60 cursor-pointer transition-colors group"
+                                    className="bg-slate-50/50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800/60 cursor-pointer transition-colors group"
                                   >
                                     {/* Stock Badge + Symbol + Submetrics - sticky */}
-                                    <td className="py-1.5 px-1.5 pl-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                                    <td className="py-1.5 px-1.5 pl-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[75px] min-w-[75px] max-w-[75px] sm:w-[90px] sm:min-w-[90px] sm:max-w-[90px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
                                       <div className="flex items-center gap-1 min-w-0">
                                         {(stock.indiaStockRank ?? stock.globalRank) != null && (
                                           <span className="font-mono text-[8.5px] font-bold text-slate-400 shrink-0">
@@ -2865,7 +2877,7 @@ export default function SectorHeatmap() {
                               })}
 
                               {/* View All Stocks inline action row */}
-                              <tr className="bg-slate-50/60 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+                              <tr className="bg-slate-50/60 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                                 <td colSpan={12} className="py-1.5 px-0 text-left">
                                   <div className="sticky left-0 inline-block px-3">
                                     <button
