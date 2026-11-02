@@ -1882,7 +1882,7 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('globalRank')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('stock')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] ${globalSortKey === 'stock' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('stock')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] min-w-[180px] ${globalSortKey === 'stock' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center gap-1">
                       <span>Stock</span>
                       {renderSortIndicator('stock')}
@@ -1990,7 +1990,7 @@ export default function SectorHeatmap() {
                         </td>
 
                         {/* Stock Badge + Symbol */}
-                        <td className="sticky left-8 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 transition-colors">
+                        <td className="sticky left-8 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 min-w-[180px] transition-colors">
                           <div className="flex items-center gap-2">
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badge.bg}`}>
                               {badge.letter}
@@ -2000,7 +2000,7 @@ export default function SectorHeatmap() {
                                 {cleanSymbol}
                               </span>
                               {stock.name && stock.name !== cleanSymbol && (
-                                <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                <span className="text-[10px] text-slate-400 truncate max-w-[220px]">
                                   {stock.name}
                                 </span>
                               )}
@@ -2091,7 +2091,7 @@ export default function SectorHeatmap() {
               <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
                 <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
                   {/* Stock - sticky top-0 left-0 on mobile */}
-                  <th className="py-2 px-2 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[140px] min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                  <th className="py-2 px-2 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[185px] min-w-[185px] max-w-[185px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                     Stock
                   </th>
 
@@ -2151,7 +2151,7 @@ export default function SectorHeatmap() {
                         className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
                       >
                         {/* Stock Badge + Symbol + Submetrics - sticky */}
-                        <td className="py-2 px-2 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[140px] min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
+                        <td className="py-2 px-2 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[185px] min-w-[185px] max-w-[185px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
                           <div className="flex items-center gap-1.5 min-w-0">
                             {(stock.indiaStockRank ?? stock.globalRank) != null && (
                               <span className="font-mono text-[9px] font-bold text-slate-400 shrink-0">
@@ -2166,7 +2166,7 @@ export default function SectorHeatmap() {
                                 {cleanSymbol}
                               </span>
                               {stock.name && stock.name !== cleanSymbol && (
-                                <span className="text-[9px] text-slate-400 truncate max-w-[85px]">
+                                <span className="text-[9px] text-slate-400 truncate max-w-[125px]">
                                   {stock.name}
                                 </span>
                               )}
@@ -2248,7 +2248,7 @@ export default function SectorHeatmap() {
                       {renderSortIndicator('globalRank')}
                     </div>
                   </th>
-                  <th onClick={() => handleGlobalSort('sector')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                  <th onClick={() => handleGlobalSort('sector')} className={`sticky top-0 left-8 z-40 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 py-3 px-3 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] min-w-[200px] ${globalSortKey === 'sector' ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     <div className="flex items-center gap-1">
                       <span>Sector</span>
                       {renderSortIndicator('sector')}
@@ -2359,7 +2359,7 @@ export default function SectorHeatmap() {
                           </td>
 
                           {/* Sector Name & Icon with Dropdown Toggle */}
-                          <td className={`sticky left-8 z-10 py-3 px-3 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
+                          <td className={`sticky left-8 z-10 py-3 px-3 min-w-[200px] border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
                             isExpanded 
                               ? 'bg-blue-50 dark:bg-slate-900 group-hover:bg-blue-100/80 dark:group-hover:bg-slate-800' 
                               : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
@@ -2501,7 +2501,7 @@ export default function SectorHeatmap() {
                                     </td>
 
                                     {/* Stock Name + Badge (indented to show hierarchy) */}
-                                    <td className="sticky left-8 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 pl-8 transition-colors">
+                                    <td className="sticky left-8 z-10 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] py-2.5 px-3 pl-8 min-w-[180px] transition-colors">
                                       <div className="flex items-center gap-2">
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badge.bg}`}>
                                           {badge.letter}
@@ -2511,7 +2511,7 @@ export default function SectorHeatmap() {
                                             {cleanSymbol}
                                           </span>
                                           {stock.name && stock.name !== cleanSymbol && (
-                                            <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                            <span className="text-[10px] text-slate-400 truncate max-w-[220px]">
                                               {stock.name}
                                             </span>
                                           )}
@@ -2625,7 +2625,7 @@ export default function SectorHeatmap() {
               <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-2xs">
                 <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider text-[9px]">
                   {/* Sector - sticky top-0 left-0 on mobile */}
-                  <th className="py-2 px-2 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[140px] min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+                  <th className="py-2 px-2 text-left sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-800 w-[185px] min-w-[185px] max-w-[185px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
                     Sector
                   </th>
 
@@ -2687,7 +2687,7 @@ export default function SectorHeatmap() {
                           isExpanded ? 'bg-blue-50/40 dark:bg-blue-950/30' : ''
                         }`}>
                           {/* Sector Name & Icon + Submetrics (MCap, Price, P/E, EPS) - sticky */}
-                          <td className={`py-2 px-2 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 w-[140px] min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
+                          <td className={`py-2 px-2 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 w-[185px] min-w-[185px] max-w-[185px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors ${
                             isExpanded 
                               ? 'bg-blue-50 dark:bg-slate-900 group-hover:bg-blue-100/80 dark:group-hover:bg-slate-800' 
                               : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
@@ -2713,7 +2713,7 @@ export default function SectorHeatmap() {
                               </div>
                               <button
                                 onClick={() => handleToggleExpand(sector.id)}
-                                className="text-left font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight text-[11px] hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer truncate"
+                                className="text-left font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight text-[11px] hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer truncate min-w-0 flex-1"
                                 title={sector.name}
                               >
                                 {sector.name}
@@ -2807,7 +2807,7 @@ export default function SectorHeatmap() {
                                     className="bg-slate-50/50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800/60 cursor-pointer transition-colors group"
                                   >
                                     {/* Stock Badge + Symbol + Submetrics - sticky */}
-                                    <td className="py-2 px-2 pl-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[140px] min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
+                                    <td className="py-2 px-2 pl-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-800 w-[185px] min-w-[185px] max-w-[185px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)] transition-colors">
                                       <div className="flex items-center gap-1.5 min-w-0">
                                         {(stock.indiaStockRank ?? stock.globalRank) != null && (
                                           <span className="font-mono text-[9px] font-bold text-slate-400 shrink-0">
@@ -2822,7 +2822,7 @@ export default function SectorHeatmap() {
                                             {cleanSymbol}
                                           </span>
                                           {stock.name && stock.name !== cleanSymbol && (
-                                            <span className="text-[9px] text-slate-400 truncate max-w-[85px]">
+                                            <span className="text-[9px] text-slate-400 truncate max-w-[125px]">
                                               {stock.name}
                                             </span>
                                           )}
