@@ -3313,7 +3313,6 @@ export const IndianMfSectorAnalysis = () => {
           onUnpin={(id) => handleTogglePinCategory({ id })}
           onReorder={handleReorderPinnedCategories}
           title="Pinned"
-          emptyMessage="Click the pin icon on any category or subcategory to pin it here for 1-click quick access"
         />
 
         {/* ── MARKET FILTER STRIP ── */}

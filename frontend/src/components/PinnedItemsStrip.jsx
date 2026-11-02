@@ -13,7 +13,7 @@ export default function PinnedItemsStrip({
   onUnpin,
   onReorder,
   title = 'Pinned',
-  emptyMessage = 'Pin categories or sectors for 1-click quick access'
+  emptyMessage = null
 }) {
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -59,6 +59,7 @@ export default function PinnedItemsStrip({
   };
 
   if (!items || items.length === 0) {
+    if (!emptyMessage) return null;
     return (
       <div className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50/60 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-400 dark:text-slate-500">
         <div className="flex items-center gap-2">

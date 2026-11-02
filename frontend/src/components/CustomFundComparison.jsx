@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { 
-  BarChart3, Plus, X, Search, Check, Sparkles, TrendingUp, 
-  ShieldAlert, Award, ArrowUpRight, Scale, RefreshCcw, Layers, Info
+  Plus, X, Search, Check, Sparkles, TrendingUp, 
+  ShieldAlert, ArrowUpRight, Scale, RefreshCcw, Layers, Info
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, 
-  Legend, CartesianGrid, BarChart, Bar, Cell, ReferenceLine 
+  Legend, CartesianGrid, ReferenceLine 
 } from 'recharts';
 import MiniRatioIndicator from './MiniRatioIndicator';
 import { useWorkbench } from '../context/WorkbenchContext';
@@ -236,23 +236,6 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
     });
   }, [selectedFunds, activeTimeframe]);
 
-  // Bar Chart Data comparing Return % and Sharpe Ratio side-by-side
-  const metricsBarData = useMemo(() => {
-    return selectedFunds.map((f, idx) => {
-      const sVal = (f.sharpeRatios?.[activeTimeframe] !== undefined && f.sharpeRatios[activeTimeframe] !== null)
-        ? f.sharpeRatios[activeTimeframe]
-        : (f.riskRatios?.[activeTimeframe]?.sharpe ?? f.sharpeRatio ?? f.sharpeRatio3Y ?? f.riskRatios?.['3Y']?.sharpe ?? f.riskRatios?.['All']?.sharpe ?? f.riskRatios?.['1Y']?.sharpe ?? 0);
-      const retVal = Number(f.returns?.[activeTimeframe] || 0);
-
-      return {
-        name: getShortFundName(f.name),
-        fullName: f.name,
-        return: parseFloat(retVal.toFixed(1)),
-        sharpe: parseFloat(Number(sVal).toFixed(2)),
-        color: COLOR_PALETTE[idx % COLOR_PALETTE.length]
-      };
-    });
-  }, [selectedFunds, activeTimeframe]);
 
   return (
     <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/90 rounded-xl md:rounded-2xl p-1.5 sm:p-4 md:p-6 space-y-4 md:space-y-6 shadow-sm w-full">
@@ -824,10 +807,10 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
         </div>
       </div>
 
-      {/* ── 2. VISUAL CHARTS SECTION: NORMALIZED RETURN OVERLAY & BAR COMPARISON ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-        {/* Normalized Growth Overlay Chart (Left 7 Cols) */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-4 space-y-3 shadow-2xs">
+      {/* ── 2. VISUAL CHARTS SECTION: NORMALIZED RETURN OVERLAY ── */}
+      <div className="w-full">
+        {/* Normalized Growth Overlay Chart */}
+        <div className="w-full bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-4 space-y-3 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
@@ -909,55 +892,6 @@ export default function CustomFundComparison({ funds = [], onSelectFundDetail })
                   />
                 ))}
               </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Risk & Return Bar Comparison (Right 5 Cols) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-4 space-y-3 shadow-2xs">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
-            <div>
-              <h3 className="text-xs font-extrabold text-slate-900 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <BarChart3 size={14} className="text-emerald-600 dark:text-emerald-400" />
-                Return vs Risk Ratio Comparison ({activeTimeframe})
-              </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Comparing {activeTimeframe} Return % and Sharpe Ratio side-by-side.
-              </p>
-            </div>
-          </div>
-
-          {/* Educational Insight Banner */}
-          <div className="bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-lg p-2 text-[10.5px] text-emerald-900 dark:text-emerald-200 font-medium flex items-center gap-1.5">
-            <Award size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span><strong>Higher Return + Higher Sharpe Ratio</strong> = Superior risk-adjusted returns per unit of volatility.</span>
-          </div>
-
-          <div className="h-64 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metricsBarData} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={9} angle={-15} textAnchor="end" interval={0} />
-                <YAxis yAxisId="left" stroke="#10b981" fontSize={10} tickLine={false} tickFormatter={v => `${v}%`} />
-                <YAxis yAxisId="right" orientation="right" stroke="#6366f1" fontSize={10} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: isDark ? '#1e293b' : '#ffffff', 
-                    borderColor: isDark ? '#334155' : '#e2e8f0', 
-                    color: isDark ? '#f8fafc' : '#0f172a', 
-                    borderRadius: '8px', 
-                    fontSize: '11px',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                  }}
-                  formatter={(val, name) => [
-                    name === `${activeTimeframe} Return %` ? `${Number(val) >= 0 ? '+' : ''}${val}%` : Number(val).toFixed(2), 
-                    name
-                  ]}
-                />
-                <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }} />
-                <Bar yAxisId="left" dataKey="return" name={`${activeTimeframe} Return %`} fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="sharpe" name="Sharpe Ratio" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
